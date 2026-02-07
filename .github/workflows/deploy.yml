@@ -40,12 +40,15 @@ jobs:
         VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         VITE_STRIPE_PUBLIC_KEY: ${{ secrets.VITE_STRIPE_PUBLIC_KEY }}
       run: |
-        echo "Building with environment variables..."
-        echo "VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:0:20}..."
-        echo "VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:0:20}..."
-        echo "VITE_GEMINI_API_KEY: ${VITE_GEMINI_API_KEY:0:20}..."
-        echo "VITE_STRIPE_PUBLIC_KEY: ${VITE_STRIPE_PUBLIC_KEY:0:20}..."
+        echo "=== DEBUG: Environment Variables Check ==="
+        echo "VITE_GEMINI_API_KEY exists: $([[ -n "$VITE_GEMINI_API_KEY" ]] && echo "YES" || echo "NO")"
+        echo "VITE_SUPABASE_URL exists: $([[ -n "$VITE_SUPABASE_URL" ]] && echo "YES" || echo "NO")"
+        echo "VITE_SUPABASE_ANON_KEY exists: $([[ -n "$VITE_SUPABASE_ANON_KEY" ]] && echo "YES" || echo "NO")"
+        echo "VITE_STRIPE_PUBLIC_KEY exists: $([[ -n "$VITE_STRIPE_PUBLIC_KEY" ]] && echo "YES" || echo "NO")"
+        echo "VITE_GEMINI_API_KEY first 10 chars: ${VITE_GEMINI_API_KEY:0:10}..."
+        echo "=========================================="
         npm run build
+        echo "=== BUILD COMPLETED ==="
       
     - name: Setup Pages
       uses: actions/configure-pages@v4
