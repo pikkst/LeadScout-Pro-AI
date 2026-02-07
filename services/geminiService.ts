@@ -1,7 +1,34 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { CompanyLead, LeadFocus } from "../types";
 
 const MODEL_NAME = 'gemini-3-flash-preview';
+
+// Use proxy endpoint to avoid CORS issues
+const PROXY_ENDPOINT = 'https://leadscout-pro-ai.vercel.app/api/gemini-proxy';
+
+/**
+ * Call Gemini API through proxy to avoid CORS issues
+ */
+const callGeminiProxy = async (prompt: string, tools: any[] = [], config: any = {}) => {
+  const response = await fetch(PROXY_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      model: MODEL_NAME,
+      tools,
+      config
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Proxy error: ${response.status}`);
+  }
+
+  return response.json();
+};
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -208,11 +235,6 @@ export const findMajorCities = async (
   onRetry?: (attempt: number, nextDelay: number) => void
 ): Promise<string[]> => {
   return callWithRetry(async () => {
-    const apiKey = process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in environment variables.');
-    }
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       Analyze if the input "${location}" is a country or region. 
       List the top 15 most active cities/hubs specifically for the "${focus}" industry in ${location}.
@@ -221,12 +243,8 @@ export const findMajorCities = async (
       Return ONLY a JSON array of strings: ["City1", "City2", ...]
     `;
 
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      },
+    const response = await callGeminiProxy(prompt, [], {
+      responseMimeType: "application/json"
     });
 
     const text = response.text || "[]";
@@ -252,11 +270,6 @@ export const verifyEmailAuthenticity = async (
   onRetry?: (attempt: number, nextDelay: number) => void
 ): Promise<boolean> => {
   return callWithRetry(async () => {
-    const apiKey = process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in environment variables.');
-    }
-    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       Verification Mission: Determine if the email "${email}" is a legitimate business contact for "${companyName}" (${website}).
       
@@ -268,13 +281,8 @@ export const verifyEmailAuthenticity = async (
       Return ONLY a JSON object: {"isAuthentic": true/false, "confidence": 0-100, "reason": "..."}
     `;
 
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json"
-      },
+    const response = await callGeminiProxy(prompt, [{ googleSearch: {} }], {
+      responseMimeType: "application/json"
     });
 
     const result = JSON.parse(response.text || "{}");
@@ -399,7 +407,7 @@ export const findLeads = async (
   }
 };
 
-// City search function - enhanced with better retry handling
+// City search function - enhanced with proxy and better retry handling
 const findCityLeads = async (
   city: string,
   country: string,
@@ -407,12 +415,6 @@ const findCityLeads = async (
   onUpdate: (log: string) => void
 ): Promise<CompanyLead[]> => {
   return callWithRetry(async () => {
-    const apiKey = process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in environment variables.');
-    }
-    const ai = new GoogleGenAI({ apiKey });
-    
     const focusPrompts: Record<LeadFocus, string> = {
       events: "professional event planning companies, concert organizers, booking agencies, or festival producers",
       investors: "venture capital firms, angel investor networks, family offices, and private equity groups",
@@ -438,13 +440,8 @@ const findCityLeads = async (
       [{"name": "...", "website": "...", "category": "...", "email": "...", "description": "..."}]
     `;
 
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.1,
-      },
+    const response = await callGeminiProxy(prompt, [{ googleSearch: {} }], {
+      temperature: 0.1
     });
 
     const text = response.text || "";
