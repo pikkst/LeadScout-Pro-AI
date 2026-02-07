@@ -62,12 +62,16 @@ export const createPaymentIntent = async (packageId: string, userId: string) => 
   }
 
   // Call our Supabase Edge Function
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://levkpmoensvpteltohsd.supabase.co';
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxldmtwbW9lbnN2cHRlbHRvaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjU5OTgsImV4cCI6MjA4NjA0MTk5OH0.QdAAS86SxUzZYnw88ywEM8aMO0vxvQL1-oHBSTP2Sso';
+  
+  console.log('Payment URL:', `${supabaseUrl}/functions/v1/create-payment-intent`);
+  
   const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${supabaseKey}`,
     },
     body: JSON.stringify({
       packageId,
