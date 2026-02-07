@@ -1,8 +1,17 @@
 
 import { CompanyLead } from "../types";
 
-export const downloadLeadsAsCSV = (leads: CompanyLead[], location: string) => {
+export const downloadLeadsAsCSV = (
+  leads: CompanyLead[], 
+  location: string, 
+  onDownload?: () => void
+) => {
   if (leads.length === 0) return;
+
+  // Execute download callback if provided
+  if (onDownload) {
+    onDownload();
+  }
 
   // Removed "Website" and "Source" headers
   const headers = ["Name", "Category", "Email", "Description"];
