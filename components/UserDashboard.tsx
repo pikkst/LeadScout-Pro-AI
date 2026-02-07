@@ -122,7 +122,7 @@ const UserDashboard: React.FC = () => {
                 <span className="text-white text-xl">🔍</span>
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-white">{queryHistory.length}</p>
+                <p className="text-2xl font-bold text-white">{queryHistory?.length || 0}</p>
                 <p className="text-blue-200">Total Searches</p>
               </div>
             </div>
@@ -135,7 +135,7 @@ const UserDashboard: React.FC = () => {
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-white">
-                  {queryHistory.filter(q => q.downloaded).length}
+                  {queryHistory?.filter(q => q.downloaded)?.length || 0}
                 </p>
                 <p className="text-blue-200">Downloads</p>
               </div>
@@ -161,7 +161,7 @@ const UserDashboard: React.FC = () => {
             <h2 className="text-xl font-semibold text-white">Search History</h2>
           </div>
           
-          {queryHistory.length === 0 ? (
+          {(queryHistory?.length || 0) === 0 ? (
             <div className="p-8 text-center">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <span className="text-white text-2xl">🔍</span>
@@ -177,7 +177,7 @@ const UserDashboard: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-white/10">
-              {queryHistory.map((query) => (
+              {(queryHistory || []).map((query) => (
                 <div key={query.id} className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
