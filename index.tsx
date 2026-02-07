@@ -6,6 +6,13 @@ import { AuthProvider } from './contexts/AuthContext';
 import App from './App';
 import './index.css';
 
+// Handle GitHub Pages SPA redirect
+const redirect = sessionStorage.redirect;
+delete sessionStorage.redirect;
+if (redirect && redirect !== location.href) {
+  history.replaceState(null, null, redirect);
+}
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
