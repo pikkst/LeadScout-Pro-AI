@@ -1,19 +1,44 @@
 import { CompanyLead, LeadFocus } from "../types";
+import { supabase } from "./supabaseClient";
 
-const MODEL_NAME = 'gemini-3-flash-preview';
+const MODEL_NAME = 'gemini-1.5-flash';
 
-// Use proxy endpoint to avoid CORS issues
-const PROXY_ENDPOINT = 'https://leadscout-pro-ai.vercel.app/api/gemini-proxy';
+// Get Supabase URL from environment for Edge Functions
+const getSupabaseUrl = () => {
+  return import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+};
+
+// Use Supabase Edge Function endpoint
+const getProxyEndpoint = () => {
+  const supabaseUrl = getSupabaseUrl();
+  if (!supabaseUrl) {
+    throw new Error('VITE_SUPABASE_URL environment variable is not set');
+  }
+  return `${supabaseUrl}/functions/v1/gemini-proxy`;
+};
 
 /**
- * Call Gemini API through proxy to avoid CORS issues
+ * Call Gemini API through Supabase Edge function to avoid CORS issues
  */
 const callGeminiProxy = async (prompt: string, tools: any[] = [], config: any = {}) => {
-  const response = await fetch(PROXY_ENDPOINT, {
+  const endpoint = getProxyEndpoint();
+  
+  // Get Supabase session for authentication
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+  };
+
+  // Add authorization header if user is authenticated
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
+
+  const response = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       prompt,
       model: MODEL_NAME,
@@ -22,12 +47,30 @@ const callGeminiProxy = async (prompt: string, tools: any[] = [], config: any = 
     })
   });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || `Proxy error: ${response.status}`);
+  const data = await response.json();
+
+  if (!response.ok || !data.success) {
+    // Enhanced error handling for different error types
+    const errorMessage = data.error || 'Unknown proxy error';
+    
+    // Check for specific error types and provide user-friendly messages
+    if (errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('expired')) {
+      throw new Error('API key has expired or is invalid. Please check your configuration.');
+    }
+    if (errorMessage.includes('QUOTA_EXCEEDED')) {
+      throw new Error('API quota exceeded. Please check your billing or wait before retrying.');
+    }
+    if (errorMessage.includes('overloaded') || response.status === 503) {
+      throw new Error('Google AI service is overloaded. Please try again later.');
+    }
+    if (errorMessage.includes('VITE_SUPABASE_URL')) {
+      throw new Error('Supabase configuration error. Please check environment variables.');
+    }
+    
+    throw new Error(`Proxy error: ${errorMessage}`);
   }
 
-  return response.json();
+  return data;
 };
 
 // Rate limiting configuration
