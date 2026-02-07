@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import App from './App';
 import './index.css';
 
@@ -21,10 +22,12 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <Router basename="/LeadScout-Pro-AI">
-        <App />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router basename="/LeadScout-Pro-AI">
+          <App />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
