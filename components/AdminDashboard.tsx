@@ -130,22 +130,28 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="relative z-10 border-b border-white/10 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">A</span>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-xl">A</span>
               </div>
-              <span className="text-gray-900 text-xl font-bold">Admin Dashboard</span>
+              <div>
+                <h1 className="text-white text-xl font-bold tracking-tight">Admin Dashboard</h1>
+                <p className="text-blue-200 text-xs">LeadScout Pro AI Analytics</p>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">👑 {user?.email}</span>
+              <div className="flex items-center space-x-2 bg-orange-500/20 border border-orange-400/30 px-3 py-1 rounded-xl">
+                <span className="text-orange-300 text-sm">👑</span>
+                <span className="text-orange-300 font-medium">{user?.email}</span>
+              </div>
               <button
                 onClick={signOut}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium shadow-lg"
               >
                 Sign Out
               </button>

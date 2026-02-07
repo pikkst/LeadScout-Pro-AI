@@ -133,37 +133,40 @@ const LeadSearchApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="relative z-10 border-b border-white/10 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">L</span>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-xl">L</span>
               </div>
-              <span className="text-gray-900 text-xl font-bold">LeadScout Pro AI</span>
+              <div>
+                <h1 className="text-white text-xl font-bold tracking-tight">LeadScout Pro AI</h1>
+                <p className="text-blue-200 text-xs">AI-Powered Lead Generation</p>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="text-gray-600 hover:text-gray-800 px-3 py-1 rounded hover:bg-gray-100 transition"
+                className="text-blue-200 hover:text-white px-3 py-1 rounded-xl hover:bg-white/10 transition-all duration-200 font-medium"
               >
                 ← Dashboard
               </button>
               <div className="text-right">
-                <p className="text-sm text-gray-600">Credits</p>
-                <p className="text-lg font-bold text-blue-600">{profile?.credits || 0}</p>
+                <p className="text-blue-200 text-sm">Credits</p>
+                <p className="text-white text-lg font-bold">{profile?.credits || 0}</p>
               </div>
               <button
                 onClick={() => setShowCreditModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg"
               >
                 Buy Credits
               </button>
               <button
                 onClick={signOut}
-                className="text-gray-600 hover:text-gray-800"
+                className="text-blue-200 hover:text-white transition-colors font-medium"
               >
                 Sign Out
               </button>
@@ -175,9 +178,9 @@ const LeadSearchApp: React.FC = () => {
       <div className="container mx-auto px-6 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Search Form */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Quality Leads</h1>
-            <p className="text-gray-600 mb-8">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-8 mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">Find Quality Leads</h1>
+            <p className="text-blue-200 mb-8">
               Use AI agents to discover and verify business contacts in any city or country worldwide.
             </p>
 
