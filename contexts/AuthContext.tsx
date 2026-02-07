@@ -38,34 +38,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }, 5000);
 
-    // Handle email confirmation from URL
-    const handleEmailConfirmation = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const accessToken = urlParams.get('access_token');
-      const refreshToken = urlParams.get('refresh_token');
-      
-      if (accessToken && refreshToken) {
-        console.log('Handling email confirmation...');
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        
-        if (!error && data.session) {
-          console.log('Email confirmation successful');
-          // Clear URL parameters
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } else {
-          console.error('Email confirmation error:', error);
-        }
-      }
-    };
-
     const initializeAuth = async () => {
-      console.log('Initializing auth...');
-      await handleEmailConfirmation();
+      console.log('Initializing auth with simple Supabase flow...');
 
-      // Get initial session
+      // Get initial session - let Supabase handle everything
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         console.log('Session retrieved:', session ? 'Found' : 'None', error);
@@ -195,22 +171,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    console.log('Starting signUp for:', email);
+    console.log('Starting simple signUp for:', email);
+    
+    // Use basic Supabase signup without custom options
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName
-        },
-        emailRedirectTo: 'https://pikkst.github.io/LeadScout-Pro-AI/dashboard'
+        }
+        // Remove custom emailRedirectTo - let Supabase handle it
       }
     });
 
     if (!error && data.user) {
-      console.log('SignUp successful, confirmation email should be sent');
-      // Don't create profile here - it will be created when user confirms email
-      // and the auth state change handler runs
+      console.log('SignUp successful with Supabase default flow');
     } else {
       console.error('SignUp error:', error);
     }
