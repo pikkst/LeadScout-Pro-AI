@@ -32,11 +32,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Fail-safe: ensure loading stops after 10 seconds
+    // Fail-safe: ensure loading stops after 5 seconds
     const loadingTimeout = setTimeout(() => {
       console.warn('Loading timeout reached, stopping loading state');
       setLoading(false);
-    }, 10000);
+    }, 5000);
 
     // Handle email confirmation from URL
     const handleEmailConfirmation = async () => {
@@ -45,41 +45,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const refreshToken = urlParams.get('refresh_token');
       
       if (accessToken && refreshToken) {
+        console.log('Handling email confirmation...');
         const { data, error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
         
         if (!error && data.session) {
+          console.log('Email confirmation successful');
           // Clear URL parameters
           window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+          console.error('Email confirmation error:', error);
         }
       }
     };
 
-    handleEmailConfirmation();
+    const initializeAuth = async () => {
+      console.log('Initializing auth...');
+      await handleEmailConfirmation();
 
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchUserProfile(session.user.id, session.user.email);
-        setIsAdmin(session.user.email === 'huntersest@gmail.com');
+      // Get initial session
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Session retrieved:', session ? 'Found' : 'None', error);
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          console.log('User found, fetching profile...');
+          await fetchUserProfile(session.user.id, session.user.email);
+          setIsAdmin(session.user.email === 'huntersest@gmail.com');
+        }
+        
+        console.log('Auth initialization complete');
+        setLoading(false);
+        clearTimeout(loadingTimeout);
+      } catch (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        clearTimeout(loadingTimeout);
       }
-      
-      setLoading(false);
-      clearTimeout(loadingTimeout);
-    }).catch((error) => {
-      console.error('Error getting session:', error);
-      setLoading(false);
-      clearTimeout(loadingTimeout);
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
+        console.log('Auth state changed:', event, session ? 'Session exists' : 'No session');
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -102,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchUserProfile = async (userId: string, userEmail?: string) => {
+    console.log('Fetching user profile for:', userId, userEmail);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -111,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it
+        console.log('Profile not found, creating new profile...');
         const email = userEmail || user?.email || '';
         const isAdminUser = email === 'huntersest@gmail.com';
         
@@ -126,17 +143,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (!createError && newProfile) {
+          console.log('Profile created successfully:', newProfile);
           setProfile(newProfile);
         } else {
           console.error('Error creating profile:', createError);
+          // Set a default profile to avoid blocking
+          setProfile({
+            id: userId,
+            email: email,
+            full_name: email.split('@')[0],
+            credits: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
         }
       } else if (!error && data) {
+        console.log('Profile fetched successfully:', data);
         setProfile(data);
       } else {
         console.error('Error fetching profile:', error);
+        // Set a default profile to avoid blocking
+        const email = userEmail || user?.email || '';
+        setProfile({
+          id: userId,
+          email: email,
+          full_name: email.split('@')[0],
+          credits: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      // Set a default profile to avoid blocking
+      const email = userEmail || user?.email || '';
+      setProfile({
+        id: userId,
+        email: email,
+        full_name: email.split('@')[0],
+        credits: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
     }
   };
 
