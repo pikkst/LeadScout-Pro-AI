@@ -46,13 +46,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 onClick={handleSignIn}
                 className="px-4 py-2 text-white/90 hover:text-white transition-colors font-medium"
               >
-                Sisene
+                Sign In
               </button>
               <button
                 onClick={handleSignUp}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                Registreeru
+                Sign Up
               </button>
             </div>
           </div>
@@ -71,17 +71,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="relative z-10">
             <div className="inline-flex items-center px-4 py-2 bg-white/10 rounded-full mb-6 backdrop-blur-sm">
               <span className="text-green-400 mr-2">●</span>
-              <span className="text-white/90 text-sm font-medium">AI Agendid töötavad 24/7</span>
+              <span className="text-white/90 text-sm font-medium">AI Agents working 24/7</span>
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
-              Leia Kvaliteetseid
-              <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent block">Kliente AI Abil</span>
+              Find Quality Leads
+              <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent block">with AI Precision</span>
             </h1>
             
             <p className="text-xl text-white/80 mb-10 max-w-4xl mx-auto leading-relaxed">
-              Avasta sihtmärk-kliente üle Eesti ja välismaal kasutades meie arenenud AI tehnoloogiat. 
-              Sündmuste korraldajatest kuni tehnoloogiaettevõteteni - leiame kontaktid, mis sinu ettevõtte jaoks oluline on.
+              Discover targeted business leads worldwide using our advanced AI technology. 
+              From event organizers to tech companies - we find the contacts that matter for your business.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -89,26 +89,26 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 onClick={onGetStarted}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-2xl"
               >
-                Alusta Kliendikokkuvõtet
+                Start Finding Leads
               </button>
               <button className="bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all duration-300">
-                Vaata Demo
+                Watch Demo
               </button>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="text-3xl font-bold text-white mb-2">10K+</div>
-                <div className="text-white/60 text-sm">Analüüsitud ettevõtet</div>
+                <div className="text-3xl font-bold text-white mb-2">50K+</div>
+                <div className="text-white/60 text-sm">Companies analyzed</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-white mb-2">95%</div>
-                <div className="text-white/60 text-sm">Andmete täpsus</div>
+                <div className="text-white/60 text-sm">Data accuracy</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-white mb-2">24/7</div>
-                <div className="text-white/60 text-sm">AI töötab</div>
+                <div className="text-white/60 text-sm">AI working</div>
               </div>
             </div>
           </div>
@@ -119,9 +119,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       <section id="features" className="py-20 bg-white/5 backdrop-blur-sm border-y border-white/10">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Võimsad Funktsioonid</h2>
+            <h2 className="text-4xl font-bold text-white mb-4">Powerful Features</h2>
             <p className="text-xl text-white/70 max-w-2xl mx-auto">
-              Meie AI-põhine platvorm pakub kõike, mida vajad kvaliteetsete klientide leidmiseks ja nendega ühenduse loomiseks
+              Our AI-powered platform provides everything you need to find and connect with quality leads worldwide
             </p>
           </div>
           
@@ -130,10 +130,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                 <span className="text-3xl">🎯</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-white">Sihtmärk Otsing</h3>
+              <h3 className="text-xl font-semibold mb-4 text-white">Targeted Search</h3>
               <p className="text-white/70 leading-relaxed">
-                Otsi spetsiifilisi ettevõtte tüüpe mis tahes Eesti linnas. Sündmustest kuni tootmiseni, 
-                leia täpselt seda, mida otsid.
+                Search for specific business types in any city worldwide. From events to manufacturing, 
+                find exactly what you're looking for.
               </p>
             </div>
             
@@ -141,10 +141,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                 <span className="text-3xl">🤖</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-white">AI-Põhine Uurimine</h3>
+              <h3 className="text-xl font-semibold mb-4 text-white">AI-Powered Research</h3>
               <p className="text-white/70 leading-relaxed">
-                Meie arenenud AI agendid uurivad ja kontrollivad kontaktandmeid, 
-                tagades täpsed ja ajakohased kontaktid.
+                Our advanced AI agents research and verify contact information, 
+                ensuring you get accurate and up-to-date leads.
               </p>
             </div>
             
@@ -152,10 +152,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                 <span className="text-3xl">📊</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-white">Eksport ja Organiseerimine</h3>
+              <h3 className="text-xl font-semibold mb-4 text-white">Export & Organize</h3>
               <p className="text-white/70 leading-relaxed">
-                Laadi oma kontaktid alla CSV failidena ja hoia kõigi otsingute 
-                ülevaade oma isiklikus dashboardis.
+                Download your leads as CSV files and keep track of all your searches 
+                in your personal dashboard.
               </p>
             </div>
           </div>
@@ -166,8 +166,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       <section id="how-it-works" className="py-20 bg-slate-900/50">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Kuidas See Töötab</h2>
-            <p className="text-xl text-white/70">Lihtne 3-sammuline protsess ideaalsete klientide leidmiseks</p>
+            <h2 className="text-4xl font-bold text-white mb-4">How It Works</h2>
+            <p className="text-xl text-white/70">Simple 3-step process to find your perfect leads</p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -179,9 +179,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 {/* Connecting line */}
                 <div className="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-gradient-to-r from-blue-500 to-transparent"></div>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-white">Vali Oma Sihtmärk</h3>
+              <h3 className="text-xl font-semibold mb-4 text-white">Choose Your Target</h3>
               <p className="text-white/70 leading-relaxed">
-                Vali ettevõtte tüüp, mida otsid ja määra sihtkoht või valdkond.
+                Select the type of business you're looking for and specify your target location or industry.
               </p>
             </div>
             
@@ -192,9 +192,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 </div>
                 <div className="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-gradient-to-r from-purple-500 to-transparent"></div>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-white">AI Teeb Töö Ära</h3>
+              <h3 className="text-xl font-semibold mb-4 text-white">AI Does the Work</h3>
               <p className="text-white/70 leading-relaxed">
-                Meie AI agendid otsivad ja kontrollivad kliente, leiavad kontaktandmed ja äridetailid.
+                Our AI agents search and verify leads, finding contact information and business details.
               </p>
             </div>
             
@@ -202,9 +202,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl group-hover:scale-110 transition-transform duration-300">
                 <span className="text-white font-bold text-2xl">3</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-white">Laadi Alla & Võta Ühendust</h3>
+              <h3 className="text-xl font-semibold mb-4 text-white">Download & Connect</h3>
               <p className="text-white/70 leading-relaxed">
-                Saa oma kontaktid CSV failina ja hakka suhtlema, et oma äri kasvatada.
+                Get your leads as a CSV file and start reaching out to grow your business.
               </p>
             </div>
           </div>
@@ -215,38 +215,38 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       <section id="pricing" className="py-20 bg-white/5 backdrop-blur-sm">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Lihtne Hinnastamine</h2>
+            <h2 className="text-4xl font-bold text-white mb-4">Simple Pricing</h2>
             <p className="text-xl text-white/70">
-              Maksa ainult selle eest, mida alla laadid. Pole kuutasusid, pole varjatud kulusid.
+              Pay only for what you download. No monthly fees, no hidden costs.
             </p>
           </div>
           
           <div className="max-w-md mx-auto bg-gradient-to-br from-blue-600/20 to-indigo-600/20 rounded-2xl p-8 border border-blue-400/30 backdrop-blur-sm">
             <div className="text-center">
-              <h3 className="text-2xl font-bold text-white mb-2">Allalaadimise Hind</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">Per Download</h3>
               <div className="text-6xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">€5</div>
-              <p className="text-white/70 mb-8">Ühekordselt CSV ekspordi eest</p>
+              <p className="text-white/70 mb-8">One-time payment per CSV export</p>
               
               <ul className="text-left space-y-4 mb-8">
                 <li className="flex items-center">
                   <span className="text-green-400 mr-3 text-xl">✓</span>
-                  <span className="text-white">Piiramatult otsinguid enne allalaadimist</span>
+                  <span className="text-white">Unlimited searches before download</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-400 mr-3 text-xl">✓</span>
-                  <span className="text-white">AI poolt kontrollitud kontaktandmed</span>
+                  <span className="text-white">AI-verified contact information</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-400 mr-3 text-xl">✓</span>
-                  <span className="text-white">CSV ekspordi formaat</span>
+                  <span className="text-white">CSV export format</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-400 mr-3 text-xl">✓</span>
-                  <span className="text-white">Otsingute ajalugu salvestatud</span>
+                  <span className="text-white">Search history saved</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-400 mr-3 text-xl">✓</span>
-                  <span className="text-white">Pole aegumistähtaega</span>
+                  <span className="text-white">No expiration date</span>
                 </li>
                 </li>
               </ul>
@@ -265,16 +265,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-600">
         <div className="container mx-auto px-6 text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">Valmis Leidma Kvaliteetseid Kliente?</h2>
+          <h2 className="text-4xl font-bold text-white mb-4">Ready to Find Quality Leads?</h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Liitu ettevõtetega üle Eesti, kes juba kasutavad LeadScout Pro AI 
-            oma kliendibaasi kasvatamiseks.
+            Join businesses worldwide who are already using LeadScout Pro AI 
+            to grow their customer base.
           </p>
           <button
             onClick={onGetStarted}
             className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl"
           >
-            Alusta Esimest Otsingut
+            Start Your First Search
           </button>
         </div>
       </section>
