@@ -3,11 +3,21 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://levkpmoensvpteltohsd.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase environment variables are not set. Please check your configuration.');
+console.log('Supabase Config:', { 
+  url: supabaseUrl ? 'Set' : 'Missing', 
+  key: supabaseAnonKey ? 'Set' : 'Missing',
+  env: import.meta.env
+});
+
+if (!supabaseUrl) {
+  throw new Error('VITE_SUPABASE_URL is required');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey || '');
+if (!supabaseAnonKey) {
+  throw new Error('VITE_SUPABASE_ANON_KEY is required - check environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Database types
 export interface UserProfile {
