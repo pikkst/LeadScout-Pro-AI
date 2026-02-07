@@ -5,15 +5,13 @@ const MODEL_NAME = 'gemini-1.5-flash';
 
 // Get Supabase URL from environment for Edge Functions
 const getSupabaseUrl = () => {
-  return import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://levkpmoensvpteltohsd.supabase.co';
+  return supabaseUrl;
 };
 
 // Use Supabase Edge Function endpoint
 const getProxyEndpoint = () => {
   const supabaseUrl = getSupabaseUrl();
-  if (!supabaseUrl) {
-    throw new Error('VITE_SUPABASE_URL environment variable is not set');
-  }
   return `${supabaseUrl}/functions/v1/gemini-proxy`;
 };
 
@@ -28,7 +26,7 @@ const callGeminiProxy = async (prompt: string, tools: any[] = [], config: any = 
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxldmtwbW9lbnN2cHRlbHRvaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjU5OTgsImV4cCI6MjA4NjA0MTk5OH0.QdAAS86SxUzZYnw88ywEM8aMO0vxvQL1-oHBSTP2Sso',
   };
 
   // Add authorization header if user is authenticated
