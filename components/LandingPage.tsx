@@ -248,7 +248,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   <span className="text-green-400 mr-3 text-xl">✓</span>
                   <span className="text-white">No expiration date</span>
                 </li>
-                </li>
               </ul>
               
               <button
