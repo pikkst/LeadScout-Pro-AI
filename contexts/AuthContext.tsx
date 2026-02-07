@@ -32,6 +32,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    // Fail-safe: ensure loading stops after 10 seconds
+    const loadingTimeout = setTimeout(() => {
+      console.warn('Loading timeout reached, stopping loading state');
+      setLoading(false);
+    }, 10000);
+
     // Handle email confirmation from URL
     const handleEmailConfirmation = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -54,14 +60,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     handleEmailConfirmation();
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        await fetchUserProfile(session.user.id, session.user.email);
         setIsAdmin(session.user.email === 'huntersest@gmail.com');
       }
+      
       setLoading(false);
+      clearTimeout(loadingTimeout);
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      setLoading(false);
+      clearTimeout(loadingTimeout);
     });
 
     // Listen for auth changes
@@ -69,21 +82,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event: AuthChangeEvent, session: Session | null) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
         if (session?.user) {
-          await fetchUserProfile(session.user.id);
+          await fetchUserProfile(session.user.id, session.user.email);
           setIsAdmin(session.user.email === 'huntersest@gmail.com');
         } else {
           setProfile(null);
           setIsAdmin(false);
         }
+        
         setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(loadingTimeout);
+    };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, userEmail?: string) => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -93,15 +111,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it
-        const userEmail = user?.email || '';
-        const isAdminUser = userEmail === 'huntersest@gmail.com';
+        const email = userEmail || user?.email || '';
+        const isAdminUser = email === 'huntersest@gmail.com';
         
         const { data: newProfile, error: createError } = await supabase
           .from('user_profiles')
           .insert({
             id: userId,
-            email: userEmail,
-            full_name: isAdminUser ? 'Admin User' : userEmail.split('@')[0],
+            email: email,
+            full_name: isAdminUser ? 'Admin User' : email.split('@')[0],
             credits: isAdminUser ? 1000 : 0 // Give admin 1000 credits
           })
           .select()
