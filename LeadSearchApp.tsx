@@ -38,7 +38,7 @@ const LeadSearchApp: React.FC = () => {
   const addLog = useCallback((message: string) => {
     setSearchState(prev => ({
       ...prev,
-      logs: [...prev.logs, message]
+      logs: [...(prev.logs || []), message]
     }));
   }, []);
 
@@ -256,9 +256,59 @@ const LeadSearchApp: React.FC = () => {
             </button>
           </div>
 
-          {/* Progress and Terminal */}
-          {(searchState.isSearching || searchState.logs.length > 0) && (
-            <AgentTerminal searchState={searchState} />
+          {/* Progress and Agent Terminal */}
+          {(searchState.isSearching || (searchState.logs?.length || 0) > 0) && (
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">AI Agents Working</h3>
+                <div className="text-blue-200 text-sm">
+                  {searchState.isSearching ? `${searchState.progress}% Complete` : 'Finished'}
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              {searchState.isSearching && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-blue-200 mb-2">
+                    <span>{searchState.currentAgent}</span>
+                    <span>{searchState.progress}%</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${searchState.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Agent Terminal */}
+              <div className="bg-black/50 rounded-xl p-4 max-h-64 overflow-y-auto">
+                <div className="flex items-center gap-2 border-b border-gray-700 pb-2 mb-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-gray-400 text-sm ml-2">Agent Terminal v2.0</span>
+                </div>
+                <div className="space-y-1 font-mono text-sm">
+                  {(searchState.logs?.length || 0) === 0 && (
+                    <div className="text-gray-500 italic">Agents ready to search...</div>
+                  )}
+                  {(searchState.logs || []).map((log, i) => (
+                    <div key={i} className="flex gap-2">
+                      <span className="text-green-400">[{new Date().toLocaleTimeString()}]</span>
+                      <span className="text-gray-300">{log}</span>
+                    </div>
+                  ))}
+                  {searchState.isSearching && (
+                    <div className="flex gap-2 animate-pulse">
+                      <span className="text-green-400">[{new Date().toLocaleTimeString()}]</span>
+                      <span className="text-blue-300">{searchState.currentAgent}...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Results */}

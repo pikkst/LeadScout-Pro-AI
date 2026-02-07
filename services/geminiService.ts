@@ -37,7 +37,7 @@ async function callWithRetry<T>(
  */
 export const findMajorCities = async (location: string, focus: LeadFocus): Promise<string[]> => {
   return callWithRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
     const prompt = `
       Analyze if the input "${location}" is a country or region. 
       List the top 15 most active cities/hubs specifically for the "${focus}" industry in ${location}.
@@ -55,7 +55,13 @@ export const findMajorCities = async (location: string, focus: LeadFocus): Promi
     });
 
     const text = response.text || "[]";
-    return JSON.parse(text);
+    try {
+      const cities = JSON.parse(text);
+      return Array.isArray(cities) ? cities : [];
+    } catch (parseError) {
+      console.error('Cities JSON parsing error:', parseError);
+      return [];
+    }
   });
 };
 
@@ -69,7 +75,7 @@ export const verifyEmailAuthenticity = async (
   onRetry?: (attempt: number) => void
 ): Promise<boolean> => {
   return callWithRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
     const prompt = `
       Verification Mission: Determine if the email "${email}" is a legitimate business contact for "${companyName}" (${website}).
       
@@ -102,7 +108,7 @@ export const findLeads = async (
   onUpdate: (log: string) => void
 ): Promise<CompanyLead[]> => {
   return callWithRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
     
     const focusPrompts: Record<LeadFocus, string> = {
       events: "professional event planning companies, concert organizers, booking agencies, or festival producers",
@@ -140,11 +146,18 @@ export const findLeads = async (
 
     const text = response.text || "";
     const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]).map((lead: any, index: number) => ({
-        ...lead,
-        id: `lead-${city}-${Date.now()}-${index}`
-      }));
+    if (jsonMatch && jsonMatch[0]) {
+      try {
+        const parsedData = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(parsedData)) {
+          return parsedData.map((lead: any, index: number) => ({
+            ...lead,
+            id: `lead-${city}-${Date.now()}-${index}`
+          }));
+        }
+      } catch (parseError) {
+        console.error('JSON parsing error:', parseError);
+      }
     }
     return [];
   }, 3, 4000);
