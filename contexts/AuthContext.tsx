@@ -195,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    console.log('Starting signUp for:', email);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -207,13 +208,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (!error && data.user) {
-      // Create user profile
-      await supabase.from('user_profiles').insert({
-        id: data.user.id,
-        email,
-        full_name: fullName,
-        credits: 0
-      });
+      console.log('SignUp successful, confirmation email should be sent');
+      // Don't create profile here - it will be created when user confirms email
+      // and the auth state change handler runs
+    } else {
+      console.error('SignUp error:', error);
     }
 
     return { data, error };
