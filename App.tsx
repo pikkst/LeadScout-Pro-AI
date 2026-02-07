@@ -3,11 +3,12 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
 import UserDashboard from './components/UserDashboard';
+import AdminDashboard from './components/AdminDashboard';
 import AuthModal from './components/AuthModal';
 import LeadSearchApp from './LeadSearchApp';
 
 const App: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showApp, setShowApp] = useState(false);
@@ -37,6 +38,19 @@ const App: React.FC = () => {
   }
 
   if (user) {
+    // Admin gets admin dashboard
+    if (isAdmin) {
+      return (
+        <Routes>
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/search" element={<LeadSearchApp />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
+        </Routes>
+      );
+    }
+
+    // Regular users get normal dashboard
     return (
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

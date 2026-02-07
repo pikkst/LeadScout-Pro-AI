@@ -7,6 +7,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
@@ -28,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -36,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserProfile(session.user.id);
+        setIsAdmin(session.user.email === 'huntersest@gmail.com');
       }
       setLoading(false);
     });
@@ -47,8 +50,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchUserProfile(session.user.id);
+          setIsAdmin(session.user.email === 'huntersest@gmail.com');
         } else {
           setProfile(null);
+          setIsAdmin(false);
         }
         setLoading(false);
       }
@@ -126,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     session,
     loading,
+    isAdmin,
     signUp,
     signIn,
     signOut,
