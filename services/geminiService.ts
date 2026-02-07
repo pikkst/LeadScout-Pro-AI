@@ -208,7 +208,11 @@ export const findMajorCities = async (
   onRetry?: (attempt: number, nextDelay: number) => void
 ): Promise<string[]> => {
   return callWithRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
+    const apiKey = process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in environment variables.');
+    }
+    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       Analyze if the input "${location}" is a country or region. 
       List the top 15 most active cities/hubs specifically for the "${focus}" industry in ${location}.
@@ -248,7 +252,11 @@ export const verifyEmailAuthenticity = async (
   onRetry?: (attempt: number, nextDelay: number) => void
 ): Promise<boolean> => {
   return callWithRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
+    const apiKey = process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in environment variables.');
+    }
+    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
       Verification Mission: Determine if the email "${email}" is a legitimate business contact for "${companyName}" (${website}).
       
@@ -399,7 +407,11 @@ const findCityLeads = async (
   onUpdate: (log: string) => void
 ): Promise<CompanyLead[]> => {
   return callWithRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
+    const apiKey = process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in environment variables.');
+    }
+    const ai = new GoogleGenAI({ apiKey });
     
     const focusPrompts: Record<LeadFocus, string> = {
       events: "professional event planning companies, concert organizers, booking agencies, or festival producers",
