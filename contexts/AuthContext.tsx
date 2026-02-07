@@ -75,7 +75,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('User found, fetching profile...');
-          await fetchUserProfile(session.user.id, session.user.email);
+          // Small delay to ensure session is fully established
+          setTimeout(async () => {
+            await fetchUserProfile(session.user.id, session.user.email);
+          }, 100);
           setIsAdmin(session.user.email === 'huntersest@gmail.com');
         }
         
@@ -99,7 +102,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserProfile(session.user.id, session.user.email);
+          // Small delay to ensure session is fully established
+          setTimeout(async () => {
+            await fetchUserProfile(session.user.id, session.user.email);
+          }, 100);
           setIsAdmin(session.user.email === 'huntersest@gmail.com');
         } else {
           setProfile(null);
