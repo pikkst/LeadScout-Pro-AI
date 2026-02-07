@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
       throw new Error('Only POST method allowed')
     }
 
-    const { prompt, model = 'gemini-2.0-flash-exp', tools = [], config = {} }: RequestBody = await req.json()
+    const { prompt, model = 'gemini-3-flash-preview', tools = [], config = {} }: RequestBody = await req.json()
     
     if (!prompt) {
       throw new Error('Prompt is required')
@@ -41,9 +41,8 @@ Deno.serve(async (req) => {
 
     console.log(`Making request to Gemini API with model: ${model}`)
 
-    // Construct the Gemini API URL - use v1 for newer models like gemini-2.0-flash-exp
-    const apiVersion = model.includes('2.0') ? 'v1' : 'v1beta'
-    const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${GEMINI_API_KEY}`
+    // Construct the Gemini API URL - use v1beta for stable models
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
     
     // Prepare the request body for Gemini API
     const requestBody: any = {
@@ -58,27 +57,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Add additional config parameters (excluding unsupported ones for v1 API)
+    // Add thinking configuration for Gemini 3 models
+    if (model.includes('gemini-3') && config.thinkingLevel) {
+      requestBody.generationConfig.thinkingConfig = {
+        thinkingLevel: config.thinkingLevel || 'low'
+      }
+    }
+
+    // Add additional config parameters
     if (config.candidateCount) requestBody.generationConfig.candidateCount = config.candidateCount
     if (config.stopSequences) requestBody.generationConfig.stopSequences = config.stopSequences
+    if (config.responseMimeType) requestBody.generationConfig.responseMimeType = config.responseMimeType
 
-    // Tools and responseMimeType are only supported in v1beta API
-    if (apiVersion === 'v1beta') {
-      // Add tools if provided (for search functionality)
-      if (tools && tools.length > 0) {
-        requestBody.tools = tools
-      }
-
-      // Add response format if specified
-      if (config.responseMimeType) {
-        requestBody.generationConfig.responseMimeType = config.responseMimeType
-      }
-    } else {
-      // For v1 API, handle JSON response requirement differently
-      if (config.responseMimeType === 'application/json') {
-        // Add instruction to return JSON in the prompt instead
-        requestBody.contents[0].parts[0].text += '\n\nIMPORTANT: Return your response as valid JSON only.'
-      }
+    // Add tools if provided (for search functionality)
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools
     }
 
     // Make the request to Gemini API
