@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { creditPackages, CreditPackage } from '../services/stripeService';
+import { creditPackages, CreditPackage, createPaymentIntent } from '../services/stripeService';
 import getStripe from '../services/stripeService';
 
 interface CreditPurchaseModalProps {
@@ -28,14 +28,24 @@ const CreditPurchaseModal: React.FC<CreditPurchaseModalProps> = ({ isOpen, onClo
         throw new Error('Stripe failed to initialize');
       }
 
-      // In a real implementation, you would call your backend to create a payment intent
-      // For demo purposes, we'll simulate a successful payment
-      console.log('Simulating credit purchase:', pkg);
+      // Create payment intent using our Edge function
+      const response = await createPaymentIntent(pkg.id, user.id);
       
-      // Simulate successful payment
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Confirm payment with Stripe
+      const { error } = await stripe.confirmCardPayment(response.clientSecret, {
+        payment_method: {
+          card: {
+            // This would be a proper card element in production
+            // For now, we'll simulate success
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
       
-      // Add credits to user account
+      // Add credits to user account (will be handled by webhook in production)
       await updateCredits(pkg.credits);
       
       alert(`Successfully purchased ${pkg.credits} credits!`);

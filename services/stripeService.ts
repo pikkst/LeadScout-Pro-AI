@@ -55,22 +55,23 @@ export const createPaymentIntent = async (packageId: string, userId: string) => 
     throw new Error('Invalid package selected');
   }
 
-  // This would typically call your backend API
-  // For now, we'll simulate the response
-  const response = await fetch('/api/create-payment-intent', {
+  // Call our Supabase Edge Function
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
     },
     body: JSON.stringify({
       packageId,
       userId,
-      amount: selectedPackage.price * 100, // Convert to cents
     }),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to create payment intent');
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create payment intent');
   }
 
   return response.json();
