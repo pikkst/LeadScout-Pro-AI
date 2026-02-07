@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserQueryHistory, markQueryAsDownloaded } from '../services/queryHistoryService';
 import { QueryHistory } from '../services/supabaseClient';
@@ -10,6 +11,7 @@ const UserDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -74,6 +76,12 @@ const UserDashboard: React.FC = () => {
               <span className="text-gray-900 text-xl font-bold">LeadScout Pro AI</span>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/search')}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+              >
+                New Search
+              </button>
               <div className="text-right">
                 <p className="text-sm text-gray-600">Credits Available</p>
                 <p className="text-lg font-bold text-blue-600">{profile?.credits || 0}</p>
@@ -158,7 +166,7 @@ const UserDashboard: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-2">No searches yet</h3>
               <p className="text-gray-600 mb-4">Start your first lead search to see results here.</p>
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => navigate('/search')}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
               >
                 Start Searching

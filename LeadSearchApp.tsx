@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { CompanyLead, SearchState, LeadFocus } from './types';
 import { findLeads } from './services/geminiService';
@@ -20,6 +21,7 @@ const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string }[] = [
 
 const LeadSearchApp: React.FC = () => {
   const { user, profile, signOut, updateCredits } = useAuth();
+  const navigate = useNavigate();
   const [location, setLocation] = useState('');
   const [intensity, setIntensity] = useState<'standard' | 'deep'>('standard');
   const [focus, setFocus] = useState<LeadFocus>('events');
@@ -144,10 +146,10 @@ const LeadSearchApp: React.FC = () => {
             </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => window.location.href = '/dashboard'}
-                className="text-gray-600 hover:text-gray-800"
+                onClick={() => navigate('/dashboard')}
+                className="text-gray-600 hover:text-gray-800 px-3 py-1 rounded hover:bg-gray-100 transition"
               >
-                Dashboard
+                ← Dashboard
               </button>
               <div className="text-right">
                 <p className="text-sm text-gray-600">Credits</p>
