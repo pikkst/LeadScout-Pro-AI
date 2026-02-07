@@ -52,7 +52,7 @@ const LeadSearchApp: React.FC = () => {
 
   const handleSearch = async () => {
     if (!location.trim()) {
-      alert('Please enter a location');
+      alert('Please enter a city or country name');
       return;
     }
 
@@ -178,21 +178,24 @@ const LeadSearchApp: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Quality Leads</h1>
             <p className="text-gray-600 mb-8">
-              Use AI to discover and verify business contacts in Estonia and beyond.
+              Use AI agents to discover and verify business contacts in any city or country worldwide.
             </p>
 
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location
+                  Location (City or Country)
                 </label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g., Tallinn, Tartu, Pärnu"
+                  placeholder="e.g., Tallinn, Estonia, Berlin, Germany, New York"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  Enter a city name or country - our AI agents will find leads across the region
+                </p>
               </div>
 
               <div>
