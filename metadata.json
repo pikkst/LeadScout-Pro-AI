@@ -1,0 +1,7 @@
+{
+  "name": "LeadScout Pro AI",
+  "description": "Multi-industry B2B lead generation agent that scouts cities for verified contact data using AI search grounding.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
