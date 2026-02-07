@@ -1,7 +1,7 @@
 import { CompanyLead, LeadFocus } from "../types";
 import { supabase } from "./supabaseClient";
 
-const MODEL_NAME = 'gemini-1.5-flash';
+const MODEL_NAME = 'gemini-2.0-flash-exp';
 
 // Get Supabase URL from environment for Edge Functions
 const getSupabaseUrl = () => {

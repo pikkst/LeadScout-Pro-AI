@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
       throw new Error('Only POST method allowed')
     }
 
-    const { prompt, model = 'gemini-1.5-flash', tools = [], config = {} }: RequestBody = await req.json()
+    const { prompt, model = 'gemini-2.0-flash-exp', tools = [], config = {} }: RequestBody = await req.json()
     
     if (!prompt) {
       throw new Error('Prompt is required')
