@@ -41,11 +41,12 @@ Deno.serve(async (req) => {
 
     console.log(`Making request to Gemini API with model: ${model}`)
 
-    // Construct the Gemini API URL
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
+    // Construct the Gemini API URL - use v1 for newer models like gemini-2.0-flash-exp
+    const apiVersion = model.includes('2.0') ? 'v1' : 'v1beta'
+    const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${GEMINI_API_KEY}`
     
     // Prepare the request body for Gemini API
-    const requestBody = {
+    const requestBody: any = {
       contents: [{
         parts: [{ text: prompt }]
       }],
@@ -54,18 +55,30 @@ Deno.serve(async (req) => {
         maxOutputTokens: config.maxOutputTokens || 8192,
         topP: config.topP || 0.95,
         topK: config.topK || 40,
-        ...config
       }
     }
 
-    // Add tools if provided (for search functionality)
-    if (tools && tools.length > 0) {
-      requestBody.tools = tools
-    }
+    // Add additional config parameters (excluding unsupported ones for v1 API)
+    if (config.candidateCount) requestBody.generationConfig.candidateCount = config.candidateCount
+    if (config.stopSequences) requestBody.generationConfig.stopSequences = config.stopSequences
 
-    // Add response format if specified
-    if (config.responseMimeType) {
-      requestBody.generationConfig.responseMimeType = config.responseMimeType
+    // Tools and responseMimeType are only supported in v1beta API
+    if (apiVersion === 'v1beta') {
+      // Add tools if provided (for search functionality)
+      if (tools && tools.length > 0) {
+        requestBody.tools = tools
+      }
+
+      // Add response format if specified
+      if (config.responseMimeType) {
+        requestBody.generationConfig.responseMimeType = config.responseMimeType
+      }
+    } else {
+      // For v1 API, handle JSON response requirement differently
+      if (config.responseMimeType === 'application/json') {
+        // Add instruction to return JSON in the prompt instead
+        requestBody.contents[0].parts[0].text += '\n\nIMPORTANT: Return your response as valid JSON only.'
+      }
     }
 
     // Make the request to Gemini API
