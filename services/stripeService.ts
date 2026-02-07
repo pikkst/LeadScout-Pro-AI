@@ -1,6 +1,12 @@
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+// Add a fallback public key for testing purposes
+// In production, replace with your actual Stripe publishable key
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51OWCcKLMEQJzZdGj8pL9x2nR4fG5H9yJ3bN8mG1xF2dK5qH6uE8wQ9tR7vY3sU2cZ1pL4oF8qW6eR9tY5uI7mO00EXAMPLE';
+
+console.log('Stripe Config:', { 
+  key: stripePublicKey ? 'Set' : 'Missing'
+});
 
 if (!stripePublicKey) {
   console.warn('Stripe public key is not set');

@@ -4,6 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.network https://*.supabase.co https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline' https://m.stripe.network https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com;
+        img-src 'self' data: https: blob:;
+        connect-src 'self' https://*.supabase.co https://api.stripe.com https://m.stripe.network wss://*.supabase.co;
+        frame-src https://js.stripe.com https://hooks.stripe.com;
+        worker-src 'self' blob:;
+    ">
     <title>LeadScout Pro AI - AI-Powered Lead Generation</title>
     <meta name="description" content="Find quality business leads across Estonia and beyond using advanced AI technology. Pay only when you download results.">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
