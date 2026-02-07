@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { CompanyLead, LeadFocus } from "../types";
 
@@ -101,63 +100,95 @@ export const verifyEmailAuthenticity = async (
   }, 3, 3000, onRetry);
 };
 
-export const findLeads = async (
-  location: string,
-  focus: LeadFocus,
-  intensity: 'standard' | 'deep' = 'standard',
-  onUpdate: (progress: number, agent: string) => void
-): Promise<CompanyLead[]> => {
-  if (intensity === 'deep') {
-    // Deep scan: multi-city search like the original
-    onUpdate(5, 'Finding major cities...');
-    const cities = await findMajorCities(location, focus);
-    const cityLimit = 15; // Deep scan covers more cities
-    const targetCities = cities.slice(0, cityLimit);
-    
-    onUpdate(10, `Scanning ${targetCities.length} cities...`);
-    
-    const allLeads: CompanyLead[] = [];
-    const uniqueWebsites = new Set<string>();
-    
-    for (let i = 0; i < targetCities.length; i++) {
-      const city = targetCities[i];
-      const cityProgressBase = 10 + (i / targetCities.length) * 80;
-      
-      onUpdate(cityProgressBase, `Searching in ${city}...`);
-      
-      const cityLeads = await findLeadsInCity(city, location, focus);
-      
-      // Filter unique leads by domain
-      for (const lead of cityLeads) {
-        const domain = lead.website.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-        if (!uniqueWebsites.has(domain)) {
-          uniqueWebsites.add(domain);
-          allLeads.push({
-            ...lead,
-            id: `lead-${city}-${Date.now()}-${allLeads.length}`
-          });
-        }
-      }
-    }
-    
-    onUpdate(100, `Found ${allLeads.length} unique leads!`);
-    return allLeads;
-  } else {
-    // Standard scan: single location search
-    onUpdate(20, 'Standard search in progress...');
-    const leads = await findLeadsInCity(location, location, focus);
-    onUpdate(100, `Found ${leads.length} leads!`);
-    return leads.map((lead, index) => ({
-      ...lead,
-      id: `lead-${location}-${Date.now()}-${index}`
-    }));
+// Domain pulse check - copy from original
+const checkDomainPulse = async (url: string): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 4000);
+    await fetch(url, { mode: 'no-cors', signal: controller.signal });
+    clearTimeout(id);
+    return true;
+  } catch {
+    return false;
   }
 };
 
-export const findLeadsInCity = async (
+// Main function - copy original App.tsx logic exactly
+export const findLeads = async (
+  location: string,
+  focus: LeadFocus,
+  intensity: 'standard' | 'deep',
+  onProgress: (progress: number, agent?: string) => void
+): Promise<CompanyLead[]> => {
+  try {
+    onProgress(2, 'Strategic Planning');
+    
+    // Step 1: Find major cities
+    onProgress(5, `Identifying high-activity hubs for "${focus}" sector in ${location}...`);
+    let cities = await findMajorCities(location, focus);
+    
+    const cityLimit = intensity === 'standard' ? 5 : 15;
+    cities = cities.slice(0, cityLimit);
+    
+    onProgress(8, `Fleet deployment confirmed for ${cities.length} zones.`);
+    
+    const uniqueWebsites = new Set<string>();
+    const masterLeads: CompanyLead[] = [];
+
+    for (let i = 0; i < cities.length; i++) {
+      const city = cities[i];
+      const cityProgressBase = (i / cities.length) * 90;
+      
+      onProgress(Math.round(cityProgressBase + 2), `Scouting: ${city}`);
+      
+      const cityLeads = await findCityLeads(city, location, focus, (msg) => {
+        // onProgress can handle internal logs  
+      });
+      
+      let cityProcessed = 0;
+      for (const lead of cityLeads) {
+        const domain = lead.website.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+        
+        if (!uniqueWebsites.has(domain)) {
+          uniqueWebsites.add(domain);
+          
+          // To prevent 503 Overloaded, we stagger requests slightly
+          await new Promise(resolve => setTimeout(resolve, 800));
+
+          const isAlive = await checkDomainPulse(lead.website);
+          const isAuthentic = await verifyEmailAuthenticity(
+            lead.email, 
+            lead.name, 
+            lead.website,
+            (attempt) => onProgress(Math.round(cityProgressBase + 5), `Load high. Retrying authentication (Attempt ${attempt})...`)
+          );
+
+          const enrichedLead = { ...lead, isVerified: isAlive && isAuthentic };
+          
+          masterLeads.push(enrichedLead);
+          cityProcessed++;
+        }
+      }
+      
+      onProgress(Math.round(cityProgressBase + 10), `Zone ${city} complete. Collected ${cityProcessed} unique verified leads.`);
+    }
+
+    onProgress(100, `Successfully captured ${masterLeads.length} unique B2B leads.`);
+    return masterLeads;
+
+  } catch (err: any) {
+    const errorMsg = err?.message || 'Unknown orbital failure';
+    onProgress(0, `Mission compromised: ${errorMsg}`);
+    throw err;
+  }
+};
+
+// City search function - copy from original
+const findCityLeads = async (
   city: string,
   country: string,
-  focus: LeadFocus
+  focus: LeadFocus,
+  onUpdate: (log: string) => void
 ): Promise<CompanyLead[]> => {
   return callWithRetry(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCKCmMWjJiCEDi5fMXJn7c7jLM-Ih-Q0os' });
@@ -174,7 +205,7 @@ export const findLeadsInCity = async (
     };
 
     const prompt = `
-      Find a comprehensive list of at least 15 unique and active ${focusPrompts[focus]} located in or serving ${city}, ${country}.
+      Find a list of at least 10 unique and active ${focusPrompts[focus]} located in or serving ${city}, ${country}.
       
       For each entity, provide:
       1. Company Name
@@ -192,7 +223,7 @@ export const findLeadsInCity = async (
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        temperature: 0.2,
+        temperature: 0.1,
       },
     });
 
@@ -202,7 +233,10 @@ export const findLeadsInCity = async (
       try {
         const parsedData = JSON.parse(jsonMatch[0]);
         if (Array.isArray(parsedData)) {
-          return parsedData;
+          return parsedData.map((lead: any, index: number) => ({
+            ...lead,
+            id: `lead-${city}-${Date.now()}-${index}`
+          }));
         }
       } catch (parseError) {
         console.error('JSON parsing error:', parseError);

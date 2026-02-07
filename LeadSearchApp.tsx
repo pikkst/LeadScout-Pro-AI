@@ -262,7 +262,7 @@ const LeadSearchApp: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-white">AI Agents Working</h3>
                 <div className="text-blue-200 text-sm">
-                  {searchState.isSearching ? `${searchState.progress}% Complete` : 'Finished'}
+                  {searchState.isSearching ? `${Math.round(searchState.progress)}% Complete` : 'Finished'}
                 </div>
               </div>
               
@@ -271,12 +271,12 @@ const LeadSearchApp: React.FC = () => {
                 <div className="mb-4">
                   <div className="flex justify-between text-sm text-blue-200 mb-2">
                     <span>{searchState.currentAgent}</span>
-                    <span>{searchState.progress}%</span>
+                    <span>{Math.round(searchState.progress)}%</span>
                   </div>
                   <div className="w-full bg-white/20 rounded-full h-2">
                     <div 
                       className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${searchState.progress}%` }}
+                      style={{ width: `${Math.round(searchState.progress)}%` }}
                     ></div>
                   </div>
                 </div>

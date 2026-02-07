@@ -1,4 +1,3 @@
-
 import { CompanyLead } from "../types";
 
 export const downloadLeadsAsCSV = (
@@ -7,11 +6,6 @@ export const downloadLeadsAsCSV = (
   onDownload?: () => void
 ) => {
   if (leads.length === 0) return;
-
-  // Execute download callback if provided
-  if (onDownload) {
-    onDownload();
-  }
 
   // Removed "Website" and "Source" headers
   const headers = ["Name", "Category", "Email", "Description"];
@@ -39,4 +33,11 @@ export const downloadLeadsAsCSV = (
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  
+  // Execute download callback AFTER the download is triggered
+  if (onDownload) {
+    setTimeout(() => {
+      onDownload();
+    }, 100); // Small delay to ensure download started
+  }
 };
