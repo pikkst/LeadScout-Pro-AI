@@ -27,7 +27,21 @@ const LeadSearchApp: React.FC = () => {
   const [focus, setFocus] = useState<LeadFocus>('events');
   const [leads, setLeads] = useState<CompanyLead[]>([]);
   const [currentQueryId, setCurrentQueryId] = useState<string | null>(null);
+  const [downloadedQueries, setDownloadedQueries] = useState<Set<string>>(() => {
+    // Load downloaded queries from localStorage on component mount
+    try {
+      const stored = localStorage.getItem('downloadedQueries');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const [showCreditModal, setShowCreditModal] = useState(false);
+
+  // Save downloaded queries to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('downloadedQueries', JSON.stringify([...downloadedQueries]));
+  }, [downloadedQueries]);
   const [searchState, setSearchState] = useState<SearchState>({
     isSearching: false,
     progress: 0,
@@ -115,20 +129,29 @@ const LeadSearchApp: React.FC = () => {
   };
 
   const handleDownload = () => {
-    if (!profile || profile.credits < 1) {
-      setShowCreditModal(true);
-      return;
-    }
-
     if (leads.length === 0) {
       alert('No leads to download');
       return;
     }
 
+    // Check if this query has already been downloaded
+    const isAlreadyDownloaded = currentQueryId && downloadedQueries.has(currentQueryId);
+    
+    // Only check credits if this is a new download
+    if (!isAlreadyDownloaded && (!profile || profile.credits < 1)) {
+      setShowCreditModal(true);
+      return;
+    }
+
     downloadLeadsAsCSV(leads, location, async () => {
-      // Deduct credit
-      await updateCredits(-1);
-      addLog('CSV downloaded successfully! Credit deducted.');
+      // Only deduct credit for new downloads
+      if (!isAlreadyDownloaded && currentQueryId) {
+        await updateCredits(-1);
+        setDownloadedQueries(prev => new Set([...prev, currentQueryId]));
+        addLog('CSV downloaded successfully! Credit deducted.');
+      } else {
+        addLog('CSV downloaded successfully! (No credit deducted - already downloaded)');
+      }
     });
   };
 
@@ -318,12 +341,24 @@ const LeadSearchApp: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900">
                   Found {leads.length} Leads
                 </h2>
-                <button
-                  onClick={handleDownload}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
-                >
-                  Download CSV (€5)
-                </button>
+                {(() => {
+                  const isAlreadyDownloaded = currentQueryId && downloadedQueries.has(currentQueryId);
+                  return (
+                    <button
+                      onClick={handleDownload}
+                      className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+                        isAlreadyDownloaded 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      {isAlreadyDownloaded ? 'Download CSV (Free)' : 'Download CSV (1 Credit)'}
+                    </button>
+                  );
+                })()}
               </div>
 
               <div className="space-y-4">
