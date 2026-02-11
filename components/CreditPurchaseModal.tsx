@@ -9,10 +9,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { creditPackages, CreditPackage, createPaymentIntent } from '../services/stripeService';
 
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLIC_KEY || 
-  'pk_test_51SyAeLR8LYDydhScCmdbXjcmSiUAhCWFWFWbCyFVhH00mXbi4l71geGeXy6gOizZ2RMp3fZc5Twpif3xzb4fmt6D00dkxuP87I'
-);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
 interface CreditPurchaseModalProps {
   isOpen: boolean;

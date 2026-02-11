@@ -6,6 +6,8 @@ import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import AuthModal from './components/AuthModal';
 import LeadSearchApp from './LeadSearchApp';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
 
 const App: React.FC = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -46,6 +48,8 @@ const App: React.FC = () => {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/search" element={<LeadSearchApp />} />
           <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
         </Routes>
       );
     }
@@ -56,6 +60,8 @@ const App: React.FC = () => {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<UserDashboard />} />
         <Route path="/search" element={<LeadSearchApp />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
       </Routes>
     );
   }
@@ -63,6 +69,8 @@ const App: React.FC = () => {
   return (
     <>
       <Routes>
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
         <Route 
           path="/*" 
           element={<LandingPage onGetStarted={handleGetStarted} />} 

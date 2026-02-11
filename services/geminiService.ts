@@ -5,7 +5,10 @@ const MODEL_NAME = 'gemini-3-flash-preview';
 
 // Get Supabase URL from environment for Edge Functions
 const getSupabaseUrl = () => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://levkpmoensvpteltohsd.supabase.co';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error('VITE_SUPABASE_URL is not set. Please configure environment variables.');
+  }
   return supabaseUrl;
 };
 
@@ -24,9 +27,14 @@ const callGeminiProxy = async (prompt: string, tools: any[] = [], config: any = 
   // Get Supabase session for authentication
   const { data: { session } } = await supabase.auth.getSession();
   
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!anonKey) {
+    throw new Error('VITE_SUPABASE_ANON_KEY is not set. Please configure environment variables.');
+  }
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxldmtwbW9lbnN2cHRlbHRvaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjU5OTgsImV4cCI6MjA4NjA0MTk5OH0.QdAAS86SxUzZYnw88ywEM8aMO0vxvQL1-oHBSTP2Sso',
+    'apikey': anonKey,
   };
 
   // Add authorization header if user is authenticated
@@ -302,7 +310,8 @@ export const findMajorCities = async (
 };
 
 /**
- * Perform deep verification of an email using search grounding.
+ * Verify email authenticity using real DNS/MX validation via Edge Function.
+ * Falls back to basic format + domain match check if edge function is unavailable.
  */
 export const verifyEmailAuthenticity = async (
   email: string, 
@@ -310,27 +319,59 @@ export const verifyEmailAuthenticity = async (
   website: string,
   onRetry?: (attempt: number, nextDelay: number) => void
 ): Promise<boolean> => {
-  return callWithRetry(async () => {
-    const prompt = `
-      Verification Mission: Determine if the email "${email}" is a legitimate business contact for "${companyName}" (${website}).
-      
-      Steps:
-      1. Search for this specific email on the official domain ${website}.
-      2. Check professional directories (LinkedIn, ZoomInfo, Apollo, Yelp) for recent mentions of this contact at this company.
-      3. Verify if the domain part of the email matches the website.
-      
-      Return ONLY a JSON object: {"isAuthentic": true/false, "confidence": 0-100, "reason": "..."}
-    `;
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !anonKey) {
+      // Fallback: basic format + domain check
+      return basicEmailValidation(email, website);
+    }
 
-    const response = await callGeminiProxy(prompt, [{ googleSearch: {} }], {
-      responseMimeType: "application/json"
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/validate-emails`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({
+        emails: [{ email, website, companyName }]
+      })
     });
 
-    const result = JSON.parse(response.text || "{}");
-    return result.isAuthentic === true && (result.confidence || 0) >= 60;
-  }, RATE_LIMIT.maxRetries, RATE_LIMIT.baseDelay, (attempt, error, nextDelay) => {
-    if (onRetry) onRetry(attempt, nextDelay);
-  });
+    if (!response.ok) {
+      console.warn('Email validation edge function failed, using fallback');
+      return basicEmailValidation(email, website);
+    }
+
+    const data = await response.json();
+    if (data.success && data.results?.[0]) {
+      return data.results[0].isValid;
+    }
+    
+    return basicEmailValidation(email, website);
+  } catch (error) {
+    console.warn('Email validation error, using fallback:', error);
+    return basicEmailValidation(email, website);
+  }
+};
+
+/**
+ * Basic email validation fallback: format check + domain match
+ */
+const basicEmailValidation = (email: string, website: string): boolean => {
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) return false;
+  
+  const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+  const websiteDomain = website.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '').toLowerCase();
+  
+  return emailDomain === websiteDomain || 
+    websiteDomain.endsWith(`.${emailDomain}`) ||
+    emailDomain.endsWith(`.${websiteDomain}`);
 };
 
 // Domain pulse check - copy from original

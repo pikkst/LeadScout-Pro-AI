@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserQueryHistory, markQueryAsDownloaded } from '../services/queryHistoryService';
+import { getUserQueryHistory } from '../services/queryHistoryService';
 import { QueryHistory } from '../services/supabaseClient';
-import { downloadLeadsAsCSV } from '../utils/csvExport';
+import { downloadCSVSecure, triggerCSVDownload } from '../services/downloadService';
 import CreditPurchaseModal from './CreditPurchaseModal';
 
 const UserDashboard: React.FC = () => {
   const [queryHistory, setQueryHistory] = useState<QueryHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [showCreditModal, setShowCreditModal] = useState(false);
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,21 +35,26 @@ const UserDashboard: React.FC = () => {
       return;
     }
 
+    setDownloading(query.id);
     try {
-      // Download the CSV
-      downloadLeadsAsCSV(
-        query.results,
-        query.location,
-        async () => {
-          // Mark as downloaded and deduct credit
-          await markQueryAsDownloaded(query.id);
-          await useAuth().updateCredits(-1);
-          await loadQueryHistory(); // Refresh the history
-        }
-      );
-    } catch (error) {
+      // Server-side credit deduction + CSV generation
+      const { csv, filename } = await downloadCSVSecure(query.id);
+      
+      // Trigger browser download
+      triggerCSVDownload(csv, filename);
+      
+      // Refresh data from server
+      await refreshProfile();
+      await loadQueryHistory();
+    } catch (error: any) {
       console.error('Download failed:', error);
-      alert('Download failed. Please try again.');
+      if (error.message?.includes('Insufficient credits')) {
+        setShowCreditModal(true);
+      } else {
+        alert(error.message || 'Download failed. Please try again.');
+      }
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -203,14 +209,16 @@ const UserDashboard: React.FC = () => {
                       <span className="text-lg font-semibold text-blue-300">€5</span>
                       <button
                         onClick={() => handleDownload(query)}
-                        disabled={query.downloaded}
+                        disabled={query.downloaded || downloading === query.id}
                         className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
                           query.downloaded
                             ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/30'
+                            : downloading === query.id
+                            ? 'bg-blue-500/20 text-blue-300 cursor-wait border border-blue-500/30'
                             : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg'
                         }`}
                       >
-                        {query.downloaded ? 'Downloaded' : 'Download CSV'}
+                        {query.downloaded ? 'Downloaded' : downloading === query.id ? 'Processing...' : 'Download CSV'}
                       </button>
                     </div>
                   </div>

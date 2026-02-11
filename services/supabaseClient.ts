@@ -1,12 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://levkpmoensvpteltohsd.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxldmtwbW9lbnN2cHRlbHRvaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjU5OTgsImV4cCI6MjA4NjA0MTk5OH0.QdAAS86SxUzZYnw88ywEM8aMO0vxvQL1-oHBSTP2Sso';
-
-console.log('Supabase Config:', { 
-  url: supabaseUrl ? 'Set' : 'Missing', 
-  key: supabaseAnonKey ? 'Set' : 'Missing'
-});
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl) {
   throw new Error('VITE_SUPABASE_URL is required - please set environment variable');
@@ -24,6 +19,7 @@ export interface UserProfile {
   email: string;
   full_name?: string;
   credits: number;
+  is_admin?: boolean;
   created_at: string;
   updated_at: string;
 }

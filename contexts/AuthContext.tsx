@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
   updateCredits: (amount: number) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(async () => {
             await fetchUserProfile(session.user.id, session.user.email);
           }, 100);
-          setIsAdmin(session.user.email === 'huntersest@gmail.com');
         }
         
         console.log('Auth initialization complete');
@@ -82,7 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(async () => {
             await fetchUserProfile(session.user.id, session.user.email);
           }, 100);
-          setIsAdmin(session.user.email === 'huntersest@gmail.com');
         } else {
           setProfile(null);
           setIsAdmin(false);
@@ -111,15 +110,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Profile doesn't exist, create it
         console.log('Profile not found, creating new profile...');
         const email = userEmail || user?.email || '';
-        const isAdminUser = email === 'huntersest@gmail.com';
         
         const { data: newProfile, error: createError } = await supabase
           .from('user_profiles')
           .insert({
             id: userId,
             email: email,
-            full_name: isAdminUser ? 'Admin User' : email.split('@')[0],
-            credits: isAdminUser ? 1000 : 0 // Give admin 1000 credits
+            full_name: email.split('@')[0],
+            credits: 0
           })
           .select()
           .single();
@@ -127,9 +125,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!createError && newProfile) {
           console.log('Profile created successfully:', newProfile);
           setProfile(newProfile);
+          setIsAdmin(newProfile.is_admin === true);
         } else {
           console.error('Error creating profile:', createError);
-          // Set a default profile to avoid blocking
           setProfile({
             id: userId,
             email: email,
@@ -138,13 +136,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
+          setIsAdmin(false);
         }
       } else if (!error && data) {
         console.log('Profile fetched successfully:', data);
         setProfile(data);
+        setIsAdmin(data.is_admin === true);
       } else {
         console.error('Error fetching profile:', error);
-        // Set a default profile to avoid blocking
         const email = userEmail || user?.email || '';
         setProfile({
           id: userId,
@@ -154,10 +153,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
+        setIsAdmin(false);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-      // Set a default profile to avoid blocking
       const email = userEmail || user?.email || '';
       setProfile({
         id: userId,
@@ -167,6 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
+      setIsAdmin(false);
     }
   };
 
@@ -215,6 +215,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    await fetchUserProfile(user.id, user.email);
+  };
+
   const value = {
     user,
     profile,
@@ -224,7 +229,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signIn,
     signOut,
-    updateCredits
+    updateCredits,
+    refreshProfile
   };
 
   return (

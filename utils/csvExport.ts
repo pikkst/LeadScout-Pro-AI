@@ -7,15 +7,16 @@ export const downloadLeadsAsCSV = (
 ) => {
   if (leads.length === 0) return;
 
-  // Removed "Website" and "Source" headers
-  const headers = ["Name", "Category", "Email", "Description"];
+  // Include website for lead value
+  const headers = ["Name", "Category", "Email", "Website", "Description", "Verified"];
   
-  // Removed the corresponding data fields for Website and Source
   const rows = leads.map(l => [
     `"${l.name.replace(/"/g, '""')}"`,
     `"${l.category.replace(/"/g, '""')}"`,
     `"${l.email.replace(/"/g, '""')}"`,
-    `"${l.description.replace(/"/g, '""')}"`
+    `"${(l.website || '').replace(/"/g, '""')}"`,
+    `"${l.description.replace(/"/g, '""')}"`,
+    l.isVerified ? 'Yes' : 'No'
   ]);
 
   const csvContent = [

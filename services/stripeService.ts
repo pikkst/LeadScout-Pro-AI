@@ -1,15 +1,9 @@
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 
-// Add a fallback public key for testing purposes
-// In production, replace with your actual Stripe publishable key
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51SyAeLR8LYDydhScCmdbXjcmSiUAhCWFWFWbCyFVhH00mXbi4l71geGeXy6gOizZ2RMp3fZc5Twpif3xzb4fmt6D00dkxuP87I';
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 
-console.log('Stripe Config:', { 
-  key: stripePublicKey ? 'Set' : 'Missing'
-});
-
-if (!stripePublicKey || stripePublicKey.includes('EXAMPLE')) {
-  console.warn('Stripe public key is not set or using example key');
+if (!stripePublicKey) {
+  console.error('VITE_STRIPE_PUBLIC_KEY is not set. Payments will not work.');
 }
 
 let stripePromise: Promise<Stripe | null>;
@@ -62,10 +56,12 @@ export const createPaymentIntent = async (packageId: string, userId: string) => 
   }
 
   // Call our Supabase Edge Function
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://levkpmoensvpteltohsd.supabase.co';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxldmtwbW9lbnN2cHRlbHRvaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjU5OTgsImV4cCI6MjA4NjA0MTk5OH0.QdAAS86SxUzZYnw88ywEM8aMO0vxvQL1-oHBSTP2Sso';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
-  console.log('Payment URL:', `${supabaseUrl}/functions/v1/create-payment-intent`);
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase environment variables are not configured');
+  }
   
   const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
     method: 'POST',

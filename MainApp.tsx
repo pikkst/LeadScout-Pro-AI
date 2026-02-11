@@ -1,7 +1,7 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { CompanyLead, SearchState, AgentTask, LeadFocus } from './types';
-import { findLeads, findMajorCities, verifyEmailAuthenticity } from './services/geminiService';
+import { findLeads } from './services/geminiService';
 import { downloadLeadsAsCSV } from './utils/csvExport';
 import AgentTerminal from './components/AgentTerminal';
 
@@ -35,26 +35,6 @@ const App: React.FC = () => {
     }));
   }, []);
 
-  const updateProgress = (progress: number, task?: string) => {
-    setSearchState(prev => ({
-      ...prev,
-      progress: Math.min(progress, 100),
-      currentAgent: task || prev.currentAgent
-    }));
-  };
-
-  const checkDomainPulse = async (url: string): Promise<boolean> => {
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 4000);
-      await fetch(url, { mode: 'no-cors', signal: controller.signal });
-      clearTimeout(id);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location.trim() || searchState.isSearching) return;
@@ -68,60 +48,29 @@ const App: React.FC = () => {
     });
 
     try {
-      addLog(`[Strategic] Identifying high-activity hubs for "${focus}" sector in ${location}...`);
-      let cities = await findMajorCities(location, focus);
-      
-      const cityLimit = intensity === 'standard' ? 5 : 15;
-      cities = cities.slice(0, cityLimit);
-      
-      addLog(`[Strategic] Fleet deployment confirmed for ${cities.length} zones.`);
-      
-      const uniqueWebsites = new Set<string>();
-      const masterLeads: CompanyLead[] = [];
-
-      for (let i = 0; i < cities.length; i++) {
-        const city = cities[i];
-        const cityProgressBase = (i / cities.length) * 90;
-        
-        updateProgress(cityProgressBase + 2, `Scouting: ${city}`);
-        addLog(`[Agent] Scouring ${city} for unique ${focus} leads...`);
-
-        const cityLeads = await findLeads(city, location, focus, (msg) => addLog(`[Scout] ${msg}`));
-        
-        let cityProcessed = 0;
-        for (const lead of cityLeads) {
-          const domain = lead.website.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-          
-          if (!uniqueWebsites.has(domain)) {
-            uniqueWebsites.add(domain);
-            
-            // To prevent 503 Overloaded, we stagger requests slightly
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            addLog(`[Verifier] Authenticating ${lead.email}...`);
-            
-            const isAlive = await checkDomainPulse(lead.website);
-            const isAuthentic = await verifyEmailAuthenticity(
-              lead.email, 
-              lead.name, 
-              lead.website,
-              (attempt) => addLog(`[Network] Load high. Retrying authentication (Attempt ${attempt})...`)
-            );
-
-            const enrichedLead = { ...lead, isVerified: isAlive && isAuthentic };
-            
-            masterLeads.push(enrichedLead);
-            setLeads([...masterLeads]);
-            cityProcessed++;
-          }
+      // Delegate to service — single source of truth for search logic
+      const results = await findLeads(
+        location,
+        focus,
+        intensity,
+        (progress, agent) => {
+          setSearchState(prev => ({
+            ...prev,
+            progress: Math.min(progress, 100),
+            currentAgent: agent || prev.currentAgent,
+          }));
+          if (agent) addLog(`[Agent] ${agent}`);
         }
-        
-        addLog(`[Scout] Zone ${city} complete. Collected ${cityProcessed} unique verified leads.`);
-      }
+      );
 
-      updateProgress(100, AgentTask.COMPLETED);
-      addLog(`[Mission] Successfully captured ${masterLeads.length} unique B2B leads.`);
-      setSearchState(prev => ({ ...prev, isSearching: false }));
+      setLeads(results);
+      setSearchState(prev => ({
+        ...prev,
+        isSearching: false,
+        progress: 100,
+        currentAgent: AgentTask.COMPLETED,
+      }));
+      addLog(`[Mission] Successfully captured ${results.length} unique B2B leads.`);
 
     } catch (err: any) {
       const errorMsg = err?.message || 'Unknown orbital failure';

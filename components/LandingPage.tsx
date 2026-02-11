@@ -315,9 +315,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white transition">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-white transition">GDPR Compliance</a></li>
+                <li><a href="/LeadScout-Pro-AI/privacy" className="hover:text-white transition">Privacy Policy</a></li>
+                <li><a href="/LeadScout-Pro-AI/terms" className="hover:text-white transition">Terms of Service</a></li>
+                <li><a href="/LeadScout-Pro-AI/privacy" className="hover:text-white transition">GDPR Compliance</a></li>
               </ul>
             </div>
           </div>
