@@ -7,6 +7,7 @@ import { downloadLeadsAsCSV } from './utils/csvExport';
 import { saveQueryToHistory } from './services/queryHistoryService';
 import AgentTerminal from './components/AgentTerminal';
 import CreditPurchaseModal from './components/CreditPurchaseModal';
+import Footer from './components/Footer';
 
 const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string }[] = [
   { value: 'events', label: 'Events & Entertainment', icon: '🎫' },
@@ -156,7 +157,7 @@ const LeadSearchApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col">
       {/* Header */}
       <header className="relative z-10 border-b border-white/10 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4">
@@ -198,7 +199,7 @@ const LeadSearchApp: React.FC = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-8 flex-1">
         <div className="max-w-4xl mx-auto">
           {/* Search Form */}
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-8 mb-8">
@@ -209,7 +210,7 @@ const LeadSearchApp: React.FC = () => {
 
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-blue-200 mb-2">
                   Location (City or Country)
                 </label>
                 <input
@@ -217,21 +218,21 @@ const LeadSearchApp: React.FC = () => {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="e.g., Tallinn, Estonia, Berlin, Germany, New York"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent"
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Enter a city name or country - our AI agents will find leads across the region
+                <p className="text-sm text-blue-300/70 mt-1">
+                  Enter a city name or country — our AI agents will find leads across the region
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-blue-200 mb-2">
                   Business Focus
                 </label>
                 <select
                   value={focus}
                   onChange={(e) => setFocus(e.target.value as LeadFocus)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent [&>option]:bg-slate-800 [&>option]:text-white"
                 >
                   {FOCUS_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>
@@ -243,29 +244,29 @@ const LeadSearchApp: React.FC = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-3">
                 Search Intensity
               </label>
-              <div className="flex space-x-4">
-                <label className="flex items-center">
+              <div className="flex space-x-6">
+                <label className="flex items-center text-white cursor-pointer group">
                   <input
                     type="radio"
                     value="standard"
                     checked={intensity === 'standard'}
                     onChange={(e) => setIntensity(e.target.value as 'standard' | 'deep')}
-                    className="mr-2"
+                    className="mr-2 accent-blue-500"
                   />
-                  Standard (Faster)
+                  <span className="group-hover:text-blue-200 transition-colors">Standard <span className="text-blue-300/70 text-sm">(Faster)</span></span>
                 </label>
-                <label className="flex items-center">
+                <label className="flex items-center text-white cursor-pointer group">
                   <input
                     type="radio"
                     value="deep"
                     checked={intensity === 'deep'}
                     onChange={(e) => setIntensity(e.target.value as 'standard' | 'deep')}
-                    className="mr-2"
+                    className="mr-2 accent-blue-500"
                   />
-                  Deep (More Thorough)
+                  <span className="group-hover:text-blue-200 transition-colors">Deep <span className="text-blue-300/70 text-sm">(More Thorough)</span></span>
                 </label>
               </div>
             </div>
@@ -273,11 +274,54 @@ const LeadSearchApp: React.FC = () => {
             <button
               onClick={handleSearch}
               disabled={searchState.isSearching || !location.trim()}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
             >
               {searchState.isSearching ? 'Searching...' : 'Find Leads'}
             </button>
           </div>
+
+          {/* How It Works */}
+          {!searchState.isSearching && leads.length === 0 && (
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 mb-8">
+              <h2 className="text-xl font-semibold text-white mb-6 text-center">How It Works</h2>
+              <div className="grid md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <span className="text-white text-xl">1</span>
+                  </div>
+                  <h3 className="text-white font-medium mb-1">Choose Location</h3>
+                  <p className="text-blue-300/70 text-sm">Enter any city or country where you want to find business leads.</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <span className="text-white text-xl">2</span>
+                  </div>
+                  <h3 className="text-white font-medium mb-1">Select Category</h3>
+                  <p className="text-blue-300/70 text-sm">Pick a business focus — events, investors, tech, marketing, and more.</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <span className="text-white text-xl">3</span>
+                  </div>
+                  <h3 className="text-white font-medium mb-1">AI Discovery</h3>
+                  <p className="text-blue-300/70 text-sm">Our AI agents search the web, find real companies, and verify their email addresses.</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <span className="text-white text-xl">4</span>
+                  </div>
+                  <h3 className="text-white font-medium mb-1">Download CSV</h3>
+                  <p className="text-blue-300/70 text-sm">Get a ready-to-use CSV file with names, emails, websites, and confidence scores.</p>
+                </div>
+              </div>
+              <div className="mt-6 pt-6 border-t border-white/10 text-center">
+                <p className="text-blue-200/80 text-sm">
+                  Each search is <span className="text-white font-medium">free</span>. You only pay <span className="text-white font-medium">1 credit</span> when you download the CSV. 
+                  Re-downloads of the same search are free (up to 10 times).
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Progress and Agent Terminal */}
           {(searchState.isSearching || (searchState.logs?.length || 0) > 0) && (
@@ -387,6 +431,8 @@ const LeadSearchApp: React.FC = () => {
           )}
         </div>
       </div>
+
+      <Footer />
 
       <CreditPurchaseModal
         isOpen={showCreditModal}
