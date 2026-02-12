@@ -452,6 +452,14 @@ const checkDomainPulse = async (url: string): Promise<boolean> => {
   }
 };
 
+// Mask email for display in logs — show only domain hint
+const maskEmail = (email: string): string => {
+  const parts = email.split('@');
+  if (parts.length !== 2) return '***@***.***';
+  const domain = parts[1];
+  return `***@${domain}`;
+};
+
 // Main function - enhanced with better error handling and retry notifications
 export const findLeads = async (
   location: string,
@@ -460,10 +468,10 @@ export const findLeads = async (
   onProgress: (progress: number, agent?: string) => void
 ): Promise<CompanyLead[]> => {
   try {
-    onProgress(2, 'Strategic Planning');
+    onProgress(2, '🛰️ Initializing AI agents...');
     
     // Step 1: Find major cities
-    onProgress(5, `Identifying high-activity hubs for "${focus}" sector in ${location}...`);
+    onProgress(5, `🔍 Analyzing location "${location}" — detecting whether it is a city or country...`);
     
     let cities: string[] = [];
     let isSpecificCity = false;
@@ -491,11 +499,14 @@ export const findLeads = async (
     // Standard mode strategy info
     const isStandard = intensity === 'standard';
     if (isStandard && !isSpecificCity) {
-      onProgress(8, `Standard scan: ${cities.length} cities, 1 top lead per city.`);
+      onProgress(8, `📍 Location type: COUNTRY/REGION — found ${cities.length} major cities: ${cities.slice(0, 5).join(', ')}${cities.length > 5 ? '...' : ''}`);
+      onProgress(8, `⚡ Standard mode: scanning 1 top company per city.`);
     } else if (isStandard && isSpecificCity) {
-      onProgress(8, `Standard scan: Finding top 10 companies in ${location}.`);
+      onProgress(8, `📍 Location type: SPECIFIC CITY — ${location}`);
+      onProgress(8, `⚡ Standard mode: finding top 10 companies registered in ${location}.`);
     } else {
-      onProgress(8, `Deep scan: ${cities.length} zones, full discovery.`);
+      onProgress(8, `📍 Location type: ${isSpecificCity ? 'SPECIFIC CITY' : 'COUNTRY/REGION'} — ${cities.length} zones identified: ${cities.slice(0, 5).join(', ')}${cities.length > 5 ? '...' : ''}`);
+      onProgress(8, `🔬 Deep mode: full discovery across ${cities.length} zones.`);
     }
     
     const seenCompanies = new Set<string>();
@@ -517,7 +528,8 @@ export const findLeads = async (
       const city = cities[i];
       const cityProgressBase = (i / cities.length) * 90;
       
-      onProgress(Math.round(cityProgressBase + 2), `Scouting: ${city}`);
+      onProgress(Math.round(cityProgressBase + 2), `\n🏙️ ━━━ Scanning zone ${i + 1}/${cities.length}: ${city} ━━━`);
+      onProgress(Math.round(cityProgressBase + 2), `🤖 AI agent searching web for ${focus} companies in ${city}...`);
       
       let cityLeads: CompanyLead[] = [];
       try {
@@ -526,8 +538,9 @@ export const findLeads = async (
         cityLeads = await findCityLeads(city, location, focus, (msg) => {
           onProgress(Math.round(cityProgressBase + 3), msg);
         }, leadsPerCity);
+        onProgress(Math.round(cityProgressBase + 3), `📋 AI returned ${cityLeads.length} candidate${cityLeads.length !== 1 ? 's' : ''} from ${city}`);
       } catch (error: any) {
-        onProgress(Math.round(cityProgressBase + 4), `${city} search failed: ${error.message}. Continuing with next city...`);
+        onProgress(Math.round(cityProgressBase + 4), `⚠️ ${city} search failed: ${error.message}. Skipping to next zone...`);
         continue; // Skip this city but continue with others
       }
       
@@ -541,14 +554,18 @@ export const findLeads = async (
           seenCompanies.add(normalizeCompanyName(lead.name));
           seenCompanies.add(domain);
           
+          onProgress(Math.round(cityProgressBase + 4), `   🏢 Verifying: ${lead.name}`);
+          
           // Enhanced delay between requests to reduce API pressure
           await new Promise(resolve => setTimeout(resolve, 2000));
 
           const isAlive = await checkDomainPulse(lead.website);
+          onProgress(Math.round(cityProgressBase + 5), `   🌐 Domain check (${domain}): ${isAlive ? '✅ Online' : '❌ Unreachable'}`);
           
           let isAuthentic = false;
           let emailConfidence = 0;
           try {
+            onProgress(Math.round(cityProgressBase + 5), `   📧 Verifying email via MX lookup: ${maskEmail(lead.email)}`);
             const validationResult = await verifyEmailWithConfidence(
               lead.email, 
               lead.name, 
@@ -562,23 +579,32 @@ export const findLeads = async (
             );
             isAuthentic = validationResult.isValid;
             emailConfidence = validationResult.confidence;
+            onProgress(Math.round(cityProgressBase + 6), `   📊 Email confidence: ${emailConfidence}% ${isAuthentic ? '✅ Valid MX' : '⚠️ Unverified'}`);
           } catch (verifyError: any) {
-            onProgress(Math.round(cityProgressBase + 5), `Email verification failed for ${lead.name}, marking as unverified`);
+            onProgress(Math.round(cityProgressBase + 5), `   ⚠️ Email verification failed for ${lead.name}, marking as unverified`);
             isAuthentic = false;
             emailConfidence = 0;
           }
 
           const enrichedLead = { ...lead, isVerified: isAlive && isAuthentic, emailConfidence };
           
+          const status = enrichedLead.isVerified ? '✅ VERIFIED' : '⚠️ UNVERIFIED';
+          onProgress(Math.round(cityProgressBase + 7), `   → ${lead.name} [${status}] — ${lead.category}`);
+          
           masterLeads.push(enrichedLead);
           cityProcessed++;
+        } else {
+          onProgress(Math.round(cityProgressBase + 4), `   ♻️ Skipping duplicate: ${lead.name}`);
         }
       }
       
-      onProgress(Math.round(cityProgressBase + 10), `Zone ${city} complete. Collected ${cityProcessed} unique verified leads.`);
+      onProgress(Math.round(cityProgressBase + 10), `✅ Zone ${city} complete — ${cityProcessed} unique leads collected. Total so far: ${masterLeads.length}.`);
     }
 
-    onProgress(100, `Successfully captured ${masterLeads.length} unique B2B leads.`);
+    const verified = masterLeads.filter(l => l.isVerified).length;
+    onProgress(100, `\n🎯 ━━━ SEARCH COMPLETE ━━━`);
+    onProgress(100, `📊 Total: ${masterLeads.length} leads | ✅ Verified: ${verified} | ⚠️ Unverified: ${masterLeads.length - verified}`);
+    onProgress(100, `💾 Results saved — download your CSV to get full details including emails.`);
     return masterLeads;
 
   } catch (err: any) {

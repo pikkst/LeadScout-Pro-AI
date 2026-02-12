@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { CompanyLead, SearchState, LeadFocus } from './types';
@@ -49,11 +49,20 @@ const LeadSearchApp: React.FC = () => {
     currentAgent: 'Idle',
     logs: []
   });
+  const terminalRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll terminal to bottom
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [searchState.logs]);
 
   const addLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
     setSearchState(prev => ({
       ...prev,
-      logs: [...(prev.logs || []), message]
+      logs: [...(prev.logs || []), `[${timestamp}] ${message}`]
     }));
   }, []);
 
@@ -356,27 +365,43 @@ const LeadSearchApp: React.FC = () => {
               )}
               
               {/* Agent Terminal */}
-              <div className="bg-black/50 rounded-xl p-4 max-h-64 overflow-y-auto">
+              <div 
+                ref={terminalRef}
+                className="bg-black/50 rounded-xl p-4 max-h-80 overflow-y-auto select-none"
+                style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+                onCopy={(e) => e.preventDefault()}
+                onCut={(e) => e.preventDefault()}
+              >
                 <div className="flex items-center gap-2 border-b border-gray-700 pb-2 mb-2">
                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
                   <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-gray-400 text-sm ml-2">Agent Terminal v2.0</span>
+                  <span className="text-gray-400 text-sm ml-2">Agent Terminal v3.0</span>
+                  <span className="text-gray-600 text-xs ml-auto">Emails masked for security</span>
                 </div>
-                <div className="space-y-1 font-mono text-sm">
+                <div className="space-y-0.5 font-mono text-xs leading-relaxed">
                   {(searchState.logs?.length || 0) === 0 && (
-                    <div className="text-gray-500 italic">Agents ready to search...</div>
+                    <div className="text-gray-500 italic">▶ Agents ready. Start a search to see live progress...</div>
                   )}
-                  {(searchState.logs || []).map((log, i) => (
-                    <div key={i} className="flex gap-2">
-                      <span className="text-green-400">[{new Date().toLocaleTimeString()}]</span>
-                      <span className="text-gray-300">{log}</span>
-                    </div>
-                  ))}
+                  {(searchState.logs || []).map((log, i) => {
+                    // Color-code lines based on content
+                    let textColor = 'text-gray-300';
+                    if (log.includes('✅')) textColor = 'text-green-400';
+                    else if (log.includes('❌') || log.includes('⚠️')) textColor = 'text-yellow-400';
+                    else if (log.includes('🏙️') || log.includes('━━━')) textColor = 'text-cyan-400';
+                    else if (log.includes('🤖') || log.includes('🔍') || log.includes('🛰️')) textColor = 'text-blue-400';
+                    else if (log.includes('→')) textColor = 'text-white';
+                    else if (log.includes('   ')) textColor = 'text-gray-400';
+                    
+                    return (
+                      <div key={i} className={`${textColor} whitespace-pre-wrap`}>
+                        {log}
+                      </div>
+                    );
+                  })}
                   {searchState.isSearching && (
-                    <div className="flex gap-2 animate-pulse">
-                      <span className="text-green-400">[{new Date().toLocaleTimeString()}]</span>
-                      <span className="text-blue-300">{searchState.currentAgent}...</span>
+                    <div className="flex gap-2 animate-pulse text-blue-300">
+                      [{new Date().toLocaleTimeString('en-US', { hour12: false })}] {searchState.currentAgent}...
                     </div>
                   )}
                 </div>
