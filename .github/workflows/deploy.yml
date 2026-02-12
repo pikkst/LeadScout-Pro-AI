@@ -47,13 +47,16 @@ jobs:
         echo "=== Created .env file ==="
         
     - name: Build application
+      env:
+        VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        VITE_STRIPE_PUBLIC_KEY: ${{ secrets.VITE_STRIPE_PUBLIC_KEY }}
       run: |
-        echo "=== DEBUG: Environment Variables Check ==="
-        echo "VITE_GEMINI_API_KEY exists: $([[ -n "$VITE_GEMINI_API_KEY" ]] && echo "YES" || echo "NO")"
+        echo "=== Environment Variables Check ==="
         echo "VITE_SUPABASE_URL exists: $([[ -n "$VITE_SUPABASE_URL" ]] && echo "YES" || echo "NO")"
         echo "VITE_SUPABASE_ANON_KEY exists: $([[ -n "$VITE_SUPABASE_ANON_KEY" ]] && echo "YES" || echo "NO")"
-        echo "VITE_STRIPE_PUBLIC_KEY exists: $([[ -n "$VITE_STRIPE_PUBLIC_KEY" ]] && echo "YES" || echo "NO")"
-        echo "VITE_GEMINI_API_KEY first 10 chars: ${VITE_GEMINI_API_KEY:0:10}..."
+        echo "VITE_GEMINI_API_KEY exists: $([[ -n "$VITE_GEMINI_API_KEY" ]] && echo "YES" || echo "NO")"
         echo "=========================================="
         npm run build
         echo "=== BUILD COMPLETED ==="
