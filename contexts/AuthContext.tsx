@@ -33,43 +33,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    let profileFetched = false;
+    let initialized = false;
 
-    // Fail-safe: ensure loading stops after 8 seconds
+    // Fail-safe: ensure loading stops after 10 seconds
     const loadingTimeout = setTimeout(() => {
       console.warn('Loading timeout reached, stopping loading state');
       setLoading(false);
-    }, 8000);
-
-    const loadProfile = async (userId: string, email?: string) => {
-      if (profileFetched) return;
-      profileFetched = true;
-      // Wait for Supabase client to set auth headers for REST API
-      await new Promise(resolve => setTimeout(resolve, 200));
-      await fetchUserProfile(userId, email);
-      setLoading(false);
-      clearTimeout(loadingTimeout);
-    };
+    }, 10000);
 
     const initializeAuth = async () => {
-      console.log('Initializing auth with simple Supabase flow...');
-
+      console.log('Initializing auth...');
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('Session retrieved:', session ? 'Found' : 'None', error);
+        console.log('Session:', session ? `Found (${session.user.email})` : 'None', error || '');
         
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          console.log('User found, fetching profile...');
-          await loadProfile(session.user.id, session.user.email);
-        } else {
-          setLoading(false);
-          clearTimeout(loadingTimeout);
+          await fetchUserProfile(session.user.id, session.user.email);
         }
       } catch (error) {
-        console.error('Error getting session:', error);
+        console.error('Auth init error:', error);
+      } finally {
+        initialized = true;
         setLoading(false);
         clearTimeout(loadingTimeout);
       }
@@ -77,19 +64,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    // Listen for auth changes (sign in, sign out, token refresh)
+    // Listen for auth changes AFTER initialization
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
-        console.log('Auth state changed:', event, session ? 'Session exists' : 'No session');
+        console.log('Auth state changed:', event);
+        // Skip events during initialization — handled by getSession above
+        if (!initialized) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
-          await loadProfile(session.user.id, session.user.email);
-        } else {
+        if (event === 'SIGNED_IN' && session?.user) {
+          await fetchUserProfile(session.user.id, session.user.email);
+        } else if (event === 'SIGNED_OUT') {
           setProfile(null);
           setIsAdmin(false);
-          setLoading(false);
         }
       }
     );
@@ -101,13 +90,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchUserProfile = async (userId: string, userEmail?: string) => {
-    console.log('Fetching user profile for:', userId, userEmail);
+    console.log('fetchUserProfile START for:', userId, userEmail);
     try {
-      const { data, error } = await supabase
+      // Timeout wrapper — don't let the REST call hang forever
+      const queryPromise = supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
+      
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timed out after 5s')), 5000)
+      );
+
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+      console.log('fetchUserProfile result:', { hasData: !!data, error: error?.message, is_admin: data?.is_admin });
 
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it with 1 free trial credit
