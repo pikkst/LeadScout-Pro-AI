@@ -1,21 +1,25 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import Footer from './Footer';
 
 const PrivacyPolicy: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white">
-      <div className="container mx-auto px-6 py-12 max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white flex flex-col">
+      <div className="container mx-auto px-6 py-12 max-w-3xl flex-1">
         <Link to="/" className="text-blue-300 hover:text-white mb-8 inline-block">&larr; Back to Home</Link>
         
         <h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
-        <p className="text-blue-200 mb-6">Last updated: {new Date().toLocaleDateString()}</p>
+        <p className="text-blue-200 mb-6">Last updated: February 12, 2026</p>
 
         <div className="space-y-8 text-blue-100 leading-relaxed">
           <section>
             <h2 className="text-2xl font-semibold text-white mb-3">1. Data Controller</h2>
             <p>
-              LeadScout Pro AI ("we", "our", "us") is the data controller responsible for your personal data.
-              Contact us at: <span className="text-blue-300">privacy@leadscoutpro.ai</span>
+              LeadScout Pro AI is a product of <strong>EventNexus OÜ</strong> (registry code: 17431557),
+              located in Põltsamaa, Estonia. EventNexus OÜ is the data controller responsible for your personal data.
+            </p>
+            <p className="mt-2">
+              Contact: <a href="mailto:villu@mail.eventnexus.eu" className="text-blue-300 hover:text-blue-200 underline">villu@mail.eventnexus.eu</a>
             </p>
           </section>
 
@@ -61,8 +65,9 @@ const PrivacyPolicy: React.FC = () => {
               <li><strong>Objection:</strong> Object to processing based on legitimate interest</li>
             </ul>
             <p className="mt-2">
-              To exercise these rights, use the "Delete My Account" option in your dashboard, 
-              or contact us at <span className="text-blue-300">privacy@leadscoutpro.ai</span>.
+              To exercise these rights, use the "Delete My Account" option in your dashboard,
+              or contact us at <a href="mailto:villu@mail.eventnexus.eu" className="text-blue-300 hover:text-blue-200 underline">villu@mail.eventnexus.eu</a>.
+              We will respond within 24 hours.
             </p>
           </section>
 
@@ -77,7 +82,7 @@ const PrivacyPolicy: React.FC = () => {
           <section>
             <h2 className="text-2xl font-semibold text-white mb-3">7. Security</h2>
             <p>
-              We use industry-standard security measures including encrypted connections (HTTPS), 
+              We use industry-standard security measures including encrypted connections (HTTPS),
               Row Level Security on database tables, hashed passwords, and secure API key management.
             </p>
           </section>
@@ -88,8 +93,35 @@ const PrivacyPolicy: React.FC = () => {
               We use essential cookies for authentication only. We do not use tracking or advertising cookies.
             </p>
           </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-white mb-3">9. Supervisory Authority</h2>
+            <p>
+              If you believe your data protection rights have been violated, you have the right to lodge a complaint
+              with the Estonian Data Protection Inspectorate (Andmekaitse Inspektsioon):
+            </p>
+            <ul className="list-disc pl-6 space-y-1 mt-2">
+              <li>Website: <a href="https://www.aki.ee" target="_blank" rel="noopener noreferrer" className="text-blue-300 hover:text-blue-200 underline">www.aki.ee</a></li>
+              <li>Email: info@aki.ee</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-white mb-3">10. Contact</h2>
+            <p>
+              For any questions about this Privacy Policy, contact us:
+            </p>
+            <ul className="list-none space-y-1 mt-2">
+              <li><strong>EventNexus OÜ</strong> (reg. no. 17431557)</li>
+              <li>Põltsamaa, Estonia</li>
+              <li>Email: <a href="mailto:villu@mail.eventnexus.eu" className="text-blue-300 hover:text-blue-200 underline">villu@mail.eventnexus.eu</a></li>
+              <li>Response time: Within 24 hours</li>
+            </ul>
+          </section>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 };
