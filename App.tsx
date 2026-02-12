@@ -40,6 +40,7 @@ const App: React.FC = () => {
   }
 
   if (user) {
+    console.log('App routing - isAdmin:', isAdmin, 'email:', user.email);
     // Admin gets admin dashboard
     if (isAdmin) {
       return (
@@ -50,6 +51,7 @@ const App: React.FC = () => {
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       );
     }
@@ -62,6 +64,7 @@ const App: React.FC = () => {
         <Route path="/search" element={<LeadSearchApp />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     );
   }
