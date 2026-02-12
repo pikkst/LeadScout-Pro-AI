@@ -8,6 +8,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { useAuth } from '../contexts/AuthContext';
 import { creditPackages, CreditPackage, createPaymentIntent } from '../services/stripeService';
+import { supabase } from '../services/supabaseClient';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
@@ -63,6 +64,29 @@ const PaymentForm: React.FC<{
 
       if (paymentIntent?.status === 'succeeded') {
         console.log('Payment succeeded:', paymentIntent.id);
+        
+        // Record payment in database (client-side, independent of webhook)
+        try {
+          const { error: paymentRecordError } = await supabase
+            .from('payments')
+            .upsert({
+              user_id: user.id,
+              amount: selectedPackage.price,
+              currency: 'EUR',
+              stripe_payment_id: paymentIntent.id,
+              credits_added: selectedPackage.credits,
+              status: 'completed',
+            }, { onConflict: 'stripe_payment_id' });
+          
+          if (paymentRecordError) {
+            console.error('Failed to record payment:', paymentRecordError);
+          } else {
+            console.log('Payment recorded in database');
+          }
+        } catch (recordErr) {
+          console.error('Payment recording error:', recordErr);
+        }
+        
         // Add credits to user account
         await updateCredits(selectedPackage.credits);
         onSuccess();
