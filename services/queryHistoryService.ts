@@ -76,6 +76,26 @@ export const markQueryAsDownloaded = async (queryId: string): Promise<boolean> =
   }
 };
 
+export const deleteQuery = async (queryId: string, userId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('query_history')
+      .delete()
+      .eq('id', queryId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting query:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting query:', error);
+    return false;
+  }
+};
+
 export const getQueryById = async (queryId: string): Promise<QueryHistory | null> => {
   try {
     const { data, error } = await supabase

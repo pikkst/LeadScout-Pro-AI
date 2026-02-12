@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserQueryHistory } from '../services/queryHistoryService';
+import { getUserQueryHistory, deleteQuery } from '../services/queryHistoryService';
 import { QueryHistory } from '../services/supabaseClient';
 import { downloadCSVSecure, triggerCSVDownload } from '../services/downloadService';
 import CreditPurchaseModal from './CreditPurchaseModal';
@@ -22,6 +22,9 @@ const UserDashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [filterFocus, setFilterFocus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
+  const [pageSize, setPageSize] = useState<number>(5);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -115,6 +118,36 @@ const UserDashboard: React.FC = () => {
       setDownloading(null);
     }
   };
+
+  const handleDelete = async (query: QueryHistory) => {
+    if (deleteConfirm !== query.id) {
+      setDeleteConfirm(query.id);
+      // Auto-clear confirm after 3 seconds
+      setTimeout(() => setDeleteConfirm(prev => prev === query.id ? null : prev), 3000);
+      return;
+    }
+
+    setDeleting(query.id);
+    try {
+      const success = await deleteQuery(query.id, user!.id);
+      if (success) {
+        setQueryHistory(prev => prev.filter(q => q.id !== query.id));
+      } else {
+        alert('Failed to delete. Please try again.');
+      }
+    } catch (error) {
+      alert('Failed to delete. Please try again.');
+    } finally {
+      setDeleting(null);
+      setDeleteConfirm(null);
+    }
+  };
+
+  // Paginated results
+  const paginatedHistory = useMemo(() => {
+    if (pageSize === 0) return filteredHistory; // 0 = show all
+    return filteredHistory.slice(0, pageSize);
+  }, [filteredHistory, pageSize]);
 
   const getDownloadButtonProps = (query: QueryHistory) => {
     const maxDownloads = 10;
@@ -305,9 +338,21 @@ const UserDashboard: React.FC = () => {
               <option value="leads-asc">Fewest Leads</option>
             </select>
 
+            {/* Per page */}
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 [&>option]:bg-slate-800 [&>option]:text-white"
+            >
+              <option value={5}>Show 5</option>
+              <option value={10}>Show 10</option>
+              <option value={20}>Show 20</option>
+              <option value={0}>Show All</option>
+            </select>
+
             {/* Results count */}
             <span className="text-blue-300 text-sm">
-              {filteredHistory.length} of {queryHistory.length} results
+              {pageSize > 0 ? `${Math.min(pageSize, filteredHistory.length)} of ` : ''}{filteredHistory.length} results
             </span>
           </div>
         </div>
@@ -318,7 +363,7 @@ const UserDashboard: React.FC = () => {
             <h2 className="text-xl font-semibold text-white">Search History</h2>
           </div>
           
-          {(filteredHistory?.length || 0) === 0 ? (
+          {(paginatedHistory?.length || 0) === 0 ? (
             <div className="p-8 text-center">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <span className="text-white text-2xl">🔍</span>
@@ -349,10 +394,12 @@ const UserDashboard: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-white/10">
-              {filteredHistory.map((query) => {
+              {paginatedHistory.map((query) => {
                 const btnProps = getDownloadButtonProps(query);
+                const isDeleting = deleting === query.id;
+                const isConfirming = deleteConfirm === query.id;
                 return (
-                  <div key={query.id} className="p-6">
+                  <div key={query.id} className="p-6 group">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
@@ -384,12 +431,44 @@ const UserDashboard: React.FC = () => {
                         >
                           {btnProps.label}
                         </button>
+                        <button
+                          onClick={() => handleDelete(query)}
+                          disabled={isDeleting}
+                          className={`px-3 py-2 rounded-xl font-medium transition-all duration-200 ${
+                            isDeleting
+                              ? 'bg-gray-500/20 text-gray-400 cursor-wait'
+                              : isConfirming
+                              ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg'
+                              : 'bg-white/5 text-red-400 hover:bg-red-500/20 hover:text-red-300 opacity-0 group-hover:opacity-100 border border-transparent hover:border-red-500/30'
+                          }`}
+                          title={isConfirming ? 'Click again to confirm' : 'Delete search'}
+                        >
+                          {isDeleting ? '...' : isConfirming ? 'Confirm?' : '🗑️'}
+                        </button>
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Show more / pagination info */}
+            {pageSize > 0 && filteredHistory.length > pageSize && (
+              <div className="px-6 py-4 border-t border-white/10 text-center">
+                <button
+                  onClick={() => setPageSize(prev => prev + 5)}
+                  className="text-blue-400 hover:text-blue-300 font-medium mr-4"
+                >
+                  Show 5 more
+                </button>
+                <button
+                  onClick={() => setPageSize(0)}
+                  className="text-blue-400/60 hover:text-blue-300 font-medium"
+                >
+                  Show all ({filteredHistory.length})
+                </button>
+              </div>
+            )}
           )}
         </div>
       </div>
