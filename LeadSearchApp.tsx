@@ -247,7 +247,7 @@ const LeadSearchApp: React.FC = () => {
               <label className="block text-sm font-medium text-blue-200 mb-3">
                 Search Intensity
               </label>
-              <div className="flex space-x-6">
+              <div className="flex flex-col space-y-3">
                 <label className="flex items-center text-white cursor-pointer group">
                   <input
                     type="radio"
@@ -256,7 +256,10 @@ const LeadSearchApp: React.FC = () => {
                     onChange={(e) => setIntensity(e.target.value as 'standard' | 'deep')}
                     className="mr-2 accent-blue-500"
                   />
-                  <span className="group-hover:text-blue-200 transition-colors">Standard <span className="text-blue-300/70 text-sm">(Faster)</span></span>
+                  <div>
+                    <span className="group-hover:text-blue-200 transition-colors font-medium">Standard <span className="text-blue-300/70 text-sm">(Faster)</span></span>
+                    <p className="text-blue-300/60 text-xs mt-0.5">Country → Top 10 cities, 1 biggest company each. City → 10 largest registered companies.</p>
+                  </div>
                 </label>
                 <label className="flex items-center text-white cursor-pointer group">
                   <input
@@ -266,7 +269,10 @@ const LeadSearchApp: React.FC = () => {
                     onChange={(e) => setIntensity(e.target.value as 'standard' | 'deep')}
                     className="mr-2 accent-blue-500"
                   />
-                  <span className="group-hover:text-blue-200 transition-colors">Deep <span className="text-blue-300/70 text-sm">(More Thorough)</span></span>
+                  <div>
+                    <span className="group-hover:text-blue-200 transition-colors font-medium">Deep <span className="text-blue-300/70 text-sm">(More Thorough)</span></span>
+                    <p className="text-blue-300/60 text-xs mt-0.5">Searches up to 15 cities with 10+ leads each. Takes longer but finds more results.</p>
+                  </div>
                 </label>
               </div>
             </div>

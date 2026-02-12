@@ -277,32 +277,43 @@ export const getServiceStatus = () => ({
 
 /**
  * Identify major cities for a given country/region to break down the search.
+ * Returns { cities, isSpecificCity } so the caller knows the search scope.
  */
 export const findMajorCities = async (
   location: string, 
   focus: LeadFocus,
   onRetry?: (attempt: number, nextDelay: number) => void
-): Promise<string[]> => {
+): Promise<{ cities: string[]; isSpecificCity: boolean }> => {
   return callWithRetry(async () => {
     const prompt = `
-      Analyze if the input "${location}" is a country or region. 
-      List the top 15 most active cities/hubs specifically for the "${focus}" industry in ${location}.
-      If it is already a specific city, return just that city name in the array.
-      
-      Return ONLY a JSON array of strings: ["City1", "City2", ...]
+      Analyze the input "${location}".
+      Determine if it is a SPECIFIC CITY or a COUNTRY / REGION.
+
+      If it is a COUNTRY or REGION:
+        Return { "type": "country", "cities": ["City1", "City2", ...] }
+        List the top 15 most active cities/hubs specifically for the "${focus}" industry in ${location}.
+
+      If it is a SPECIFIC CITY:
+        Return { "type": "city", "cities": ["${location}"] }
+
+      Return ONLY valid JSON.
     `;
 
     const response = await callGeminiProxy(prompt, [], {
       responseMimeType: "application/json"
     });
 
-    const text = response.text || "[]";
+    const text = response.text || "{}";
     try {
-      const cities = JSON.parse(text);
-      return Array.isArray(cities) ? cities : [];
+      const parsed = JSON.parse(text);
+      if (parsed.type === 'city') {
+        return { cities: [location], isSpecificCity: true };
+      }
+      const cities = Array.isArray(parsed.cities) ? parsed.cities : (Array.isArray(parsed) ? parsed : []);
+      return { cities: cities.length > 0 ? cities : [location], isSpecificCity: false };
     } catch (parseError) {
       console.error('Cities JSON parsing error:', parseError);
-      return [location]; // Fallback to original location if parsing fails
+      return { cities: [location], isSpecificCity: true };
     }
   }, RATE_LIMIT.maxRetries, RATE_LIMIT.baseDelay, (attempt, error, nextDelay) => {
     if (onRetry) onRetry(attempt, nextDelay);
@@ -455,23 +466,37 @@ export const findLeads = async (
     onProgress(5, `Identifying high-activity hubs for "${focus}" sector in ${location}...`);
     
     let cities: string[] = [];
+    let isSpecificCity = false;
     try {
-      cities = await findMajorCities(location, focus, (attempt, nextDelay) => {
+      const cityResult = await findMajorCities(location, focus, (attempt, nextDelay) => {
         onProgress(5, `API overloaded. Retrying city search in ${Math.round(nextDelay/1000)}s... (Attempt ${attempt})`);
       });
+      cities = cityResult.cities;
+      isSpecificCity = cityResult.isSpecificCity;
     } catch (error: any) {
       onProgress(5, `City search failed, using fallback: ${error.message}`);
-      cities = [location]; // Fallback to original location
+      cities = [location];
+      isSpecificCity = true;
     }
     
-    const cityLimit = intensity === 'standard' ? 5 : 15;
+    // Standard: country→10 cities, city→1 city | Deep: up to 15 cities
+    const cityLimit = intensity === 'standard' ? 10 : 15;
     cities = cities.slice(0, cityLimit);
     
     if (cities.length === 0) {
       cities = [location]; // Ultimate fallback
+      isSpecificCity = true;
     }
     
-    onProgress(8, `Fleet deployment confirmed for ${cities.length} zones.`);
+    // Standard mode strategy info
+    const isStandard = intensity === 'standard';
+    if (isStandard && !isSpecificCity) {
+      onProgress(8, `Standard scan: ${cities.length} cities, 1 top lead per city.`);
+    } else if (isStandard && isSpecificCity) {
+      onProgress(8, `Standard scan: Finding top 10 companies in ${location}.`);
+    } else {
+      onProgress(8, `Deep scan: ${cities.length} zones, full discovery.`);
+    }
     
     const seenCompanies = new Set<string>();
     const masterLeads: CompanyLead[] = [];
@@ -496,9 +521,11 @@ export const findLeads = async (
       
       let cityLeads: CompanyLead[] = [];
       try {
+        // Standard + country: 1 lead per city | Standard + city: 10 leads | Deep: full search
+        const leadsPerCity = isStandard && !isSpecificCity ? 1 : (isStandard && isSpecificCity ? 10 : undefined);
         cityLeads = await findCityLeads(city, location, focus, (msg) => {
           onProgress(Math.round(cityProgressBase + 3), msg);
-        });
+        }, leadsPerCity);
       } catch (error: any) {
         onProgress(Math.round(cityProgressBase + 4), `${city} search failed: ${error.message}. Continuing with next city...`);
         continue; // Skip this city but continue with others
@@ -567,7 +594,8 @@ const findCityLeads = async (
   city: string,
   country: string,
   focus: LeadFocus,
-  onUpdate: (log: string) => void
+  onUpdate: (log: string) => void,
+  limit?: number
 ): Promise<CompanyLead[]> => {
   return callWithRetry(async () => {
     const focusPrompts: Record<LeadFocus, string> = {
@@ -592,8 +620,13 @@ const findCityLeads = async (
       legal: ""
     };
 
+    const leadCount = limit || 10;
+    const sizeInstruction = limit === 1
+      ? `Find the single BIGGEST and most well-known ${focusPrompts[focus]} company registered or headquartered in ${city}, ${country}. Return exactly 1 result — the most prominent one.`
+      : `Search the web and find a list of ${leadCount} unique and currently active ${focusPrompts[focus]} located in or serving ${city}, ${country}. Prioritize the BIGGEST and most established companies registered in this area.`;
+
     const prompt = `
-      Search the web and find a list of at least 10 unique and currently active ${focusPrompts[focus]} located in or serving ${city}, ${country}.
+      ${sizeInstruction}
       
       ${focusExclusions[focus]}
 
