@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { CompanyLead, SearchState, LeadFocus } from './types';
 import { findLeads } from './services/geminiService';
-import { downloadLeadsAsCSV } from './utils/csvExport';
+import { downloadCSVSecure, triggerCSVDownload } from './services/downloadService';
 import { saveQueryToHistory } from './services/queryHistoryService';
 import AgentTerminal from './components/AgentTerminal';
 import CreditPurchaseModal from './components/CreditPurchaseModal';
@@ -105,10 +105,9 @@ const LeadSearchApp: React.FC = () => {
         }
       );
 
-      setLeads(results);
       addLog(`Search completed! Found ${results.length} leads.`);
       
-      // Save to history
+      // Save FULL results to history (server-side, before masking)
       const queryId = await saveQueryToHistory(
         user.id,
         `${focus} leads in ${location}`,
@@ -119,6 +118,18 @@ const LeadSearchApp: React.FC = () => {
       );
       
       setCurrentQueryId(queryId);
+
+      // Mask emails for leads beyond the first 5 (preview only)
+      // Full data is stored server-side and only available via paid CSV download
+      const maskedResults = results.map((lead, index) => {
+        if (index < 5) return lead; // First 5 fully visible for trust
+        return {
+          ...lead,
+          email: lead.email ? lead.email.replace(/^[^@]+/, '***') : '',
+          website: lead.website || '',
+        };
+      });
+      setLeads(maskedResults);
 
       setSearchState(prev => ({
         ...prev,
@@ -138,9 +149,16 @@ const LeadSearchApp: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
     if (leads.length === 0) {
       alert('No leads to download');
+      return;
+    }
+
+    if (!currentQueryId) {
+      alert('Search data not saved. Please try searching again.');
       return;
     }
 
@@ -153,16 +171,28 @@ const LeadSearchApp: React.FC = () => {
       return;
     }
 
-    downloadLeadsAsCSV(leads, location, async () => {
-      // Only deduct credit for new downloads
-      if (!isAlreadyDownloaded && currentQueryId) {
+    setDownloading(true);
+    try {
+      // Download full (unmasked) CSV from server
+      const { csv, filename, remaining_credits } = await downloadCSVSecure(currentQueryId);
+      triggerCSVDownload(csv, filename);
+
+      if (!isAlreadyDownloaded) {
         await updateCredits(-1);
         setDownloadedQueries(prev => new Set([...prev, currentQueryId]));
         addLog('CSV downloaded successfully! Credit deducted.');
       } else {
         addLog('CSV downloaded successfully! (No credit deducted - already downloaded)');
       }
-    });
+    } catch (error: any) {
+      if (error.message?.includes('credits')) {
+        setShowCreditModal(true);
+      } else {
+        alert(error.message || 'Download failed. Please try again.');
+      }
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -421,16 +451,19 @@ const LeadSearchApp: React.FC = () => {
                   return (
                     <button
                       onClick={handleDownload}
+                      disabled={downloading}
                       className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
-                        isAlreadyDownloaded 
-                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                          : 'bg-green-600 text-white hover:bg-green-700'
+                        downloading
+                          ? 'bg-gray-500 text-white cursor-wait'
+                          : isAlreadyDownloaded 
+                            ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                            : 'bg-green-600 text-white hover:bg-green-700'
                       }`}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      {isAlreadyDownloaded ? 'Download CSV (Free)' : 'Download CSV (1 Credit)'}
+                      {downloading ? 'Downloading...' : isAlreadyDownloaded ? 'Download CSV (Free)' : 'Download CSV (1 Credit)'}
                     </button>
                   );
                 })()}
