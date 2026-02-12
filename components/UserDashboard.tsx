@@ -394,6 +394,7 @@ const UserDashboard: React.FC = () => {
               )}
             </div>
           ) : (
+            <>
             <div className="divide-y divide-white/10">
               {paginatedHistory.map((query) => {
                 const btnProps = getDownloadButtonProps(query);
@@ -470,6 +471,7 @@ const UserDashboard: React.FC = () => {
                 </button>
               </div>
             )}
+            </>
           )}
         </div>
       </div>
