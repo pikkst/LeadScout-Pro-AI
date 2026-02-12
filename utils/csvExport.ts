@@ -8,12 +8,13 @@ export const downloadLeadsAsCSV = (
   if (leads.length === 0) return;
 
   // Include website for lead value
-  const headers = ["Name", "Category", "Email", "Website", "Description", "Verified"];
+  const headers = ["Name", "Category", "Email", "Email Confidence", "Website", "Description", "Verified"];
   
   const rows = leads.map(l => [
     `"${l.name.replace(/"/g, '""')}"`,
     `"${l.category.replace(/"/g, '""')}"`,
     `"${l.email.replace(/"/g, '""')}"`,
+    `${l.emailConfidence || 0}%`,
     `"${(l.website || '').replace(/"/g, '""')}"`,
     `"${l.description.replace(/"/g, '""')}"`,
     l.isVerified ? 'Yes' : 'No'

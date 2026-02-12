@@ -10,6 +10,7 @@ export interface CompanyLead {
   description: string;
   sourceUrl?: string;
   isVerified?: boolean;
+  emailConfidence?: number;
 }
 
 export interface SearchState {

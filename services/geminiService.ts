@@ -360,6 +360,60 @@ export const verifyEmailAuthenticity = async (
 };
 
 /**
+ * Verify email and return confidence score (0-100) alongside boolean.
+ * Used by the lead pipeline to store confidence on each lead.
+ */
+export const verifyEmailWithConfidence = async (
+  email: string,
+  companyName: string,
+  website: string,
+  onRetry?: (attempt: number, nextDelay: number) => void
+): Promise<{ isValid: boolean; confidence: number }> => {
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !anonKey) {
+      const valid = basicEmailValidation(email, website);
+      return { isValid: valid, confidence: valid ? 40 : 0 };
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/validate-emails`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({
+        emails: [{ email, website, companyName }]
+      })
+    });
+
+    if (!response.ok) {
+      console.warn('Email validation edge function failed, using fallback');
+      const valid = basicEmailValidation(email, website);
+      return { isValid: valid, confidence: valid ? 40 : 0 };
+    }
+
+    const data = await response.json();
+    if (data.success && data.results?.[0]) {
+      const r = data.results[0];
+      return { isValid: r.isValid, confidence: r.confidence || 0 };
+    }
+
+    const valid = basicEmailValidation(email, website);
+    return { isValid: valid, confidence: valid ? 40 : 0 };
+  } catch (error) {
+    console.warn('Email validation error, using fallback:', error);
+    const valid = basicEmailValidation(email, website);
+    return { isValid: valid, confidence: valid ? 40 : 0 };
+  }
+};
+
+/**
  * Basic email validation fallback: format check + domain match
  */
 const basicEmailValidation = (email: string, website: string): boolean => {
@@ -419,8 +473,20 @@ export const findLeads = async (
     
     onProgress(8, `Fleet deployment confirmed for ${cities.length} zones.`);
     
-    const uniqueWebsites = new Set<string>();
+    const seenCompanies = new Set<string>();
     const masterLeads: CompanyLead[] = [];
+
+    /**
+     * Normalize company name for deduplication:
+     * strips legal suffixes, lowercases, removes punctuation
+     */
+    const normalizeCompanyName = (name: string): string => {
+      return name
+        .toLowerCase()
+        .replace(/\b(oü|as|llc|ltd|inc|gmbh|sa|oy|ab|osaühing|aktsiaselts)\b/gi, '')
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+    };
 
     for (let i = 0; i < cities.length; i++) {
       const city = cities[i];
@@ -441,9 +507,12 @@ export const findLeads = async (
       let cityProcessed = 0;
       for (const lead of cityLeads) {
         const domain = lead.website.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+        const companyKey = normalizeCompanyName(lead.name) + '|' + domain.replace(/\.[^.]+$/, '');
         
-        if (!uniqueWebsites.has(domain)) {
-          uniqueWebsites.add(domain);
+        // Deduplicate by normalized company name OR domain
+        if (!seenCompanies.has(normalizeCompanyName(lead.name)) && !seenCompanies.has(domain)) {
+          seenCompanies.add(normalizeCompanyName(lead.name));
+          seenCompanies.add(domain);
           
           // Enhanced delay between requests to reduce API pressure
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -451,8 +520,9 @@ export const findLeads = async (
           const isAlive = await checkDomainPulse(lead.website);
           
           let isAuthentic = false;
+          let emailConfidence = 0;
           try {
-            isAuthentic = await verifyEmailAuthenticity(
+            const validationResult = await verifyEmailWithConfidence(
               lead.email, 
               lead.name, 
               lead.website,
@@ -463,12 +533,15 @@ export const findLeads = async (
                 );
               }
             );
+            isAuthentic = validationResult.isValid;
+            emailConfidence = validationResult.confidence;
           } catch (verifyError: any) {
             onProgress(Math.round(cityProgressBase + 5), `Email verification failed for ${lead.name}, marking as unverified`);
-            isAuthentic = false; // Continue but mark as unverified
+            isAuthentic = false;
+            emailConfidence = 0;
           }
 
-          const enrichedLead = { ...lead, isVerified: isAlive && isAuthentic };
+          const enrichedLead = { ...lead, isVerified: isAlive && isAuthentic, emailConfidence };
           
           masterLeads.push(enrichedLead);
           cityProcessed++;
@@ -499,7 +572,7 @@ const findCityLeads = async (
   return callWithRetry(async () => {
     const focusPrompts: Record<LeadFocus, string> = {
       events: "professional event planning companies, concert organizers, booking agencies, or festival producers",
-      investors: "venture capital firms, angel investor networks, family offices, and private equity groups",
+      investors: "venture capital firms, angel investor networks, family offices, and private equity groups that actively invest capital",
       manufacturing: "industrial manufacturing plants, factories, specialized production facilities, and B2B suppliers",
       marketing: "digital marketing agencies, branding firms, PR agencies, and creative content studios",
       tech: "software development houses, SaaS companies, AI startups, and specialized IT service providers",
@@ -508,15 +581,35 @@ const findCityLeads = async (
       legal: "corporate law firms, legal consultancy practices, intellectual property specialists, and professional legal services"
     };
 
+    const focusExclusions: Record<LeadFocus, string> = {
+      events: "",
+      investors: "Do NOT include government agencies, regional development centers, county development foundations, business support organizations, incubators, accelerators, or industry associations — only entities that directly invest money.",
+      manufacturing: "",
+      marketing: "",
+      tech: "",
+      real_estate: "",
+      healthcare: "",
+      legal: ""
+    };
+
     const prompt = `
-      Find a list of at least 10 unique and active ${focusPrompts[focus]} located in or serving ${city}, ${country}.
+      Search the web and find a list of at least 10 unique and currently active ${focusPrompts[focus]} located in or serving ${city}, ${country}.
+      
+      ${focusExclusions[focus]}
+
+      CRITICAL RULES:
+      - Only include REAL companies you can verify exist via web search.
+      - Each company MUST have a working website.
+      - For the email: search the company's actual website or public directories for a real contact email. If you cannot find a verified email, use the most likely format based on the company's domain (e.g., info@domain.com).
+      - Do NOT repeat the same company with different domain variations.
+      - Do NOT invent or hallucinate companies.
       
       For each entity, provide:
-      1. Company Name
-      2. Official Website URL
+      1. Company Name (official registered name)
+      2. Official Website URL (must be real and accessible)
       3. Category (specific to the industry)
-      4. A professional contact email (e.g., info@, hello@, office@, or a specific department).
-      5. 1-sentence description.
+      4. A real contact email found on their website or public sources
+      5. 1-sentence description of what they do
 
       Format strictly as a JSON array: 
       [{"name": "...", "website": "...", "category": "...", "email": "...", "description": "..."}]
