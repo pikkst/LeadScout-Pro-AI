@@ -5,6 +5,18 @@ const generateSessionId = (): string => {
   return `sess_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 };
 
+// Known bot user agent patterns
+const BOT_PATTERNS = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|mediapartners|google|baidu|yandex|duckduck|archive|semrush|ahref|mj12|dotbot|petalbot|bytespider|gptbot|anthropic|applebot|ia_archiver|wget|curl|python|headless/i;
+
+// Check if current visitor is a bot
+const isBot = (): boolean => {
+  const ua = navigator.userAgent;
+  if (BOT_PATTERNS.test(ua)) return true;
+  // Headless browsers often lack plugins
+  if (navigator.webdriver) return true;
+  return false;
+};
+
 // Detect device type
 const getDeviceType = (): string => {
   const ua = navigator.userAgent;
@@ -22,6 +34,19 @@ const getBrowser = (): string => {
   if (ua.includes('Safari/')) return 'Safari';
   if (ua.includes('Opera/') || ua.includes('OPR/')) return 'Opera';
   return 'Other';
+};
+
+// Get clean page URL - strip tokens, hashes with auth data
+const getCleanPageUrl = (): string => {
+  const path = window.location.pathname;
+  const hash = window.location.hash;
+  
+  // Strip any hash that contains access_token, error, or auth data
+  if (hash && (hash.includes('access_token') || hash.includes('error=') || hash.includes('token_type='))) {
+    return path;
+  }
+  
+  return path + (hash && hash !== '#' ? hash : '');
 };
 
 // Parse UTM params from URL
@@ -63,6 +88,12 @@ const saveDuration = async () => {
 // Track a page visit
 export const trackPageVisit = async (userId?: string) => {
   try {
+    // Skip bots entirely
+    if (isBot()) {
+      console.debug('Bot detected, skipping tracking');
+      return;
+    }
+
     if (!sessionId) {
       sessionId = sessionStorage.getItem('ls_session_id') || generateSessionId();
       sessionStorage.setItem('ls_session_id', sessionId);
@@ -71,7 +102,7 @@ export const trackPageVisit = async (userId?: string) => {
     // Save duration of previous page first
     await saveDuration();
 
-    const pageUrl = window.location.pathname + window.location.hash;
+    const pageUrl = getCleanPageUrl();
     currentPageUrl = pageUrl;
     pageEnteredAt = Date.now();
 
