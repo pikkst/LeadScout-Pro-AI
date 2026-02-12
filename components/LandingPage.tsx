@@ -92,9 +92,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               >
                 Start Finding Leads
               </button>
-              <button className="bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all duration-300">
-                Watch Demo
-              </button>
+              <a href="#how-it-works" className="bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white/20 transition-all duration-300 text-center">
+                How It Works ↓
+              </a>
             </div>
 
             {/* Stats */}

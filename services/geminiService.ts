@@ -513,7 +513,7 @@ export const findLeads = async (
 
     for (let i = 0; i < cities.length; i++) {
       const city = cities[i];
-      const cityProgressBase = (i / cities.length) * 90;
+      const cityProgressBase = (i / cities.length) * 70; // Reserve 70% for city scanning, 30% for batch validation
       
       onProgress(Math.round(cityProgressBase + 2), `\n🏙️ ━━━ Scanning zone ${i + 1}/${cities.length}: ${city} ━━━`);
       onProgress(Math.round(cityProgressBase + 2), `🤖 AI agent searching web for ${focus} companies in ${city}...`);
@@ -534,52 +534,14 @@ export const findLeads = async (
       let cityProcessed = 0;
       for (const lead of cityLeads) {
         const domain = lead.website.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-        const companyKey = normalizeCompanyName(lead.name) + '|' + domain.replace(/\.[^.]+$/, '');
         
         // Deduplicate by normalized company name OR domain
         if (!seenCompanies.has(normalizeCompanyName(lead.name)) && !seenCompanies.has(domain)) {
           seenCompanies.add(normalizeCompanyName(lead.name));
           seenCompanies.add(domain);
           
-          onProgress(Math.round(cityProgressBase + 4), `   🏢 Verifying: ${lead.name}`);
-          
-          // Enhanced delay between requests to reduce API pressure
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-          // Domain pulse check skipped — CSP blocks cross-origin fetches from browser.
-          // Verification relies on server-side MX email validation instead.
-          onProgress(Math.round(cityProgressBase + 5), `   🌐 Domain: ${domain} (MX-based verification)`);
-          
-          let isAuthentic = false;
-          let emailConfidence = 0;
-          try {
-            onProgress(Math.round(cityProgressBase + 5), `   📧 Verifying email via MX lookup: ${maskEmail(lead.email)}`);
-            const validationResult = await verifyEmailWithConfidence(
-              lead.email, 
-              lead.name, 
-              lead.website,
-              (attempt, nextDelay) => {
-                onProgress(
-                  Math.round(cityProgressBase + 5), 
-                  `API overloaded. Retrying email verification in ${Math.round(nextDelay/1000)}s... (Attempt ${attempt})`
-                );
-              }
-            );
-            isAuthentic = validationResult.isValid;
-            emailConfidence = validationResult.confidence;
-            onProgress(Math.round(cityProgressBase + 6), `   📊 Email confidence: ${emailConfidence}% ${isAuthentic ? '✅ Valid MX' : '⚠️ Unverified'}`);
-          } catch (verifyError: any) {
-            onProgress(Math.round(cityProgressBase + 5), `   ⚠️ Email verification failed for ${lead.name}, marking as unverified`);
-            isAuthentic = false;
-            emailConfidence = 0;
-          }
-
-          const enrichedLead = { ...lead, isVerified: isAuthentic, emailConfidence };
-          
-          const status = enrichedLead.isVerified ? '✅ VERIFIED' : '⚠️ UNVERIFIED';
-          onProgress(Math.round(cityProgressBase + 7), `   → ${lead.name} [${status}] — ${lead.category}`);
-          
-          masterLeads.push(enrichedLead);
+          onProgress(Math.round(cityProgressBase + 5), `   🏢 Found: ${lead.name} (${domain})`);
+          masterLeads.push(lead);
           cityProcessed++;
         } else {
           onProgress(Math.round(cityProgressBase + 4), `   ♻️ Skipping duplicate: ${lead.name}`);
@@ -589,11 +551,90 @@ export const findLeads = async (
       onProgress(Math.round(cityProgressBase + 10), `✅ Zone ${city} complete — ${cityProcessed} unique leads collected. Total so far: ${masterLeads.length}.`);
     }
 
-    const verified = masterLeads.filter(l => l.isVerified).length;
+    // ============================================================
+    // BATCH EMAIL VALIDATION — all emails at once via Edge Function
+    // ============================================================
+    if (masterLeads.length === 0) {
+      onProgress(100, `\n⚠️ No leads found. Try a different location or category.`);
+      return [];
+    }
+
+    onProgress(75, `\n📧 ━━━ BATCH EMAIL VERIFICATION ━━━`);
+    onProgress(75, `🔍 Validating ${masterLeads.length} emails via server-side MX lookup...`);
+
+    // Send all emails to validate-emails Edge Function in batches of 20
+    const BATCH_SIZE = 20;
+    const validationMap = new Map<string, { isValid: boolean; confidence: number }>();
+
+    for (let batchStart = 0; batchStart < masterLeads.length; batchStart += BATCH_SIZE) {
+      const batch = masterLeads.slice(batchStart, batchStart + BATCH_SIZE);
+      const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(masterLeads.length / BATCH_SIZE);
+      
+      onProgress(75 + Math.round((batchStart / masterLeads.length) * 20), 
+        `   📬 Verifying batch ${batchNum}/${totalBatches} (${batch.length} emails)...`);
+
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const { data: { session } } = await supabase.auth.getSession();
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/validate-emails`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': anonKey || '',
+            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            emails: batch.map(lead => ({
+              email: lead.email,
+              website: lead.website,
+              companyName: lead.name
+            }))
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.results) {
+            for (const result of data.results) {
+              validationMap.set(result.email, {
+                isValid: result.isValid,
+                confidence: result.confidence || 0
+              });
+            }
+          }
+        }
+      } catch (batchError) {
+        onProgress(80, `   ⚠️ Batch ${batchNum} validation failed, marking as unverified`);
+      }
+
+      // Small delay between batches to avoid overwhelming the Edge Function
+      if (batchStart + BATCH_SIZE < masterLeads.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    // Apply validation results to leads
+    const enrichedLeads: CompanyLead[] = masterLeads.map(lead => {
+      const validation = validationMap.get(lead.email);
+      const isVerified = validation?.isValid ?? false;
+      const emailConfidence = validation?.confidence ?? 0;
+      return { ...lead, isVerified, emailConfidence };
+    });
+
+    // Log individual results
+    for (const lead of enrichedLeads) {
+      const status = lead.isVerified ? '✅ VERIFIED' : '⚠️ UNVERIFIED';
+      onProgress(96, `   → ${lead.name} [${status}] ${lead.emailConfidence}% — ${maskEmail(lead.email)}`);
+    }
+
+    const verified = enrichedLeads.filter(l => l.isVerified).length;
     onProgress(100, `\n🎯 ━━━ SEARCH COMPLETE ━━━`);
-    onProgress(100, `📊 Total: ${masterLeads.length} leads | ✅ Verified: ${verified} | ⚠️ Unverified: ${masterLeads.length - verified}`);
+    onProgress(100, `📊 Total: ${enrichedLeads.length} leads | ✅ Verified: ${verified} | ⚠️ Unverified: ${enrichedLeads.length - verified}`);
     onProgress(100, `💾 Results saved — download your CSV to get full details including emails.`);
-    return masterLeads;
+    return enrichedLeads;
 
   } catch (err: any) {
     const errorMsg = err?.message || 'Unknown orbital failure';

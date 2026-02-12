@@ -115,3 +115,30 @@ export const getQueryById = async (queryId: string): Promise<QueryHistory | null
     return null;
   }
 };
+
+/**
+ * Count how many searches a user has done today.
+ * Used to enforce daily free search limit.
+ */
+export const getTodaySearchCount = async (userId: string): Promise<number> => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { count, error } = await supabase
+      .from('query_history')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', today.toISOString());
+
+    if (error) {
+      console.error('Error counting today searches:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error counting today searches:', error);
+    return 0;
+  }
+};

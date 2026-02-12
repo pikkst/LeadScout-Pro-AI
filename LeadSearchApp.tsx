@@ -4,8 +4,7 @@ import { useAuth } from './contexts/AuthContext';
 import { CompanyLead, SearchState, LeadFocus } from './types';
 import { findLeads } from './services/geminiService';
 import { downloadCSVSecure, triggerCSVDownload } from './services/downloadService';
-import { saveQueryToHistory } from './services/queryHistoryService';
-import AgentTerminal from './components/AgentTerminal';
+import { saveQueryToHistory, getTodaySearchCount } from './services/queryHistoryService';
 import CreditPurchaseModal from './components/CreditPurchaseModal';
 import Footer from './components/Footer';
 
@@ -21,7 +20,7 @@ const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string }[] = [
 ];
 
 const LeadSearchApp: React.FC = () => {
-  const { user, profile, signOut, updateCredits } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [location, setLocation] = useState('');
   const [intensity, setIntensity] = useState<'standard' | 'deep'>('standard');
@@ -38,6 +37,8 @@ const LeadSearchApp: React.FC = () => {
     }
   });
   const [showCreditModal, setShowCreditModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Save downloaded queries to localStorage whenever it changes
   useEffect(() => {
@@ -74,6 +75,21 @@ const LeadSearchApp: React.FC = () => {
     }));
   };
 
+  const MAX_FREE_SEARCHES_PER_DAY = 5;
+
+  const handleCancelSearch = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    addLog('⛔ Search cancelled by user.');
+    setSearchState(prev => ({
+      ...prev,
+      isSearching: false,
+      currentAgent: 'Search cancelled'
+    }));
+  };
+
   const handleSearch = async () => {
     if (!location.trim()) {
       alert('Please enter a city or country name');
@@ -85,25 +101,41 @@ const LeadSearchApp: React.FC = () => {
       return;
     }
 
+    // Check daily search limit
+    const todayCount = await getTodaySearchCount(user.id);
+    if (todayCount >= MAX_FREE_SEARCHES_PER_DAY) {
+      alert(`You've reached the daily limit of ${MAX_FREE_SEARCHES_PER_DAY} searches. Come back tomorrow or purchase credits to download your existing results.`);
+      return;
+    }
+
+    // Setup abort controller for cancellation
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setSearchState({
       isSearching: true,
       progress: 0,
       currentAgent: 'Initializing search...',
       logs: []
     });
+    setSearchCompleted(false);
 
     try {
-      addLog(`Starting ${intensity} search for ${focus} leads in ${location}`);
+      addLog(`Starting ${intensity} search for ${focus} leads in ${location} (${todayCount + 1}/${MAX_FREE_SEARCHES_PER_DAY} today)`);
       
       const results = await findLeads(
         location,
         focus,
         intensity,
         (progress, agent) => {
+          if (abortController.signal.aborted) return;
           updateProgress(progress, agent);
           if (agent) addLog(agent);
         }
       );
+
+      // Don't save results if search was cancelled
+      if (abortController.signal.aborted) return;
 
       addLog(`Search completed! Found ${results.length} leads.`);
       
@@ -130,6 +162,7 @@ const LeadSearchApp: React.FC = () => {
         };
       });
       setLeads(maskedResults);
+      setSearchCompleted(true);
 
       setSearchState(prev => ({
         ...prev,
@@ -139,6 +172,7 @@ const LeadSearchApp: React.FC = () => {
       }));
 
     } catch (error) {
+      if (abortController.signal.aborted) return; // Already handled by handleCancelSearch
       console.error('Search failed:', error);
       addLog(`Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setSearchState(prev => ({
@@ -146,10 +180,13 @@ const LeadSearchApp: React.FC = () => {
         isSearching: false,
         currentAgent: 'Search failed'
       }));
+    } finally {
+      abortControllerRef.current = null;
     }
   };
 
   const [downloading, setDownloading] = useState(false);
+  const [searchCompleted, setSearchCompleted] = useState(false);
 
   const handleDownload = async () => {
     if (leads.length === 0) {
@@ -173,17 +210,17 @@ const LeadSearchApp: React.FC = () => {
 
     setDownloading(true);
     try {
-      // Download full (unmasked) CSV from server
-      const { csv, filename, remaining_credits } = await downloadCSVSecure(currentQueryId);
+      // Download full (unmasked) CSV from server — credits deducted server-side
+      const { csv, filename } = await downloadCSVSecure(currentQueryId);
       triggerCSVDownload(csv, filename);
 
-      if (!isAlreadyDownloaded) {
-        await updateCredits(-1);
-        setDownloadedQueries(prev => new Set([...prev, currentQueryId]));
-        addLog('CSV downloaded successfully! Credit deducted.');
-      } else {
-        addLog('CSV downloaded successfully! (No credit deducted - already downloaded)');
-      }
+      // Refresh profile to get updated credit count from server
+      await refreshProfile();
+      setDownloadedQueries(prev => new Set([...prev, currentQueryId]));
+      addLog(isAlreadyDownloaded 
+        ? 'CSV downloaded successfully! (No credit deducted - already downloaded)'
+        : 'CSV downloaded successfully! Credit deducted.'
+      );
     } catch (error: any) {
       if (error.message?.includes('credits')) {
         setShowCreditModal(true);
@@ -199,7 +236,7 @@ const LeadSearchApp: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col">
       {/* Header */}
       <header className="relative z-10 border-b border-white/10 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -207,10 +244,12 @@ const LeadSearchApp: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-white text-xl font-bold tracking-tight">LeadScout Pro AI</h1>
-                <p className="text-blue-200 text-xs">AI-Powered Lead Generation</p>
+                <p className="text-blue-200 text-xs hidden sm:block">AI-Powered Lead Generation</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+
+            {/* Desktop nav */}
+            <div className="hidden md:flex items-center space-x-4">
               <button
                 onClick={() => navigate('/dashboard')}
                 className="text-blue-200 hover:text-white px-3 py-1 rounded-xl hover:bg-white/10 transition-all duration-200 font-medium"
@@ -234,7 +273,48 @@ const LeadSearchApp: React.FC = () => {
                 Sign Out
               </button>
             </div>
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden text-white p-2 rounded-lg hover:bg-white/10 transition"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
+
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden mt-4 pb-2 border-t border-white/10 pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-blue-200 text-sm">Credits: <span className="text-white font-bold">{profile?.credits || 0}</span></span>
+                <button
+                  onClick={() => { setShowCreditModal(true); setMobileMenuOpen(false); }}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium"
+                >
+                  Buy Credits
+                </button>
+              </div>
+              <button
+                onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}
+                className="block w-full text-left text-blue-200 hover:text-white py-2 font-medium"
+              >
+                ← Dashboard
+              </button>
+              <button
+                onClick={() => { signOut(); setMobileMenuOpen(false); }}
+                className="block w-full text-left text-blue-200 hover:text-white py-2 font-medium"
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -316,13 +396,23 @@ const LeadSearchApp: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={handleSearch}
-              disabled={searchState.isSearching || !location.trim()}
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
-            >
-              {searchState.isSearching ? 'Searching...' : 'Find Leads'}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSearch}
+                disabled={searchState.isSearching || !location.trim()}
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+              >
+                {searchState.isSearching ? 'Searching...' : 'Find Leads'}
+              </button>
+              {searchState.isSearching && (
+                <button
+                  onClick={handleCancelSearch}
+                  className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg"
+                >
+                  ⛔ Cancel
+                </button>
+              )}
+            </div>
           </div>
 
           {/* How It Works */}
@@ -439,6 +529,23 @@ const LeadSearchApp: React.FC = () => {
             </div>
           )}
 
+          {/* Empty state — search completed but 0 results */}
+          {searchCompleted && leads.length === 0 && !searchState.isSearching && (
+            <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+              <div className="text-5xl mb-4">🔍</div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">No Leads Found</h2>
+              <p className="text-gray-600 mb-4">
+                We couldn't find any leads matching your criteria. Try a different location or category.
+              </p>
+              <button
+                onClick={() => setSearchCompleted(false)}
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                ← Try Another Search
+              </button>
+            </div>
+          )}
+
           {/* Results */}
           {leads.length > 0 && (
             <div className="bg-white rounded-2xl shadow-lg p-8">
@@ -470,26 +577,37 @@ const LeadSearchApp: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                {leads.slice(0, 5).map((lead, index) => (
+                {leads.map((lead, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
                         <p className="text-blue-600 mb-2">{lead.category}</p>
                         <p className="text-gray-600 text-sm mb-2">{lead.description}</p>
-                        <p className="text-gray-800 font-medium">{lead.email}</p>
+                        <p className="text-gray-800 font-medium">
+                          {index < 5 ? lead.email : (
+                            <span className="text-gray-400 italic">📧 Email visible in CSV download</span>
+                          )}
+                        </p>
                       </div>
+                      {index >= 5 && (
+                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
+                          🔒 Preview
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
-                
-                {leads.length > 5 && (
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-600">
-                      + {leads.length - 5} more leads available in CSV download
-                    </p>
-                  </div>
-                )}
+              </div>
+
+              {/* View in Dashboard link */}
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="text-blue-600 hover:text-blue-800 font-medium transition"
+                >
+                  View all searches in Dashboard →
+                </button>
               </div>
             </div>
           )}

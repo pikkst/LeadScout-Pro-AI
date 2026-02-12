@@ -107,8 +107,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error && error.code === 'PGRST116') {
-        // Profile doesn't exist, create it
-        console.log('Profile not found, creating new profile...');
+        // Profile doesn't exist, create it with 1 free trial credit
+        console.log('Profile not found, creating new profile with 1 free credit...');
         const email = userEmail || user?.email || '';
         
         const { data: newProfile, error: createError } = await supabase
@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: userId,
             email: email,
             full_name: email.split('@')[0],
-            credits: 0
+            credits: 1
           })
           .select()
           .single();
