@@ -33,16 +33,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Fail-safe: ensure loading stops after 5 seconds
+    let profileFetched = false;
+
+    // Fail-safe: ensure loading stops after 8 seconds
     const loadingTimeout = setTimeout(() => {
       console.warn('Loading timeout reached, stopping loading state');
       setLoading(false);
-    }, 5000);
+    }, 8000);
+
+    const loadProfile = async (userId: string, email?: string) => {
+      if (profileFetched) return;
+      profileFetched = true;
+      // Wait for Supabase client to set auth headers for REST API
+      await new Promise(resolve => setTimeout(resolve, 200));
+      await fetchUserProfile(userId, email);
+      setLoading(false);
+      clearTimeout(loadingTimeout);
+    };
 
     const initializeAuth = async () => {
       console.log('Initializing auth with simple Supabase flow...');
 
-      // Get initial session - let Supabase handle everything
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         console.log('Session retrieved:', session ? 'Found' : 'None', error);
@@ -52,12 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('User found, fetching profile...');
-          await fetchUserProfile(session.user.id, session.user.email);
+          await loadProfile(session.user.id, session.user.email);
+        } else {
+          setLoading(false);
+          clearTimeout(loadingTimeout);
         }
-        
-        console.log('Auth initialization complete');
-        setLoading(false);
-        clearTimeout(loadingTimeout);
       } catch (error) {
         console.error('Error getting session:', error);
         setLoading(false);
@@ -67,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
         console.log('Auth state changed:', event, session ? 'Session exists' : 'No session');
@@ -75,13 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserProfile(session.user.id, session.user.email);
+          await loadProfile(session.user.id, session.user.email);
         } else {
           setProfile(null);
           setIsAdmin(false);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
