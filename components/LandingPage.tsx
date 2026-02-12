@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import AuthModal from './AuthModal';
+import Footer from './Footer';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -279,54 +280,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold">L</span>
-                </div>
-                <span className="text-white text-xl font-bold">LeadScout Pro AI</span>
-              </div>
-              <p className="text-gray-400">
-                AI-powered lead generation for Estonian businesses.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#features" className="hover:text-white transition">Features</a></li>
-                <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
-                <li><a href="#how-it-works" className="hover:text-white transition">How it Works</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition">Contact</a></li>
-                <li><a href="#" className="hover:text-white transition">API Docs</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="/LeadScout-Pro-AI/privacy" className="hover:text-white transition">Privacy Policy</a></li>
-                <li><a href="/LeadScout-Pro-AI/terms" className="hover:text-white transition">Terms of Service</a></li>
-                <li><a href="/LeadScout-Pro-AI/privacy" className="hover:text-white transition">GDPR Compliance</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2026 LeadScout Pro AI. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
       
       {/* Auth Modal */}
       <AuthModal

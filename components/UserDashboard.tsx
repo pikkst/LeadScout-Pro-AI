@@ -5,6 +5,7 @@ import { getUserQueryHistory, deleteQuery } from '../services/queryHistoryServic
 import { QueryHistory } from '../services/supabaseClient';
 import { downloadCSVSecure, triggerCSVDownload } from '../services/downloadService';
 import CreditPurchaseModal from './CreditPurchaseModal';
+import Footer from './Footer';
 
 type FilterStatus = 'all' | 'downloaded' | 'not-downloaded';
 type SortBy = 'date-desc' | 'date-asc' | 'leads-desc' | 'leads-asc';
@@ -472,6 +473,8 @@ const UserDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      <Footer />
 
       <CreditPurchaseModal
         isOpen={showCreditModal}

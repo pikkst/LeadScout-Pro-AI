@@ -4,6 +4,7 @@ import { CompanyLead, SearchState, AgentTask, LeadFocus } from './types';
 import { findLeads } from './services/geminiService';
 import { downloadLeadsAsCSV } from './utils/csvExport';
 import AgentTerminal from './components/AgentTerminal';
+import Footer from './components/Footer';
 
 const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string }[] = [
   { value: 'events', label: 'Events & Entertainment', icon: '🎫' },
@@ -254,16 +255,7 @@ const App: React.FC = () => {
         </div>
       </div>
       
-      <footer className="mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-[10px] font-black uppercase">
-        <p>&copy; {new Date().getFullYear()} LeadScout Pro / High-Resilience Network</p>
-        <div className="flex gap-8">
-          <span className="flex items-center gap-2 opacity-60">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> 
-            Node Status: Load Balanced
-          </span>
-          <span className="text-slate-400 opacity-60">Self-Healing v4.3</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
