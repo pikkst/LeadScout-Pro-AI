@@ -45,17 +45,84 @@ const AdminDashboard: React.FC = () => {
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      // Load stats
-      const { data: statsData } = await supabase.rpc('get_admin_stats');
-      setStats(statsData);
+      // Direct queries instead of RPC functions (more reliable)
+      
+      // 1. Total users
+      const { count: totalUsers, error: usersError } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true });
+      if (usersError) console.error('Admin stats - users error:', usersError);
 
-      // Load revenue data
-      const { data: revenue } = await supabase.rpc('get_revenue_by_date', { days: 30 });
-      setRevenueData(revenue || []);
+      // 2. Total revenue from payments
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('amount, credits_added, created_at, status')
+        .eq('status', 'completed');
+      if (paymentsError) console.error('Admin stats - payments error:', paymentsError);
+      
+      const totalRevenue = (paymentsData || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalCreditsPurchased = (paymentsData || []).reduce((sum, p) => sum + Number(p.credits_added || 0), 0);
+      console.log('Admin stats - payments:', paymentsData?.length, 'total revenue:', totalRevenue, 'credits purchased:', totalCreditsPurchased);
 
-      // Load top locations
-      const { data: locations } = await supabase.rpc('get_top_locations', { limit_count: 10 });
-      setTopLocations(locations || []);
+      // 3. Total queries
+      const { count: totalQueries, error: queriesError } = await supabase
+        .from('query_history')
+        .select('*', { count: 'exact', head: true });
+      if (queriesError) console.error('Admin stats - queries error:', queriesError);
+
+      // 4. Total downloads
+      const { count: totalDownloads, error: downloadsError } = await supabase
+        .from('query_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('downloaded', true);
+      if (downloadsError) console.error('Admin stats - downloads error:', downloadsError);
+
+      // 5. Active users (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { data: activeData, error: activeError } = await supabase
+        .from('query_history')
+        .select('user_id')
+        .gte('created_at', thirtyDaysAgo.toISOString());
+      if (activeError) console.error('Admin stats - active users error:', activeError);
+      const activeUsers = new Set((activeData || []).map(r => r.user_id)).size;
+
+      setStats({
+        total_users: totalUsers || 0,
+        total_revenue: Math.round(totalRevenue * 100) / 100,
+        total_queries: totalQueries || 0,
+        total_downloads: totalDownloads || 0,
+        active_users: activeUsers,
+      });
+
+      // Revenue by date (last 30 days)
+      const revenueByDate: Record<string, number> = {};
+      (paymentsData || []).forEach(p => {
+        const date = new Date(p.created_at).toISOString().split('T')[0];
+        revenueByDate[date] = (revenueByDate[date] || 0) + Number(p.amount || 0);
+      });
+      const revenueArr = Object.entries(revenueByDate)
+        .map(([date, revenue]) => ({ date, revenue: Math.round(revenue * 100) / 100 }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+      setRevenueData(revenueArr);
+
+      // Top locations
+      const { data: locData, error: locError } = await supabase
+        .from('query_history')
+        .select('location');
+      if (locError) console.error('Admin stats - locations error:', locError);
+      
+      const locationCounts: Record<string, number> = {};
+      (locData || []).forEach(r => {
+        if (r.location) {
+          locationCounts[r.location] = (locationCounts[r.location] || 0) + 1;
+        }
+      });
+      const topLoc = Object.entries(locationCounts)
+        .map(([location, query_count]) => ({ location, query_count }))
+        .sort((a, b) => b.query_count - a.query_count)
+        .slice(0, 10);
+      setTopLocations(topLoc);
 
       // Load all users
       const { data: usersData } = await supabase
