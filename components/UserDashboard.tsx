@@ -206,7 +206,7 @@ const UserDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className="text-lg font-semibold text-blue-300">€5</span>
+                      <span className="text-lg font-semibold text-blue-300">{query.downloaded ? '✅' : '1 credit'}</span>
                       <button
                         onClick={() => handleDownload(query)}
                         disabled={query.downloaded || downloading === query.id}

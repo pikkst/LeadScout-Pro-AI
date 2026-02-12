@@ -19,7 +19,7 @@ export const saveQueryToHistory = async (
         focus,
         intensity,
         results,
-        cost: 5, // €5 per query
+        cost: 1, // 1 credit per download
         downloaded: false
       })
       .select()

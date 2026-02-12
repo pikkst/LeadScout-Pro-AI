@@ -154,7 +154,7 @@ const CreditPurchaseModal: React.FC<CreditPurchaseModalProps> = ({ isOpen, onClo
         {!selectedPackage ? (
           <div className="space-y-3">
             <p className="text-gray-600 text-sm mb-4">
-              Each download costs 1 credit (€5). Choose a package:
+              Each download costs 1 credit. Bigger packs = lower price per download:
             </p>
             {creditPackages.map((pkg) => (
               <button
