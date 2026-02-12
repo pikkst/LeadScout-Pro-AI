@@ -63,28 +63,35 @@ const PaymentForm: React.FC<{
       }
 
       if (paymentIntent?.status === 'succeeded') {
-        console.log('Payment succeeded:', paymentIntent.id);
+        console.log('Payment succeeded! ID:', paymentIntent.id, 'Amount:', selectedPackage.price, 'Credits:', selectedPackage.credits);
         
         // Record payment in database (client-side, independent of webhook)
+        const paymentRecord = {
+          user_id: user.id,
+          amount: selectedPackage.price,
+          currency: 'EUR',
+          stripe_payment_id: paymentIntent.id,
+          credits_added: selectedPackage.credits,
+          status: 'completed',
+        };
+        console.log('Attempting to record payment:', JSON.stringify(paymentRecord));
+        
         try {
-          const { error: paymentRecordError } = await supabase
+          const { data: insertData, error: paymentRecordError } = await supabase
             .from('payments')
-            .upsert({
-              user_id: user.id,
-              amount: selectedPackage.price,
-              currency: 'EUR',
-              stripe_payment_id: paymentIntent.id,
-              credits_added: selectedPackage.credits,
-              status: 'completed',
-            }, { onConflict: 'stripe_payment_id' });
+            .insert(paymentRecord)
+            .select();
           
           if (paymentRecordError) {
-            console.error('Failed to record payment:', paymentRecordError);
+            console.error('PAYMENT RECORD FAILED:', paymentRecordError.message, paymentRecordError.details, paymentRecordError.hint);
+            // Show error but don't block — credits still get added
+            alert(`Payment successful but recording failed: ${paymentRecordError.message}. Please contact support with ID: ${paymentIntent.id}`);
           } else {
-            console.log('Payment recorded in database');
+            console.log('Payment recorded successfully:', insertData);
           }
-        } catch (recordErr) {
-          console.error('Payment recording error:', recordErr);
+        } catch (recordErr: any) {
+          console.error('Payment recording exception:', recordErr);
+          alert(`Payment recording error: ${recordErr?.message}. Payment ID: ${paymentIntent.id}`);
         }
         
         // Add credits to user account

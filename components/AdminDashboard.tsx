@@ -57,7 +57,7 @@ interface PageData {
   avg_duration: number;
 }
 
-type TabType = 'overview' | 'visitors' | 'users' | 'export';
+type TabType = 'overview' | 'visitors' | 'users' | 'export' | 'tools';
 
 const AdminDashboard: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -360,11 +360,97 @@ const AdminDashboard: React.FC = () => {
     return `${mins}m ${secs}s`;
   };
 
+  // Manual payment recording
+  const [manualPayment, setManualPayment] = useState({ amount: '', credits: '', stripe_id: '', user_id: '' });
+  const [manualPaymentMsg, setManualPaymentMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dbDiagnostics, setDbDiagnostics] = useState<string>('');
+
+  const runDiagnostics = async () => {
+    setDbDiagnostics('Running diagnostics...\n');
+    let output = '';
+    
+    // Test payments table
+    const { data: pData, error: pErr, count: pCount } = await supabase
+      .from('payments')
+      .select('*', { count: 'exact' });
+    output += `payments table: ${pCount ?? 0} rows, error: ${pErr?.message || 'none'}\n`;
+    if (pData && pData.length > 0) {
+      output += `  Latest: ${JSON.stringify(pData[0])}\n`;
+    }
+
+    // Test user_profiles
+    const { count: uCount, error: uErr } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true });
+    output += `user_profiles table: ${uCount ?? 0} rows, error: ${uErr?.message || 'none'}\n`;
+
+    // Test query_history
+    const { count: qCount, error: qErr } = await supabase
+      .from('query_history')
+      .select('*', { count: 'exact', head: true });
+    output += `query_history table: ${qCount ?? 0} rows, error: ${qErr?.message || 'none'}\n`;
+
+    // Test page_visits
+    const { count: vCount, error: vErr } = await supabase
+      .from('page_visits')
+      .select('*', { count: 'exact', head: true });
+    output += `page_visits table: ${vCount ?? 0} rows, error: ${vErr?.message || 'none'}\n`;
+
+    // Test insert permission on payments
+    output += '\nTesting INSERT on payments...\n';
+    const testId = `test_diag_${Date.now()}`;
+    const { error: insertErr } = await supabase
+      .from('payments')
+      .insert({
+        user_id: user?.id,
+        amount: 0.01,
+        currency: 'EUR',
+        stripe_payment_id: testId,
+        credits_added: 0,
+        status: 'test',
+      });
+    if (insertErr) {
+      output += `  INSERT FAILED: ${insertErr.message} (${insertErr.details || ''}) ${insertErr.hint || ''}\n`;
+    } else {
+      output += '  INSERT SUCCESS - cleaning up...\n';
+      // Clean up test row
+      await supabase.from('payments').delete().eq('stripe_payment_id', testId);
+      output += '  Test row deleted\n';
+    }
+
+    setDbDiagnostics(output);
+  };
+
+  const handleManualPayment = async () => {
+    setManualPaymentMsg(null);
+    const { amount, credits, stripe_id, user_id } = manualPayment;
+    if (!amount || !credits || !stripe_id || !user_id) {
+      setManualPaymentMsg({ type: 'error', text: 'All fields required' });
+      return;
+    }
+    const { error } = await supabase.from('payments').insert({
+      user_id: user_id.trim(),
+      amount: parseFloat(amount),
+      currency: 'EUR',
+      stripe_payment_id: stripe_id.trim(),
+      credits_added: parseInt(credits),
+      status: 'completed',
+    });
+    if (error) {
+      setManualPaymentMsg({ type: 'error', text: `Failed: ${error.message} ${error.details || ''} ${error.hint || ''}` });
+    } else {
+      setManualPaymentMsg({ type: 'success', text: 'Payment recorded!' });
+      setManualPayment({ amount: '', credits: '', stripe_id: '', user_id: '' });
+      loadAdminData();
+    }
+  };
+
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'visitors', label: 'Visitors', icon: '👁️' },
     { id: 'users', label: 'Users', icon: '👥' },
     { id: 'export', label: 'Export', icon: '📥' },
+    { id: 'tools', label: 'Tools', icon: '🔧' },
   ];
 
   if (loading) {
@@ -778,7 +864,161 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* ============ TOOLS TAB ============ */}
+        {activeTab === 'tools' && (
+          <div className="space-y-8">
+            {/* DB Diagnostics */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">🔍 Database Diagnostics</h2>
+              <p className="text-white/50 text-sm mb-4">Test database connections and permissions</p>
+              <button
+                onClick={runDiagnostics}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition mb-4"
+              >
+                Run Diagnostics
+              </button>
+              {dbDiagnostics && (
+                <pre className="bg-black/50 text-green-400 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-x-auto">
+                  {dbDiagnostics}
+                </pre>
+              )}
+            </div>
+
+            {/* Manual Payment Recording */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-2">💰 Record Payment Manually</h2>
+              <p className="text-white/50 text-sm mb-4">Add missing payments from Stripe to the database</p>
+              
+              {manualPaymentMsg && (
+                <div className={`p-3 rounded-lg mb-4 text-sm ${
+                  manualPaymentMsg.type === 'success' ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                }`}>
+                  {manualPaymentMsg.text}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="text-white/60 text-xs block mb-1">User ID</label>
+                  <select
+                    value={manualPayment.user_id}
+                    onChange={e => setManualPayment(p => ({ ...p, user_id: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
+                  >
+                    <option value="">Select user...</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.email} ({u.full_name || 'no name'})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-white/60 text-xs block mb-1">Stripe Charge ID (ch_...)</label>
+                  <input
+                    type="text"
+                    value={manualPayment.stripe_id}
+                    onChange={e => setManualPayment(p => ({ ...p, stripe_id: e.target.value }))}
+                    placeholder="ch_3T01Zw..."
+                    className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-white/60 text-xs block mb-1">Amount (€)</label>
+                  <input
+                    type="number"
+                    value={manualPayment.amount}
+                    onChange={e => setManualPayment(p => ({ ...p, amount: e.target.value }))}
+                    placeholder="75.00"
+                    className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-white/60 text-xs block mb-1">Credits Added</label>
+                  <input
+                    type="number"
+                    value={manualPayment.credits}
+                    onChange={e => setManualPayment(p => ({ ...p, credits: e.target.value }))}
+                    placeholder="25"
+                    className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleManualPayment}
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+              >
+                Record Payment
+              </button>
+            </div>
+
+            {/* Payments Debug View */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">📋 All Payment Records</h2>
+              <PaymentsDebugList />
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+};
+
+// Sub-component for payments debug view
+const PaymentsDebugList: React.FC = () => {
+  const [payments, setPayments] = useState<any[]>([]);
+  const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    loadPayments();
+  }, []);
+
+  const loadPayments = async () => {
+    const { data, error: err } = await supabase
+      .from('payments')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (err) {
+      setError(`Error loading payments: ${err.message} (${err.details || ''}) ${err.hint || ''}`);
+    } else {
+      setPayments(data || []);
+    }
+    setLoaded(true);
+  };
+
+  if (!loaded) return <p className="text-white/40 text-sm">Loading...</p>;
+  if (error) return <p className="text-red-400 text-sm">{error}</p>;
+  if (payments.length === 0) return <p className="text-yellow-400 text-sm">⚠️ No payments found in database. The payments table is empty.</p>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-white/50 text-xs border-b border-white/10">
+            <th className="px-3 py-2 text-left">Date</th>
+            <th className="px-3 py-2 text-left">Amount</th>
+            <th className="px-3 py-2 text-left">Credits</th>
+            <th className="px-3 py-2 text-left">Status</th>
+            <th className="px-3 py-2 text-left">Stripe ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          {payments.map(p => (
+            <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
+              <td className="px-3 py-2 text-white/70">{new Date(p.created_at).toLocaleString()}</td>
+              <td className="px-3 py-2 text-green-400 font-medium">€{p.amount}</td>
+              <td className="px-3 py-2 text-white/90">{p.credits_added}</td>
+              <td className="px-3 py-2">
+                <span className={`px-2 py-0.5 rounded text-xs ${p.status === 'completed' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}`}>
+                  {p.status}
+                </span>
+              </td>
+              <td className="px-3 py-2 text-white/50 font-mono text-xs">{p.stripe_payment_id || '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
