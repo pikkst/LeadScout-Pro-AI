@@ -3,7 +3,7 @@
   "private": false,
   "version": "1.0.0",
   "type": "module",
-  "homepage": "https://pikkst.github.io/LeadScout-Pro-AI",
+  "homepage": "https://leadscout.online",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

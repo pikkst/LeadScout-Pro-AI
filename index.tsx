@@ -24,7 +24,7 @@ root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
-        <Router basename="/LeadScout-Pro-AI">
+        <Router basename="/">
           <App />
         </Router>
       </AuthProvider>

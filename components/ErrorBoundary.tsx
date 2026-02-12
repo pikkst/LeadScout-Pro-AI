@@ -42,7 +42,7 @@ class ErrorBoundary extends Component<Props, State> {
                 Refresh Page
               </button>
               <button
-                onClick={() => window.location.href = '/LeadScout-Pro-AI/'}
+                onClick={() => window.location.href = '/'}
                 className="w-full border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition"
               >
                 Go to Homepage

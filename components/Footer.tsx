@@ -30,11 +30,11 @@ const Footer: React.FC = () => {
           <div className="flex flex-col items-center md:items-end gap-1">
             <span className="text-gray-400 text-xs">English (US)</span>
             <div className="flex gap-3 text-xs">
-              <a href="/LeadScout-Pro-AI/privacy" className="text-gray-500 hover:text-gray-300 transition-colors">
+              <a href="/privacy" className="text-gray-500 hover:text-gray-300 transition-colors">
                 Privacy
               </a>
               <span className="text-gray-700">·</span>
-              <a href="/LeadScout-Pro-AI/terms" className="text-gray-500 hover:text-gray-300 transition-colors">
+              <a href="/terms" className="text-gray-500 hover:text-gray-300 transition-colors">
                 Terms
               </a>
             </div>
