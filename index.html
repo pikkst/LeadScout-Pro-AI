@@ -6,14 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.network https://*.supabase.co https://cdn.jsdelivr.net;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.network https://*.supabase.co https://cdn.jsdelivr.net https://www.googletagmanager.com https://www.google-analytics.com;
         style-src 'self' 'unsafe-inline' https://m.stripe.network https://fonts.googleapis.com;
         font-src 'self' https://fonts.gstatic.com;
         img-src 'self' data: https: blob:;
-        connect-src 'self' https://*.supabase.co https://api.stripe.com https://m.stripe.network https://generativelanguage.googleapis.com wss://*.supabase.co;
+        connect-src 'self' https://*.supabase.co https://api.stripe.com https://m.stripe.network https://generativelanguage.googleapis.com wss://*.supabase.co https://www.google-analytics.com https://analytics.google.com https://*.google-analytics.com https://*.googletagmanager.com;
         frame-src https://js.stripe.com https://hooks.stripe.com;
         worker-src 'self' blob:;
     ">
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-T22E3574T1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-T22E3574T1');
+    </script>
     <title>LeadScout Pro AI - AI-Powered Lead Generation</title>
     <meta name="description" content="Find quality business leads across Estonia and beyond using advanced AI technology. Pay only when you download results.">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
