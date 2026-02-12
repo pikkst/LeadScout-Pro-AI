@@ -8,11 +8,15 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  isRecovery: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
   updateCredits: (amount: number) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<any>;
+  updatePassword: (newPassword: string) => Promise<any>;
+  clearRecovery: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(false);
 
   useEffect(() => {
     let initialized = false;
@@ -74,11 +79,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log('Password recovery detected');
+          setIsRecovery(true);
+        } else if (event === 'SIGNED_IN' && session?.user) {
           await fetchUserProfile(session.user.id, session.user.email);
         } else if (event === 'SIGNED_OUT') {
           setProfile(null);
           setIsAdmin(false);
+          setIsRecovery(false);
         }
       }
     );
@@ -202,6 +211,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return await supabase.auth.signOut();
   };
 
+  const resetPasswordForEmail = async (email: string) => {
+    return await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/'
+    });
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+    if (!error) {
+      setIsRecovery(false);
+    }
+    return { data, error };
+  };
+
+  const clearRecovery = () => {
+    setIsRecovery(false);
+  };
+
   const updateCredits = async (amount: number) => {
     if (!user) return;
 
@@ -226,11 +253,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     loading,
     isAdmin,
+    isRecovery,
     signUp,
     signIn,
     signOut,
     updateCredits,
-    refreshProfile
+    refreshProfile,
+    resetPasswordForEmail,
+    updatePassword,
+    clearRecovery
   };
 
   return (

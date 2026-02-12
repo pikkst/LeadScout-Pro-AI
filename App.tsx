@@ -8,10 +8,11 @@ import AuthModal from './components/AuthModal';
 import LeadSearchApp from './LeadSearchApp';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
+import ResetPasswordForm from './components/ResetPasswordForm';
 import { initTracking, updateTrackingUserId } from './services/trackingService';
 
 const App: React.FC = () => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading, isRecovery } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showApp, setShowApp] = useState(false);
@@ -37,6 +38,11 @@ const App: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // Show password reset form when user clicks recovery link from email
+  if (isRecovery && user) {
+    return <ResetPasswordForm />;
   }
 
   const handleGetStarted = () => {
