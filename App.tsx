@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
@@ -8,12 +8,25 @@ import AuthModal from './components/AuthModal';
 import LeadSearchApp from './LeadSearchApp';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
+import { initTracking, updateTrackingUserId } from './services/trackingService';
 
 const App: React.FC = () => {
   const { user, isAdmin, loading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showApp, setShowApp] = useState(false);
+
+  // Initialize visitor tracking
+  useEffect(() => {
+    initTracking(user?.id);
+  }, []);
+
+  // Update tracking when user logs in
+  useEffect(() => {
+    if (user?.id) {
+      updateTrackingUserId(user.id);
+    }
+  }, [user?.id]);
 
   if (loading) {
     return (
