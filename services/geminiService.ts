@@ -439,19 +439,6 @@ const basicEmailValidation = (email: string, website: string): boolean => {
     emailDomain.endsWith(`.${websiteDomain}`);
 };
 
-// Domain pulse check - copy from original
-const checkDomainPulse = async (url: string): Promise<boolean> => {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 4000);
-    await fetch(url, { mode: 'no-cors', signal: controller.signal });
-    clearTimeout(id);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 // Mask email for display in logs — show only domain hint
 const maskEmail = (email: string): string => {
   const parts = email.split('@');
@@ -559,8 +546,9 @@ export const findLeads = async (
           // Enhanced delay between requests to reduce API pressure
           await new Promise(resolve => setTimeout(resolve, 2000));
 
-          const isAlive = await checkDomainPulse(lead.website);
-          onProgress(Math.round(cityProgressBase + 5), `   🌐 Domain check (${domain}): ${isAlive ? '✅ Online' : '❌ Unreachable'}`);
+          // Domain pulse check skipped — CSP blocks cross-origin fetches from browser.
+          // Verification relies on server-side MX email validation instead.
+          onProgress(Math.round(cityProgressBase + 5), `   🌐 Domain: ${domain} (MX-based verification)`);
           
           let isAuthentic = false;
           let emailConfidence = 0;
@@ -586,7 +574,7 @@ export const findLeads = async (
             emailConfidence = 0;
           }
 
-          const enrichedLead = { ...lead, isVerified: isAlive && isAuthentic, emailConfidence };
+          const enrichedLead = { ...lead, isVerified: isAuthentic, emailConfidence };
           
           const status = enrichedLead.isVerified ? '✅ VERIFIED' : '⚠️ UNVERIFIED';
           onProgress(Math.round(cityProgressBase + 7), `   → ${lead.name} [${status}] — ${lead.category}`);
