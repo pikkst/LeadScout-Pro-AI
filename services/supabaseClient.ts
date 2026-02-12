@@ -34,6 +34,7 @@ export interface QueryHistory {
   results: any;
   cost: number;
   downloaded: boolean;
+  download_count: number;
   created_at: string;
 }
 

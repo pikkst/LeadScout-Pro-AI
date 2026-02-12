@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserQueryHistory } from '../services/queryHistoryService';
 import { QueryHistory } from '../services/supabaseClient';
 import { downloadCSVSecure, triggerCSVDownload } from '../services/downloadService';
 import CreditPurchaseModal from './CreditPurchaseModal';
+
+type FilterStatus = 'all' | 'downloaded' | 'not-downloaded';
+type SortBy = 'date-desc' | 'date-asc' | 'leads-desc' | 'leads-asc';
 
 const UserDashboard: React.FC = () => {
   const [queryHistory, setQueryHistory] = useState<QueryHistory[]>([]);
@@ -13,6 +16,12 @@ const UserDashboard: React.FC = () => {
   const [showCreditModal, setShowCreditModal] = useState(false);
   const { user, profile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
+
+  // Filter & search state
+  const [searchText, setSearchText] = useState('');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [filterFocus, setFilterFocus] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('date-desc');
 
   useEffect(() => {
     if (user) {
@@ -29,33 +38,119 @@ const UserDashboard: React.FC = () => {
     setLoading(false);
   };
 
+  // Get unique focus categories from history
+  const focusCategories = useMemo(() => {
+    const categories = new Set(queryHistory.map(q => q.focus));
+    return Array.from(categories).sort();
+  }, [queryHistory]);
+
+  // Filtered & sorted results
+  const filteredHistory = useMemo(() => {
+    let results = [...queryHistory];
+
+    // Text search (location, focus, query)
+    if (searchText.trim()) {
+      const term = searchText.toLowerCase();
+      results = results.filter(q =>
+        q.location.toLowerCase().includes(term) ||
+        q.focus.toLowerCase().includes(term) ||
+        q.query.toLowerCase().includes(term)
+      );
+    }
+
+    // Status filter
+    if (filterStatus === 'downloaded') {
+      results = results.filter(q => q.downloaded);
+    } else if (filterStatus === 'not-downloaded') {
+      results = results.filter(q => !q.downloaded);
+    }
+
+    // Focus filter
+    if (filterFocus !== 'all') {
+      results = results.filter(q => q.focus === filterFocus);
+    }
+
+    // Sorting
+    results.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'date-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'leads-desc':
+          return (b.results?.length || 0) - (a.results?.length || 0);
+        case 'leads-asc':
+          return (a.results?.length || 0) - (b.results?.length || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return results;
+  }, [queryHistory, searchText, filterStatus, filterFocus, sortBy]);
+
   const handleDownload = async (query: QueryHistory) => {
-    if (!profile || profile.credits < 1) {
+    // First download: needs credit; re-download: free (up to 10x)
+    if (!query.downloaded && (!profile || profile.credits < 1)) {
       setShowCreditModal(true);
       return;
     }
 
     setDownloading(query.id);
     try {
-      // Server-side credit deduction + CSV generation
       const { csv, filename } = await downloadCSVSecure(query.id);
-      
-      // Trigger browser download
       triggerCSVDownload(csv, filename);
-      
-      // Refresh data from server
       await refreshProfile();
       await loadQueryHistory();
     } catch (error: any) {
       console.error('Download failed:', error);
       if (error.message?.includes('Insufficient credits')) {
         setShowCreditModal(true);
+      } else if (error.message?.includes('Maximum re-download')) {
+        alert('Re-download limit reached (10 times). Please run a new search.');
       } else {
         alert(error.message || 'Download failed. Please try again.');
       }
     } finally {
       setDownloading(null);
     }
+  };
+
+  const getDownloadButtonProps = (query: QueryHistory) => {
+    const maxDownloads = 10;
+    const count = query.download_count || 0;
+    const isProcessing = downloading === query.id;
+    const limitReached = query.downloaded && count >= maxDownloads;
+
+    if (isProcessing) {
+      return {
+        label: 'Processing...',
+        className: 'bg-blue-500/20 text-blue-300 cursor-wait border border-blue-500/30',
+        disabled: true,
+      };
+    }
+
+    if (limitReached) {
+      return {
+        label: 'Limit Reached',
+        className: 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/30',
+        disabled: true,
+      };
+    }
+
+    if (query.downloaded) {
+      return {
+        label: `Re-download (${count}/${maxDownloads})`,
+        className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg',
+        disabled: false,
+      };
+    }
+
+    return {
+      label: 'Download CSV',
+      className: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg',
+      disabled: false,
+    };
   };
 
   if (loading) {
@@ -161,69 +256,139 @@ const UserDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Filters */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl p-4 mb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="flex-1 min-w-[200px]">
+              <input
+                type="text"
+                placeholder="Search by location, category..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent"
+              />
+            </div>
+
+            {/* Status filter */}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+              className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 [&>option]:bg-slate-800 [&>option]:text-white"
+            >
+              <option value="all">All Status</option>
+              <option value="downloaded">Downloaded</option>
+              <option value="not-downloaded">Not Downloaded</option>
+            </select>
+
+            {/* Focus filter */}
+            <select
+              value={filterFocus}
+              onChange={(e) => setFilterFocus(e.target.value)}
+              className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 [&>option]:bg-slate-800 [&>option]:text-white"
+            >
+              <option value="all">All Categories</option>
+              {focusCategories.map(cat => (
+                <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ')}</option>
+              ))}
+            </select>
+
+            {/* Sort */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortBy)}
+              className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 [&>option]:bg-slate-800 [&>option]:text-white"
+            >
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="leads-desc">Most Leads</option>
+              <option value="leads-asc">Fewest Leads</option>
+            </select>
+
+            {/* Results count */}
+            <span className="text-blue-300 text-sm">
+              {filteredHistory.length} of {queryHistory.length} results
+            </span>
+          </div>
+        </div>
+
         {/* Query History */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-white/10">
             <h2 className="text-xl font-semibold text-white">Search History</h2>
           </div>
           
-          {(queryHistory?.length || 0) === 0 ? (
+          {(filteredHistory?.length || 0) === 0 ? (
             <div className="p-8 text-center">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <span className="text-white text-2xl">🔍</span>
               </div>
-              <h3 className="text-lg font-medium text-white mb-2">No searches yet</h3>
-              <p className="text-blue-200 mb-4">Start your first lead search to see results here.</p>
-              <button
-                onClick={() => navigate('/search')}
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg"
-              >
-                Start Searching
-              </button>
+              {queryHistory.length === 0 ? (
+                <>
+                  <h3 className="text-lg font-medium text-white mb-2">No searches yet</h3>
+                  <p className="text-blue-200 mb-4">Start your first lead search to see results here.</p>
+                  <button
+                    onClick={() => navigate('/search')}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg"
+                  >
+                    Start Searching
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-medium text-white mb-2">No matches found</h3>
+                  <p className="text-blue-200 mb-4">Try adjusting your filters or search terms.</p>
+                  <button
+                    onClick={() => { setSearchText(''); setFilterStatus('all'); setFilterFocus('all'); }}
+                    className="text-blue-400 hover:text-blue-300 underline font-medium"
+                  >
+                    Clear all filters
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-white/10">
-              {(queryHistory || []).map((query) => (
-                <div key={query.id} className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-medium text-white">
-                          {query.focus} leads in {query.location}
-                        </h3>
-                        <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                          query.downloaded 
-                            ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-                            : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                        }`}>
-                          {query.downloaded ? 'Downloaded' : 'Ready to Download'}
+              {filteredHistory.map((query) => {
+                const btnProps = getDownloadButtonProps(query);
+                return (
+                  <div key={query.id} className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-medium text-white">
+                            {query.focus} leads in {query.location}
+                          </h3>
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            query.downloaded 
+                              ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                              : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                          }`}>
+                            {query.downloaded ? `Downloaded (${query.download_count || 1}/10)` : 'Ready to Download'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-blue-200">
+                          <span>🎯 {query.intensity} search</span>
+                          <span>📊 {query.results?.length || 0} leads found</span>
+                          <span>📅 {new Date(query.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-sm font-semibold text-blue-300">
+                          {query.downloaded ? 'Free re-download' : '1 credit'}
                         </span>
+                        <button
+                          onClick={() => handleDownload(query)}
+                          disabled={btnProps.disabled}
+                          className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${btnProps.className}`}
+                        >
+                          {btnProps.label}
+                        </button>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-blue-200">
-                        <span>🎯 {query.intensity} search</span>
-                        <span>📊 {query.results.length} leads found</span>
-                        <span>📅 {new Date(query.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <span className="text-lg font-semibold text-blue-300">{query.downloaded ? '✅' : '1 credit'}</span>
-                      <button
-                        onClick={() => handleDownload(query)}
-                        disabled={query.downloaded || downloading === query.id}
-                        className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
-                          query.downloaded
-                            ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/30'
-                            : downloading === query.id
-                            ? 'bg-blue-500/20 text-blue-300 cursor-wait border border-blue-500/30'
-                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg'
-                        }`}
-                      >
-                        {query.downloaded ? 'Downloaded' : downloading === query.id ? 'Processing...' : 'Download CSV'}
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
