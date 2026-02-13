@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n/I18nContext';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
   const [forgotEmailSent, setForgotEmailSent] = useState(false);
 
   const { signIn, signUp, resetPasswordForEmail } = useAuth();
+  const { t } = useI18n();
 
   if (!isOpen) return null;
 
@@ -55,7 +57,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
       <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
-            {showForgotPassword ? 'Reset Password' : showConfirmation ? 'Check Your Email' : (mode === 'signin' ? 'Sign In' : 'Sign Up')}
+            {showForgotPassword ? t.auth.resetPassword : showConfirmation ? t.auth.checkEmail : (mode === 'signin' ? t.auth.signIn : t.auth.signUp)}
           </h2>
           <button
             onClick={onClose}
@@ -73,25 +75,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                 </svg>
               </div>
-              <h3 className="text-lg font-medium mb-2">Email Sent!</h3>
-              <p className="text-gray-600 mb-4">
-                We've sent a password reset link to <strong>{email}</strong>.
-                Please check your inbox and click the link to reset your password.
-              </p>
+              <h3 className="text-lg font-medium mb-2">{t.auth.emailSent}</h3>
+              <p className="text-gray-600 mb-4" dangerouslySetInnerHTML={{ __html: t.auth.emailSentDesc.replace('{email}', email) }} />
               <p className="text-sm text-gray-500 mb-4">
-                Don't see the email? Check your spam folder.
+                {t.auth.checkSpam}
               </p>
               <button
                 onClick={() => { setShowForgotPassword(false); setForgotEmailSent(false); }}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
               >
-                Back to Sign In
+                {t.auth.backToSignIn}
               </button>
             </div>
           ) : (
             <div>
               <p className="text-gray-600 mb-4">
-                Enter your email address and we'll send you a link to reset your password.
+                {t.auth.forgotDesc}
               </p>
               <form onSubmit={async (e) => {
                 e.preventDefault();
@@ -108,7 +107,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
                 }
               }}>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t.auth.email}</label>
                   <input
                     type="email"
                     value={email}
@@ -124,7 +123,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
                   disabled={loading}
                   className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Sending...' : 'Send Reset Link'}
+                  {loading ? t.auth.sending : t.auth.sendResetLink}
                 </button>
               </form>
               <div className="mt-4 text-center">
@@ -132,7 +131,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
                   onClick={() => { setShowForgotPassword(false); setError(''); }}
                   className="text-blue-600 hover:text-blue-700"
                 >
-                  Back to Sign In
+                  {t.auth.backToSignIn}
                 </button>
               </div>
             </div>
@@ -145,20 +144,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
-              <h3 className="text-lg font-medium mb-2">Registration Successful!</h3>
-              <p className="text-gray-600 mb-4">
-                We've sent a confirmation email to <strong>{email}</strong>. 
-                Please check your inbox and click the confirmation link to activate your account.
-              </p>
+              <h3 className="text-lg font-medium mb-2">{t.auth.registrationSuccess}</h3>
+              <p className="text-gray-600 mb-4" dangerouslySetInnerHTML={{ __html: t.auth.confirmationSent.replace('{email}', email) }} />
               <p className="text-sm text-gray-500">
-                Don't see the email? Check your spam folder or try again in a few minutes.
+                {t.auth.confirmationSpam}
               </p>
             </div>
             <button
               onClick={onClose}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
             >
-              Got it
+              {t.auth.gotIt}
             </button>
           </div>
         ) : (
@@ -167,7 +163,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
           {mode === 'signup' && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
+                {t.auth.fullName}
               </label>
               <input
                 type="text"
@@ -181,7 +177,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
+              {t.auth.email}
             </label>
             <input
               type="email"
@@ -194,7 +190,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
+              {t.auth.password}
             </label>
             <input
               type="password"
@@ -217,7 +213,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Loading...' : (mode === 'signin' ? 'Sign In' : 'Sign Up')}
+            {loading ? t.auth.loading : (mode === 'signin' ? t.auth.signIn : t.auth.signUp)}
           </button>
         </form>
 
@@ -227,8 +223,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
             className="text-blue-600 hover:text-blue-700"
           >
             {mode === 'signin' 
-              ? "Don't have an account? Sign up" 
-              : "Already have an account? Sign in"
+              ? t.auth.noAccount
+              : t.auth.hasAccount
             }
           </button>
           {mode === 'signin' && (
@@ -237,7 +233,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode: initialMod
                 onClick={() => { setShowForgotPassword(true); setError(''); }}
                 className="text-gray-500 hover:text-gray-700 text-sm"
               >
-                Forgot your password?
+                {t.auth.forgotPassword}
               </button>
             </div>
           )}

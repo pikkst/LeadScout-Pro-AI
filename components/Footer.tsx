@@ -1,6 +1,10 @@
 import React from 'react';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useI18n } from '../i18n/I18nContext';
 
 const Footer: React.FC = () => {
+  const { t } = useI18n();
+
   return (
     <footer className="bg-slate-950 border-t border-white/10 py-8 mt-auto" role="contentinfo">
       <div className="container mx-auto px-6">
@@ -8,10 +12,10 @@ const Footer: React.FC = () => {
           {/* Company info */}
           <div className="text-center md:text-left">
             <p className="text-gray-300 text-sm font-medium">
-              &copy; 2026 EventNexus OÜ. All Rights Reserved.
+              {t.footer.allRights}
             </p>
             <p className="text-gray-500 text-xs mt-1">
-              EventNexus OÜ (reg. no. 17431557), Põltsamaa, Estonia
+              {t.footer.companyInfo}
             </p>
           </div>
 
@@ -24,19 +28,19 @@ const Footer: React.FC = () => {
             >
               villu@mail.eventnexus.eu
             </a>
-            <p className="text-gray-500 text-xs">Response time: Within 24 hours</p>
+            <p className="text-gray-500 text-xs">{t.footer.responseTime}</p>
           </div>
 
           {/* Language & links */}
           <nav className="flex flex-col items-center md:items-end gap-1" aria-label="Footer navigation">
-            <span className="text-gray-400 text-xs">English (US)</span>
+            <LanguageSwitcher />
             <div className="flex gap-3 text-xs">
               <a href="/privacy" className="text-gray-500 hover:text-gray-300 transition-colors">
-                Privacy Policy
+                {t.footer.privacyPolicy}
               </a>
               <span className="text-gray-700" aria-hidden="true">·</span>
               <a href="/terms" className="text-gray-500 hover:text-gray-300 transition-colors">
-                Terms of Service
+                {t.footer.termsOfService}
               </a>
             </div>
           </nav>
