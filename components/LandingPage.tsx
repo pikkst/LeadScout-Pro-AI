@@ -31,7 +31,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         description={t.seo.description}
       />
       {/* Modern Header with Auth Buttons */}
-      <header className="relative z-10 border-b border-white/10 backdrop-blur-sm" role="banner">
+      <header className="relative z-20 border-b border-white/10 backdrop-blur-sm" role="banner">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
