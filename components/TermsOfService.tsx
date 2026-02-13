@@ -1,10 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Footer from './Footer';
+import SEOHead from './SEOHead';
 
 const TermsOfService: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white flex flex-col">
+      <SEOHead
+        title="Terms of Service"
+        description="LeadScout Pro AI Terms of Service. Read our service agreement, payment terms, and usage policies. Operated by EventNexus OÜ, Estonia."
+      />
       <div className="container mx-auto px-6 py-12 max-w-3xl flex-1">
         <Link to="/" className="text-blue-300 hover:text-white mb-8 inline-block">&larr; Back to Home</Link>
         

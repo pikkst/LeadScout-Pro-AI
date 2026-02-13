@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AuthModal from './AuthModal';
 import Footer from './Footer';
+import SEOHead from './SEOHead';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -22,12 +23,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      <SEOHead
+        title="AI-Powered B2B Lead Generation Platform"
+        description="Find quality business leads worldwide using advanced AI. Search, verify and download B2B contacts. No subscriptions — pay only per download. Trusted by 50K+ companies."
+      />
       {/* Modern Header with Auth Buttons */}
-      <header className="relative z-10 border-b border-white/10 backdrop-blur-sm">
+      <header className="relative z-10 border-b border-white/10 backdrop-blur-sm" role="banner">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg" aria-hidden="true">
                 <span className="text-white font-bold text-xl">L</span>
               </div>
               <div>
@@ -36,7 +41,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
             </div>
             
-            <nav className="hidden lg:flex items-center space-x-8">
+            <nav className="hidden lg:flex items-center space-x-8" aria-label="Main navigation">
               <a href="#features" className="text-white/80 hover:text-white transition-colors font-medium">Features</a>
               <a href="#pricing" className="text-white/80 hover:text-white transition-colors font-medium">Pricing</a>
               <a href="#how-it-works" className="text-white/80 hover:text-white transition-colors font-medium">How it Works</a>
@@ -60,8 +65,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </div>
       </header>
 
+      <main>
       {/* Hero Section */}
-      <section className="relative z-10 pt-16 pb-24">
+      <section className="relative z-10 pt-16 pb-24" aria-label="Hero">
         <div className="container mx-auto px-6 text-center">
           {/* Floating particles background effect */}
           <div className="absolute inset-0 overflow-hidden">
@@ -75,10 +81,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <span className="text-white/90 text-sm font-medium">AI Agents working 24/7</span>
             </div>
             
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
+            <h2 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
               Find Quality Leads
               <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent block">with AI Precision</span>
-            </h1>
+            </h2>
             
             <p className="text-xl text-white/80 mb-10 max-w-4xl mx-auto leading-relaxed">
               Discover targeted business leads worldwide using our advanced AI technology. 
@@ -117,7 +123,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-white/5 backdrop-blur-sm border-y border-white/10">
+      <section id="features" className="py-20 bg-white/5 backdrop-blur-sm border-y border-white/10" aria-label="Features">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">Powerful Features</h2>
@@ -263,7 +269,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-600">
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-600" aria-label="Call to action">
         <div className="container mx-auto px-6 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Find Quality Leads?</h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
@@ -278,6 +284,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </button>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <Footer />
