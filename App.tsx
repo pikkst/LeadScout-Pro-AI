@@ -183,6 +183,8 @@ const App: React.FC = () => {
       const uniqueWebsites = new Set<string>();
       const scoutedLeads: CompanyLead[] = [];
 
+      const allSavedLeads: CompanyLead[] = [];
+
       for (let i = 0; i < cities.length; i++) {
         const city = cities[i];
         const cityProgressBase = (i / cities.length) * 90;
@@ -193,6 +195,7 @@ const App: React.FC = () => {
         const cityLeads = await findLeads(city, location, focus, (msg) => addLog(`[Scout-Update] ${msg}`));
         
         let cityProcessed = 0;
+        const citySaved: CompanyLead[] = [];
         for (const lead of cityLeads) {
           const domain = lead.website.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
           
@@ -213,34 +216,43 @@ const App: React.FC = () => {
               (attempt) => addLog(`[System-Retry] Retrying contact verification (Attempt ${attempt})...`)
             );
 
-            scoutedLeads.push({
+            const verifiedLead: CompanyLead = {
               ...lead,
               isVerified: isAlive && isAuthentic,
               focus,
               notes: `Scouted automatically in grid zone: ${city} during Unitel Global CarrierScout reconnaissance.`,
-            });
+            };
+            scoutedLeads.push(verifiedLead);
+            citySaved.push(verifiedLead);
             cityProcessed++;
           }
         }
         
         addLog(`[Scout] Grid ${city} scan complete. Identified ${cityProcessed} unique profiles.`);
+
+        // Persist this grid's profiles immediately so results appear live in the
+        // "Scouted Telecom Partners" table while the agent continues to the next grid.
+        if (citySaved.length > 0) {
+          addLog(`[CRM-Database] Saving ${citySaved.length} profiles from ${city} to the shared pipeline...`);
+          const saved = await crm.importLeads(
+            citySaved.map(l => ({
+              name: l.name,
+              website: l.website,
+              category: l.category,
+              email: l.email,
+              description: l.description,
+              focus,
+              isVerified: l.isVerified,
+              notes: l.notes,
+            }))
+          );
+          allSavedLeads.push(...saved);
+          await reloadData();
+        }
       }
 
-      // Persist all scouted leads to the shared team database.
-      addLog(`[CRM-Database] Saving ${scoutedLeads.length} scouted profiles to the shared pipeline...`);
-      const savedLeads = await crm.importLeads(
-        scoutedLeads.map(l => ({
-          name: l.name,
-          website: l.website,
-          category: l.category,
-          email: l.email,
-          description: l.description,
-          focus,
-          isVerified: l.isVerified,
-          notes: l.notes,
-        }))
-      );
-      await reloadData();
+      // Persist all scouted leads to the shared team database (idempotent upsert).
+      const savedLeads = allSavedLeads;
 
       // Auto-select verified, freshly-saved leads for outreach.
       const verifiedIds = savedLeads.filter(l => l.isVerified).map(l => l.id);
