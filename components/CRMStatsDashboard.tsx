@@ -46,11 +46,11 @@ export const CRMStatsDashboard: React.FC<CRMStatsDashboardProps> = ({ leads }) =
   const activeConversionRate = countTotal > 0 ? Math.round((countActive / countTotal) * 100) : 0;
 
   // Segment statistics
-  const segmentsMap = activeLeads.reduce((acc, l) => {
+  const segmentsMap: Record<string, number> = {};
+  for (const l of activeLeads) {
     const key = l.category || 'voip_carriers';
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+    segmentsMap[key] = (segmentsMap[key] || 0) + 1;
+  }
 
   // Find top sector
   let topSectorName = 'VoIP Wholesalers';

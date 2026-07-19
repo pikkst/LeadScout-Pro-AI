@@ -1,4 +1,5 @@
 import { CompanyLead, LeadFocus } from "../types";
+import { api } from "./apiClient";
 
 export interface GeneratedPitch {
   subject: string;
@@ -8,98 +9,66 @@ export interface GeneratedPitch {
 }
 
 /**
- * Identify major cities for a given country/region by proxying to the backend.
+ * Identify major cities for a given country/region (authenticated AI endpoint).
  */
 export const findMajorCities = async (location: string, focus: LeadFocus): Promise<string[]> => {
-  const response = await fetch("/api/cities", {
+  return api<string[]>("/ai/cities", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({ location, focus }),
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to fetch major cities from server");
-  }
-
-  return response.json();
 };
 
 /**
- * Perform deep verification of an email by proxying to the backend.
+ * Deep verification of a business email (authenticated AI endpoint).
  */
 export const verifyEmailAuthenticity = async (
-  email: string, 
-  companyName: string, 
+  email: string,
+  companyName: string,
   website: string,
-  onRetry?: (attempt: number) => void
+  _onRetry?: (attempt: number) => void,
 ): Promise<boolean> => {
-  const response = await fetch("/api/verify", {
+  const data = await api<{ isAuthentic: boolean }>("/ai/verify", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({ email, companyName, website }),
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to verify email from server");
-  }
-
-  const data = await response.json();
   return data.isAuthentic;
 };
 
 /**
- * Find wholesale leads by proxying to the backend.
+ * Find wholesale/B2B leads for a city (authenticated AI endpoint).
  */
 export const findLeads = async (
   city: string,
   country: string,
   focus: LeadFocus,
-  onUpdate?: (log: string) => void
+  onUpdate?: (log: string) => void,
 ): Promise<CompanyLead[]> => {
   if (onUpdate) onUpdate(`Initiating server-side wholesale lookup for ${city}...`);
-  
-  const response = await fetch("/api/leads", {
+  return api<CompanyLead[]>("/ai/leads", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({ city, country, focus }),
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to find leads from server");
-  }
-
-  return response.json();
 };
 
 /**
- * Generate a personalized B2B outreach pitch by proxying to the backend.
+ * Generate a personalized B2B outreach pitch (authenticated AI endpoint).
  */
 export const generatePersonalizedPitch = async (
   lead: CompanyLead,
   focus: LeadFocus,
-  preferredLanguage: string
+  preferredLanguage: string,
 ): Promise<GeneratedPitch> => {
-  const response = await fetch("/api/pitch", {
+  return api<GeneratedPitch>("/ai/pitch", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ lead, focus, preferredLanguage }),
+    body: JSON.stringify({
+      lead: {
+        name: lead.name,
+        category: lead.category,
+        website: lead.website,
+        description: lead.description,
+      },
+      focus,
+      preferredLanguage,
+    }),
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to generate pitch from server");
-  }
-
-  return response.json();
 };

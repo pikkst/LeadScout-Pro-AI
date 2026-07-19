@@ -1,0 +1,189 @@
+// Prisma schema for Unitel Global — CarrierScout AI
+// Shared team B2B platform: users, leads, CRM pipeline, outreach pitches, activity log.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Application user (Unitel Global B2B worker).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(AGENT)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedLeads Lead[]        @relation("AssignedAgent")
+  createdLeads  Lead[]        @relation("LeadCreator")
+  pitches       Pitch[]
+  activities    ActivityLog[]
+
+  @@index([role])
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+/// Key/value application settings editable from the UI (overrides .env at runtime).
+/// Secret values (API keys, passwords) are stored encrypted; `isSecret` marks them.
+model AppSetting {
+  key         String   @id
+  value       String   @default("")
+  isSecret    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@map("app_settings")
+}
+
+/// A B2B company lead in the shared team pipeline.
+model Lead {
+  id             String     @id @default(cuid())
+  name           String
+  website        String
+  category       String
+  email          String
+  description    String     @default("")
+  phone          String?
+  sourceUrl      String?
+  focus          String? // LeadFocus segment (voip_carriers, sms_aggregators, ...)
+  isVerified     Boolean    @default(false)
+  stage          LeadStage  @default(DISCOVERED)
+  notes          String     @default("")
+  estimatedValue Int        @default(0) // Potential monthly value in EUR
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  lastContactedAt DateTime?
+
+  assignedAgentId String?
+  assignedAgent   User?   @relation("AssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("LeadCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  followUpTask FollowUpTask?
+  meetings     Meeting[]
+  pitches      Pitch[]
+  activities   ActivityLog[]
+
+  @@unique([website, email])
+  @@index([stage])
+  @@index([assignedAgentId])
+  @@index([focus])
+  @@map("leads")
+}
+
+enum LeadStage {
+  DISCOVERED
+  CONTACTED
+  NEGOTIATION
+  SIGNED
+  ACTIVE
+  ARCHIVED
+}
+
+/// A single actionable follow-up task attached to a lead.
+model FollowUpTask {
+  id          String   @id @default(cuid())
+  taskName    String
+  dueDate     DateTime
+  isCompleted Boolean  @default(false)
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leadId String @unique
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("follow_up_tasks")
+}
+
+/// A scheduled meeting/call/demo with a lead.
+model Meeting {
+  id        String      @id @default(cuid())
+  title     String
+  date      String // YYYY-MM-DD
+  time      String // HH:MM
+  duration  Int         @default(30) // minutes
+  type      MeetingType @default(CALL)
+  agenda    String      @default("")
+  link      String?
+  createdAt DateTime    @default(now())
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("meetings")
+}
+
+enum MeetingType {
+  CALL
+  MEETING
+  DEMO
+  FOLLOW_UP
+}
+
+/// A generated / sent outreach email pitch.
+model Pitch {
+  id              String      @id @default(cuid())
+  subject         String
+  htmlContent     String
+  textContent     String
+  language        String      @default("English")
+  status          PitchStatus @default(DRAFT)
+  opened          Boolean     @default(false)
+  sentAt          DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  leadId    String
+  lead      Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadName  String
+  leadEmail String
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([status])
+  @@map("pitches")
+}
+
+enum PitchStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  REPLIED
+  FAILED
+}
+
+/// Audit trail of actions across the team pipeline.
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String
+  detail    String   @default("")
+  createdAt DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([userId])
+  @@map("activity_logs")
+}

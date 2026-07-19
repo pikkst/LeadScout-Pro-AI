@@ -34,7 +34,6 @@ interface B2BPipelineBoardProps {
   onExportBackup?: () => void;
   onImportBackup?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onUpdateFollowUpTask: (leadId: string, taskName: string, dueDate: string, isCompleted: boolean, notes: string) => void;
-  onSimulateOverdueContact: (leadId: string) => void;
 }
 
 const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: string; bg: string; text: string; border: string; desc: string }[] = [
@@ -93,8 +92,7 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
   onAddLead,
   onExportBackup,
   onImportBackup,
-  onUpdateFollowUpTask,
-  onSimulateOverdueContact
+  onUpdateFollowUpTask
 }) => {
   
   // Scheduler rescheduling states
@@ -541,14 +539,6 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
                                     <p className="text-[8px] text-slate-500 line-clamp-1">
                                       {lead.followUpTask?.taskName || 'Follow up on initial carrier / customer pitch'}
                                     </p>
-                                    <button
-                                      type="button"
-                                      onClick={() => onSimulateOverdueContact(lead.id)}
-                                      className="w-full text-[8px] bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 py-1 rounded border border-slate-800 transition-all font-mono font-bold"
-                                      title="Simulate 4 days ago contact to test alarm trigger"
-                                    >
-                                      ⚡ Simulate &gt;3 Days (Trigger Alarm)
-                                    </button>
                                   </div>
                                 );
                               }

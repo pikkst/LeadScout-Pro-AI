@@ -1,11 +1,15 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { CompanyLead, SearchState, AgentTask, LeadFocus, OutreachPitch } from './types';
-import { findLeads, findMajorCities, verifyEmailAuthenticity, generatePersonalizedPitch } from './services/geminiService';
+import { findLeads, findMajorCities, verifyEmailAuthenticity } from './services/geminiService';
+import * as crm from './services/crmService';
+import { ApiError } from './services/apiClient';
+import { useAuth } from './context/AuthContext';
 import { downloadLeadsAsCSV } from './utils/csvExport';
 import AgentTerminal from './components/AgentTerminal';
 import { LeadCRMModal } from './components/LeadCRMModal';
 import { B2BPipelineBoard } from './components/B2BPipelineBoard';
 import { CRMStatsDashboard } from './components/CRMStatsDashboard';
+import { SettingsPage } from './components/SettingsPage';
 import { 
   Globe, 
   Search, 
@@ -35,7 +39,9 @@ import {
   Plus,
   Upload,
   Calendar,
-  Briefcase
+  Briefcase,
+  LogOut,
+  Settings as SettingsIcon
 } from 'lucide-react';
 
 const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string; pitchType: string }[] = [
@@ -59,29 +65,24 @@ const LANGUAGE_OPTIONS = [
 ];
 
 const App: React.FC = () => {
+  const { user, logout } = useAuth();
+
   // Navigation: scout, outreach, crm, dashboard
-  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard'>('scout');
+  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'settings'>('scout');
+  const isAdmin = user?.role === 'ADMIN';
 
   // Lead Finder States
   const [location, setLocation] = useState('');
   const [intensity, setIntensity] = useState<'standard' | 'deep'>('standard');
   const [focus, setFocus] = useState<LeadFocus>('voip_carriers');
-  
-  // Persist leads list
-  const [leads, setLeads] = useState<CompanyLead[]>(() => {
-    const saved = localStorage.getItem('unitel_b2b_leads');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Error reading saved leads", e);
-      }
-    }
-    return [];
-  });
-  
+
+  // Server-backed data
+  const [leads, setLeads] = useState<CompanyLead[]>([]);
+  const [pitches, setPitches] = useState<OutreachPitch[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
-  
+
   const [searchState, setSearchState] = useState<SearchState>({
     isSearching: false,
     progress: 0,
@@ -94,23 +95,11 @@ const App: React.FC = () => {
 
   // Outreach & B2B Tracker States
   const [preferredLanguage, setPreferredLanguage] = useState('Auto-Detect');
-  
-  // Persist pitches
-  const [pitches, setPitches] = useState<OutreachPitch[]>(() => {
-    const saved = localStorage.getItem('unitel_b2b_pitches');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Error reading saved pitches", e);
-      }
-    }
-    return [];
-  });
 
   const [isGeneratingPitches, setIsGeneratingPitches] = useState(false);
   const [pitchProgress, setPitchProgress] = useState({ current: 0, total: 0, activeName: '' });
-  
+  const [sendingPitchIds, setSendingPitchIds] = useState<Set<string>>(new Set());
+
   // Preview / Editor States
   const [activePitch, setActivePitch] = useState<OutreachPitch | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(true); // true = HTML Preview, false = Raw Editor
@@ -121,15 +110,6 @@ const App: React.FC = () => {
   const [isCRMModalOpen, setIsCRMModalOpen] = useState(false);
   const [selectedCRMLead, setSelectedCRMLead] = useState<CompanyLead | null>(null);
 
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem('unitel_b2b_leads', JSON.stringify(leads));
-  }, [leads]);
-
-  useEffect(() => {
-    localStorage.setItem('unitel_b2b_pitches', JSON.stringify(pitches));
-  }, [pitches]);
-
   // Logging system
   const addLog = useCallback((message: string) => {
     setSearchState(prev => ({
@@ -137,6 +117,24 @@ const App: React.FC = () => {
       logs: [...prev.logs, `${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})} ${message}`]
     }));
   }, []);
+
+  // Load leads + pitches from the server on mount.
+  const reloadData = useCallback(async () => {
+    try {
+      const [serverLeads, serverPitches] = await Promise.all([crm.listLeads(), crm.listPitches()]);
+      setLeads(serverLeads);
+      setPitches(serverPitches);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to load data from server';
+      addLog(`[Critical] ${msg}`);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [addLog]);
+
+  useEffect(() => {
+    reloadData();
+  }, [reloadData]);
 
   const updateProgress = (progress: number, task?: string) => {
     setSearchState(prev => ({
@@ -164,7 +162,6 @@ const App: React.FC = () => {
     e.preventDefault();
     if (!location.trim() || searchState.isSearching) return;
 
-    setLeads([]);
     setSelectedLeadIds(new Set());
     setSearchState({
       isSearching: true,
@@ -184,7 +181,7 @@ const App: React.FC = () => {
       addLog(`[Strategic] Confirmed coordinates for ${cities.length} target search grids.`);
       
       const uniqueWebsites = new Set<string>();
-      const masterLeads: CompanyLead[] = [];
+      const scoutedLeads: CompanyLead[] = [];
 
       for (let i = 0; i < cities.length; i++) {
         const city = cities[i];
@@ -216,37 +213,41 @@ const App: React.FC = () => {
               (attempt) => addLog(`[System-Retry] Retrying contact verification (Attempt ${attempt})...`)
             );
 
-            const enrichedLead: CompanyLead = { 
-              ...lead, 
+            scoutedLeads.push({
+              ...lead,
               isVerified: isAlive && isAuthentic,
-              stage: 'Discovered',
+              focus,
               notes: `Scouted automatically in grid zone: ${city} during Unitel Global CarrierScout reconnaissance.`,
-              phone: `+372 6${Math.floor(100000 + Math.random() * 900000)}`,
-              estimatedValue: Math.floor(1500 + Math.random() * 11000),
-              assignedAgent: 'Tallinn Carrier Relations',
-              createdAt: new Date().toISOString()
-            };
-            masterLeads.push(enrichedLead);
-            
-            // Auto select verified leads
-            if (enrichedLead.isVerified) {
-              setSelectedLeadIds(prev => {
-                const next = new Set(prev);
-                next.add(enrichedLead.id);
-                return next;
-              });
-            }
-
-            setLeads([...masterLeads]);
+            });
             cityProcessed++;
           }
         }
         
-        addLog(`[Scout] Grid ${city} scan complete. Delivered ${cityProcessed} unique profiles to control room.`);
+        addLog(`[Scout] Grid ${city} scan complete. Identified ${cityProcessed} unique profiles.`);
       }
 
+      // Persist all scouted leads to the shared team database.
+      addLog(`[CRM-Database] Saving ${scoutedLeads.length} scouted profiles to the shared pipeline...`);
+      const savedLeads = await crm.importLeads(
+        scoutedLeads.map(l => ({
+          name: l.name,
+          website: l.website,
+          category: l.category,
+          email: l.email,
+          description: l.description,
+          focus,
+          isVerified: l.isVerified,
+          notes: l.notes,
+        }))
+      );
+      await reloadData();
+
+      // Auto-select verified, freshly-saved leads for outreach.
+      const verifiedIds = savedLeads.filter(l => l.isVerified).map(l => l.id);
+      setSelectedLeadIds(new Set(verifiedIds));
+
       updateProgress(100, AgentTask.COMPLETED);
-      addLog(`[Mission] Successfully concluded reconnaissance. Captured ${masterLeads.length} unique B2B telecom targets.`);
+      addLog(`[Mission] Reconnaissance concluded. Saved ${savedLeads.length} unique B2B telecom targets to the CRM.`);
       setSearchState(prev => ({ ...prev, isSearching: false }));
 
     } catch (err: any) {
@@ -281,7 +282,7 @@ const App: React.FC = () => {
     }
   };
 
-  // AI Pitch Generation
+  // AI Pitch Generation (persisted server-side)
   const handleGeneratePitches = async () => {
     if (selectedLeadIds.size === 0 || isGeneratingPitches) return;
 
@@ -292,40 +293,21 @@ const App: React.FC = () => {
     const selectedLeads = leads.filter(l => selectedLeadIds.has(l.id));
     setPitchProgress({ current: 0, total: selectedLeads.length, activeName: selectedLeads[0]?.name || '' });
 
-    const newPitches: OutreachPitch[] = [...pitches];
-
     for (let i = 0; i < selectedLeads.length; i++) {
       const lead = selectedLeads[i];
       setPitchProgress({ current: i + 1, total: selectedLeads.length, activeName: lead.name });
       addLog(`[AI-Copywriter] Drafting personalized wholesale pitch in ${preferredLanguage} for ${lead.name}...`);
 
       try {
-        const pitchData = await generatePersonalizedPitch(lead, focus, preferredLanguage);
-        
-        // Remove existing draft for this lead if it exists
-        const existingIndex = newPitches.findIndex(p => p.leadId === lead.id);
-        const pitchObj: OutreachPitch = {
-          id: `pitch-${lead.id}-${Date.now()}`,
-          leadId: lead.id,
-          leadName: lead.name,
-          leadEmail: lead.email,
-          subject: pitchData.subject,
-          htmlContent: pitchData.htmlContent,
-          textContent: pitchData.textContent,
-          language: pitchData.detectedLanguage,
-          status: 'Draft'
-        };
-
-        if (existingIndex > -1) {
-          newPitches[existingIndex] = pitchObj;
-        } else {
-          newPitches.push(pitchObj);
-        }
-
-        setPitches([...newPitches]);
-        addLog(`[AI-Copywriter] Draft formulated successfully for ${lead.name} [Detected: ${pitchData.detectedLanguage}].`);
-      } catch (err: any) {
-        addLog(`[Warning] Failed formulation for ${lead.name}: ${err?.message || 'Generation timeout'}`);
+        const pitch = await crm.generateAndSavePitch(lead.id, lead.focus || focus, preferredLanguage);
+        setPitches(prev => {
+          const withoutOld = prev.filter(p => !(p.leadId === lead.id && p.status === 'Draft'));
+          return [pitch, ...withoutOld];
+        });
+        addLog(`[AI-Copywriter] Draft saved for ${lead.name} [Detected: ${pitch.language}].`);
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : 'Generation timeout';
+        addLog(`[Warning] Failed formulation for ${lead.name}: ${msg}`);
       }
     }
 
@@ -333,100 +315,93 @@ const App: React.FC = () => {
     addLog(`[Outreach-Engine] Formulated ${selectedLeads.length} personalized partnership drafts.`);
   };
 
-  // Simulate Sending Outreach
-  const handleSimulateSend = async (pitchId: string) => {
-    setPitches(prev => prev.map(p => {
-      if (p.id === pitchId) {
-        return { ...p, status: 'Sent', sentAt: new Date().toLocaleTimeString() };
-      }
-      return p;
-    }));
-    
+  // Send Outreach via real SMTP backend
+  const handleSendPitch = async (pitchId: string) => {
     const pitch = pitches.find(p => p.id === pitchId);
-    if (pitch) {
-      addLog(`[Outreach-SMTP] Dispatched direct interconnect offer to ${pitch.leadEmail}...`);
-      
-      // Update CRM Lead stage to "Contacted"
-      setLeads(currentLeads => currentLeads.map(l => {
-        if (l.id === pitch.leadId) {
-          return { ...l, stage: 'Contacted', lastContactedAt: new Date().toISOString() };
-        }
-        return l;
-      }));
+    if (!pitch || sendingPitchIds.has(pitchId)) return;
 
-      // Simulate delivered status shortly after
-      setTimeout(() => {
-        setPitches(current => current.map(p => {
-          if (p.id === pitchId) {
-            return { ...p, status: 'Delivered', opened: true };
-          }
-          return p;
-        }));
-        addLog(`[Outreach-SMTP] Delivery receipt confirmed by ${pitch.leadName} mailserver.`);
-      }, 2500);
+    setSendingPitchIds(prev => new Set(prev).add(pitchId));
+    addLog(`[Outreach-SMTP] Dispatching interconnect offer to ${pitch.leadEmail}...`);
 
-      // Simulate a responsive customer callback (Replied) based on quality match!
-      setTimeout(() => {
-        setPitches(current => current.map(p => {
-          if (p.id === pitchId) {
-            return { ...p, status: 'Replied' };
-          }
-          return p;
-        }));
-
-        // Promote CRM Lead stage to "Negotiation"
-        setLeads(currentLeads => currentLeads.map(l => {
-          if (l.id === pitch.leadId) {
-            return { ...l, stage: 'Negotiation' };
-          }
-          return l;
-        }));
-
-        addLog(`[Outreach-Incoming] Received bilateral route test request / callback inquiry from ${pitch.leadName}! Promoted to Negotiation.`);
-      }, 6000);
-    }
-  };
-
-  const handleSimulateBulkSend = () => {
-    const draftPitches = pitches.filter(p => p.status === 'Draft');
-    if (draftPitches.length === 0) return;
-
-    addLog(`[Outreach-SMTP] Initiating bulk secure SMTP transmission for ${draftPitches.length} carrier contracts...`);
-    draftPitches.forEach((pitch, idx) => {
-      setTimeout(() => {
-        handleSimulateSend(pitch.id);
-      }, idx * 1200);
-    });
-  };
-
-  // CRM Lead Database Management actions
-  const handleSaveCRMLead = (savedLead: CompanyLead) => {
-    setLeads(prev => {
-      const idx = prev.findIndex(l => l.id === savedLead.id);
-      if (idx > -1) {
-        const next = [...prev];
-        next[idx] = savedLead;
-        return next;
-      } else {
-        return [savedLead, ...prev];
-      }
-    });
-    
-    if (savedLead.isVerified) {
-      setSelectedLeadIds(prev => {
+    try {
+      const updated = await crm.sendPitch(pitchId);
+      setPitches(prev => prev.map(p => (p.id === pitchId ? updated : p)));
+      addLog(`[Outreach-SMTP] Email delivered to ${pitch.leadName} (${pitch.leadEmail}).`);
+      // The backend advances the lead to "Contacted" — refresh CRM view.
+      await reloadData();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'SMTP send failed';
+      addLog(`[Error] Failed to send to ${pitch.leadEmail}: ${msg}`);
+      setPitches(prev => prev.map(p => (p.id === pitchId ? { ...p, status: 'Failed' } : p)));
+    } finally {
+      setSendingPitchIds(prev => {
         const next = new Set(prev);
-        next.add(savedLead.id);
+        next.delete(pitchId);
         return next;
       });
     }
-
-    addLog(`[CRM-Database] Saved profile for ${savedLead.name} in client index.`);
-    setIsCRMModalOpen(false);
-    setSelectedCRMLead(null);
   };
 
-  const handleDeleteLead = (id: string) => {
-    if (confirm("Are you sure you want to remove this partner from your database? This will clear all negotiation states and related drafts.")) {
+  const handleBulkSend = async () => {
+    const draftPitches = pitches.filter(p => p.status === 'Draft');
+    if (draftPitches.length === 0) return;
+
+    addLog(`[Outreach-SMTP] Initiating bulk SMTP transmission for ${draftPitches.length} contracts...`);
+    for (const pitch of draftPitches) {
+      await handleSendPitch(pitch.id);
+    }
+    addLog(`[Outreach-SMTP] Bulk transmission complete.`);
+  };
+
+  // CRM Lead Database Management actions (persisted server-side)
+  const handleSaveCRMLead = async (savedLead: CompanyLead) => {
+    try {
+      const payload = {
+        name: savedLead.name,
+        website: savedLead.website,
+        category: savedLead.category,
+        email: savedLead.email,
+        description: savedLead.description,
+        phone: savedLead.phone,
+        notes: savedLead.notes,
+        estimatedValue: savedLead.estimatedValue,
+        stage: savedLead.stage,
+        isVerified: savedLead.isVerified,
+        focus: savedLead.focus || focus,
+      };
+
+      let result: CompanyLead;
+      const isExisting = leads.some(l => l.id === savedLead.id);
+      if (isExisting) {
+        result = await crm.updateLead(savedLead.id, payload);
+      } else {
+        result = await crm.createLead(payload);
+      }
+
+      setLeads(prev => {
+        const idx = prev.findIndex(l => l.id === result.id);
+        if (idx > -1) {
+          const next = [...prev];
+          next[idx] = result;
+          return next;
+        }
+        return [result, ...prev];
+      });
+
+      addLog(`[CRM-Database] Saved profile for ${result.name} in client index.`);
+      setIsCRMModalOpen(false);
+      setSelectedCRMLead(null);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to save lead';
+      addLog(`[Error] ${msg}`);
+      alert(msg);
+    }
+  };
+
+  const handleDeleteLead = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this partner from your database? This will clear all negotiation states and related drafts.")) return;
+    try {
+      await crm.deleteLead(id);
       setLeads(prev => prev.filter(l => l.id !== id));
       setSelectedLeadIds(prev => {
         const next = new Set(prev);
@@ -435,80 +410,43 @@ const App: React.FC = () => {
       });
       setPitches(prev => prev.filter(p => p.leadId !== id));
       addLog(`[CRM-Database] Removed target carrier and associated communications logs.`);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to delete lead';
+      addLog(`[Error] ${msg}`);
+      alert(msg);
     }
   };
 
-  const handleUpdateStage = (id: string, nextStage: NonNullable<CompanyLead['stage']>) => {
-    setLeads(prev => prev.map(l => {
-      if (l.id === id) {
-        const updated = { 
-          ...l, 
-          stage: nextStage,
-          lastContactedAt: nextStage === 'Contacted' ? new Date().toISOString() : l.lastContactedAt
-        };
-        // Auto-schedule task if entering Contacted
-        if (nextStage === 'Contacted' && !updated.followUpTask) {
-          updated.followUpTask = {
-            id: `task-${Date.now()}`,
-            taskName: "Follow up on initial carrier / customer pitch",
-            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-            isCompleted: false,
-            notes: "Automatic follow-up scheduled 3 days after initial campaign pitch."
-          };
-        }
-        return updated;
-      }
-      return l;
-    }));
-    addLog(`[CRM-Database] Upgraded partner stage to: ${nextStage}`);
+  const handleUpdateStage = async (id: string, nextStage: NonNullable<CompanyLead['stage']>) => {
+    // Optimistic UI update.
+    const previous = leads;
+    setLeads(prev => prev.map(l => (l.id === id ? { ...l, stage: nextStage } : l)));
+    try {
+      const updated = await crm.updateLeadStage(id, nextStage);
+      setLeads(prev => prev.map(l => (l.id === id ? updated : l)));
+      addLog(`[CRM-Database] Upgraded partner stage to: ${nextStage}`);
+    } catch (err) {
+      setLeads(previous); // rollback
+      const msg = err instanceof ApiError ? err.message : 'Failed to update stage';
+      addLog(`[Error] ${msg}`);
+    }
   };
 
-  const handleUpdateFollowUpTask = (
+  const handleUpdateFollowUpTask = async (
     leadId: string, 
     taskName: string, 
     dueDate: string, 
     isCompleted: boolean, 
     notes: string
   ) => {
-    setLeads(prev => prev.map(l => {
-      if (l.id === leadId) {
-        return {
-          ...l,
-          followUpTask: {
-            id: l.followUpTask?.id || `task-${Date.now()}`,
-            taskName,
-            dueDate,
-            isCompleted,
-            notes
-          }
-        };
-      }
-      return l;
-    }));
-    addLog(`[CRM-Scheduler] Updated follow-up task configuration for partner.`);
-  };
-
-  const handleSimulateOverdueContact = (leadId: string) => {
-    setLeads(prev => prev.map(l => {
-      if (l.id === leadId) {
-        const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString();
-        const overdueDueDate = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(); // Overdue by 1 day
-        return {
-          ...l,
-          stage: 'Contacted',
-          lastContactedAt: fourDaysAgo,
-          followUpTask: {
-            id: l.followUpTask?.id || `task-${Date.now()}`,
-            taskName: l.followUpTask?.taskName || "Follow up on initial carrier / customer pitch",
-            dueDate: overdueDueDate,
-            isCompleted: false,
-            notes: l.followUpTask?.notes || "Simulated 4 days in contacted stage."
-          }
-        };
-      }
-      return l;
-    }));
-    addLog(`[CRM-Simulation] Shifted carrier contact timestamp to 4 days ago. Scheduler triggered follow-up alert.`);
+    try {
+      const updated = await crm.setFollowUpTask(leadId, { taskName, dueDate, isCompleted, notes });
+      setLeads(prev => prev.map(l => (l.id === leadId ? updated : l)));
+      addLog(`[CRM-Scheduler] Updated follow-up task configuration for partner.`);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to update task';
+      addLog(`[Error] ${msg}`);
+    }
   };
 
   const handleExportBackup = () => {
@@ -527,45 +465,78 @@ const App: React.FC = () => {
     const fileReader = new FileReader();
     if (e.target.files && e.target.files[0]) {
       fileReader.readAsText(e.target.files[0], "UTF-8");
-      fileReader.onload = (event) => {
+      fileReader.onload = async (event) => {
         try {
           const parsed = JSON.parse(event.target?.result as string);
           if (parsed.leads && Array.isArray(parsed.leads)) {
-            setLeads(parsed.leads);
-            if (parsed.pitches && Array.isArray(parsed.pitches)) {
-              setPitches(parsed.pitches);
-            }
-            addLog(`[Database-Backup] Imported ${parsed.leads.length} accounts into the CRM manager.`);
+            const payload = parsed.leads.map((l: CompanyLead) => ({
+              name: l.name,
+              website: l.website,
+              category: l.category,
+              email: l.email,
+              description: l.description,
+              phone: l.phone,
+              notes: l.notes,
+              estimatedValue: l.estimatedValue,
+              stage: l.stage,
+              isVerified: l.isVerified,
+              focus: l.focus,
+            }));
+            await crm.importLeads(payload);
+            await reloadData();
+            addLog(`[Database-Backup] Imported ${payload.length} accounts into the shared CRM.`);
           } else {
-            alert("Unrecognized JSON format. File must contain leads list.");
+            alert("Unrecognized JSON format. File must contain a leads list.");
           }
         } catch (err) {
-          alert("Failed to parse JSON file.");
+          const msg = err instanceof ApiError ? err.message : 'Failed to import backup';
+          alert(msg);
         }
       };
     }
   };
 
-  // Save changes from editor modal
-  const handleSaveChanges = () => {
+  // Save changes from editor modal (persisted server-side)
+  const handleSaveChanges = async () => {
     if (!activePitch) return;
-    setPitches(prev => prev.map(p => {
-      if (p.id === activePitch.id) {
-        return {
-          ...p,
-          subject: editedSubject,
-          htmlContent: editedBody
-        };
-      }
-      return p;
-    }));
-    setActivePitch(null);
-    addLog(`[Editor] Hand-edited modifications saved to partner contract for ${activePitch.leadName}.`);
+    try {
+      const updated = await crm.updatePitch(activePitch.id, {
+        subject: editedSubject,
+        htmlContent: editedBody,
+      });
+      setPitches(prev => prev.map(p => (p.id === activePitch.id ? updated : p)));
+      addLog(`[Editor] Saved modifications to partner contract for ${activePitch.leadName}.`);
+      setActivePitch(null);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to save changes';
+      addLog(`[Error] ${msg}`);
+      alert(msg);
+    }
   };
 
-  const handleDeletePitch = (pitchId: string) => {
-    setPitches(prev => prev.filter(p => p.id !== pitchId));
-    addLog(`[Outreach] Discarded partnership communication draft.`);
+  const handleDeletePitch = async (pitchId: string) => {
+    try {
+      await crm.deletePitch(pitchId);
+      setPitches(prev => prev.filter(p => p.id !== pitchId));
+      addLog(`[Outreach] Discarded partnership communication draft.`);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to delete pitch';
+      addLog(`[Error] ${msg}`);
+    }
+  };
+
+  // Mark a sent pitch as replied and advance the lead to Negotiation.
+  const handleMarkReplied = async (pitchId: string, leadId: string, leadName: string) => {
+    try {
+      const updatedPitch = await crm.updatePitch(pitchId, { status: 'Replied' });
+      setPitches(prev => prev.map(p => (p.id === pitchId ? updatedPitch : p)));
+      const updatedLead = await crm.updateLeadStage(leadId, 'Negotiation');
+      setLeads(prev => prev.map(l => (l.id === leadId ? updatedLead : l)));
+      addLog(`[Outreach-Incoming] ${leadName} replied. Lead promoted to Negotiation.`);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to mark replied';
+      addLog(`[Error] ${msg}`);
+    }
   };
 
   // Open Preview Modal
@@ -618,6 +589,20 @@ const App: React.FC = () => {
       
       {/* Header Panel */}
       <header className="mb-10 text-center relative">
+        <div className="absolute right-0 top-0 flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <div className="text-xs font-bold text-slate-200">{user?.name}</div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider">{user?.role}</div>
+          </div>
+          <button
+            onClick={() => logout()}
+            title="Sign out"
+            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sign out</span>
+          </button>
+        </div>
         <div className="inline-flex items-center gap-2 bg-sky-500/10 border border-sky-500/30 px-4 py-1.5 rounded-full text-sky-400 text-xs font-semibold mb-4 uppercase tracking-widest">
           <Globe className="w-3.5 h-3.5 animate-spin-slow" />
           Unitel Global — CarrierScout AI Portal
@@ -654,7 +639,7 @@ const App: React.FC = () => {
           </span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Response Rate (AI-Sim)</span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Response Rate</span>
           <span className="text-2xl font-black text-emerald-400 mt-1 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-emerald-400" />
             {stats.replyRate}% <span className="text-xs text-slate-500 font-normal">({stats.totalReplies} leads)</span>
@@ -718,9 +703,30 @@ const App: React.FC = () => {
           <Layers className="w-4 h-4" />
           4. Executive Analytics
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-5 py-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'settings'
+                ? 'border-sky-500 text-sky-400 bg-sky-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <SettingsIcon className="w-4 h-4" />
+            Settings
+          </button>
+        )}
       </div>
 
+      {/* Settings page (admin-only, full width) */}
+      {activeTab === 'settings' && isAdmin && (
+        <div className="mb-8">
+          <SettingsPage />
+        </div>
+      )}
+
       {/* Main Container */}
+      {activeTab !== 'settings' && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Left Control Column (Visible for Leads/Campaign setup) */}
@@ -1108,7 +1114,7 @@ const App: React.FC = () => {
 
                   {pitches.length > 0 && (
                     <button
-                      onClick={handleSimulateBulkSend}
+                      onClick={handleBulkSend}
                       className="flex items-center gap-2 text-[10px] bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition-colors shadow-lg shadow-sky-950/20"
                     >
                       <SendHorizontal className="w-3.5 h-3.5" />
@@ -1190,17 +1196,18 @@ const App: React.FC = () => {
                             </button>
                           </div>
 
-                          {pitch.status === 'Draft' ? (
+                          {pitch.status === 'Draft' || pitch.status === 'Failed' ? (
                             <button
-                              onClick={() => handleSimulateSend(pitch.id)}
-                              className="flex items-center gap-1.5 text-[10px] bg-sky-600/10 hover:bg-sky-600/25 text-sky-400 border border-sky-500/20 px-3 py-2 rounded-lg font-bold uppercase transition-all"
+                              onClick={() => handleSendPitch(pitch.id)}
+                              disabled={sendingPitchIds.has(pitch.id)}
+                              className="flex items-center gap-1.5 text-[10px] bg-sky-600/10 hover:bg-sky-600/25 disabled:opacity-50 text-sky-400 border border-sky-500/20 px-3 py-2 rounded-lg font-bold uppercase transition-all"
                             >
                               <Send className="w-3 h-3" />
-                              Simulate Send
+                              {sendingPitchIds.has(pitch.id) ? 'Sending…' : pitch.status === 'Failed' ? 'Retry Send' : 'Send Email'}
                             </button>
                           ) : (
                             <span className="text-[10px] text-slate-500 font-mono">
-                              Sent at {pitch.sentAt || 'N/A'}
+                              Sent {pitch.sentAt ? new Date(pitch.sentAt).toLocaleString() : 'N/A'}
                             </span>
                           )}
                         </div>
@@ -1224,7 +1231,6 @@ const App: React.FC = () => {
                 onExportBackup={handleExportBackup}
                 onImportBackup={handleImportBackup}
                 onUpdateFollowUpTask={handleUpdateFollowUpTask}
-                onSimulateOverdueContact={handleSimulateOverdueContact}
               />
             </div>
           )}
@@ -1293,42 +1299,43 @@ const App: React.FC = () => {
                 )}
               </section>
 
-              {/* simulated carrier interaction simulator */}
-              {pitches.some(p => p.status === 'Replied') && (
+              {/* Sent outreach — mark replies as they come in */}
+              {pitches.some(p => p.status === 'Sent' || p.status === 'Delivered' || p.status === 'Replied') && (
                 <section className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <Inbox className="w-4 h-4 text-purple-400" />
-                    Incoming Bilateral Telecom Feed (Simulated Replies)
+                    Sent Outreach Tracking
                   </h3>
                   <p className="text-xs text-slate-400">
-                    The targeted wholesale carriers analyzed the bespoke pitches sent by Unitel Global OÜ and sent the following live responses:
+                    Emails sent to carriers via SMTP. When a partner replies, mark it here to advance the lead to Negotiation.
                   </p>
 
-                  <div className="space-y-4">
-                    {pitches.filter(p => p.status === 'Replied').map(p => (
-                      <div key={p.id} className="bg-slate-900/80 border border-slate-850 p-4 rounded-xl flex flex-col md:flex-row gap-4 justify-between items-start">
-                        <div className="space-y-2 max-w-2xl">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-200 text-sm">{p.leadName} NOC Team</span>
-                            <span className="text-[10px] text-slate-500 font-mono">10 minutes ago</span>
+                  <div className="space-y-3">
+                    {pitches
+                      .filter(p => p.status === 'Sent' || p.status === 'Delivered' || p.status === 'Replied')
+                      .map(p => (
+                        <div key={p.id} className="bg-slate-900/80 border border-slate-850 p-4 rounded-xl flex flex-col md:flex-row gap-4 justify-between md:items-center">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-200 text-sm">{p.leadName}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">{p.leadEmail}</span>
+                            </div>
+                            <span className={`text-[10px] font-bold uppercase ${p.status === 'Replied' ? 'text-purple-400' : 'text-emerald-400'}`}>
+                              {p.status}
+                            </span>
                           </div>
-                          <div className="bg-slate-950 p-3 rounded-lg border border-slate-850 font-mono text-xs text-emerald-400 leading-relaxed">
-                            "Hello Team Unitel Global, thanks for reaching out. We received your localized interconnect proposal regarding wholesale voice CLI routes and A2P SMS termination. We are interested in testing your bilateral capacities on the baltic and central European paths. Can you share your pricing sheet (target rates) and set up an SIP peer with us? Regards, Carrier Relations."
-                          </div>
-                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            addLog(`[System] Initialized bilateral interconnect negotiations with ${p.leadName}. Ready to transfer rate sheet.`);
-                            alert(`Rate sheet generated & sent to ${p.leadName} Carrier Relations!`);
-                          }}
-                          className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-4 py-2 rounded-lg uppercase tracking-wider self-end md:self-center whitespace-nowrap transition-colors"
-                        >
-                          Send Rate Sheet
-                        </button>
-                      </div>
-                    ))}
+                          {p.status !== 'Replied' && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkReplied(p.id, p.leadId, p.leadName)}
+                              className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-4 py-2 rounded-lg uppercase tracking-wider whitespace-nowrap transition-colors"
+                            >
+                              Mark as Replied
+                            </button>
+                          )}
+                        </div>
+                      ))}
                   </div>
                 </section>
               )}
@@ -1338,6 +1345,7 @@ const App: React.FC = () => {
 
         </div>
       </div>
+      )}
 
       {/* FOOTER */}
       <footer className="mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-[10px] font-bold uppercase">

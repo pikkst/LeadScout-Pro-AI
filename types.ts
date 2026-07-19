@@ -16,6 +16,8 @@ export interface CompanyLead {
   phone?: string;
   estimatedValue?: number; // Potential monthly value in EUR
   assignedAgent?: string;
+  assignedAgentId?: string;
+  focus?: string;
   createdAt?: string;
   lastContactedAt?: string;
   followUpTask?: {
@@ -63,7 +65,7 @@ export interface OutreachPitch {
   htmlContent: string;
   textContent: string;
   language: string;
-  status: 'Draft' | 'Sent' | 'Delivered' | 'Replied';
+  status: 'Draft' | 'Sent' | 'Delivered' | 'Replied' | 'Failed';
   sentAt?: string;
   opened?: boolean;
 }
