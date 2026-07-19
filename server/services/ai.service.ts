@@ -110,10 +110,13 @@ export async function verifyEmail(
 
     Return ONLY a JSON object: {"isAuthentic": true/false, "confidence": 0-100, "reason": "..."}
   `;
+  // NOTE: Gemini rejects combining `googleSearch` with `responseMimeType:
+  // "application/json"`, so we rely on extractJson() to pull the JSON out of the
+  // natural-language (tool-augmented) reply instead of forcing the JSON mime type.
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
-    config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" },
+    config: { tools: [{ googleSearch: {} }] },
   });
   const result = extractJson<{ isAuthentic?: boolean; confidence?: number; reason?: string }>(
     response.text || "{}",

@@ -252,10 +252,24 @@ const App: React.FC = () => {
 
     } catch (err: any) {
       const errorMsg = err?.message || 'Unexpected telemetry loss';
-      addLog(`[Critical] Mission compromised: ${errorMsg}`);
-      setSearchState(prev => ({ 
-        ...prev, 
-        isSearching: false, 
+      const code = err instanceof ApiError ? err.code : undefined;
+      const details = err instanceof ApiError ? err.details : undefined;
+      // Full diagnostic detail goes to the browser console for debugging.
+      console.error('[Scout] Mission failed:', err);
+      let detailLine = '';
+      if (code) detailLine += ` [${code}]`;
+      if (details) {
+        try {
+          const pretty = typeof details === 'string' ? details : JSON.stringify(details);
+          detailLine += ` ${pretty}`;
+        } catch {
+          /* ignore serialization issues */
+        }
+      }
+      addLog(`[Critical] Mission compromised: ${errorMsg}${detailLine}`);
+      setSearchState(prev => ({
+        ...prev,
+        isSearching: false,
         currentAgent: 'Failure Status',
       }));
     }
