@@ -136,6 +136,7 @@ export interface RawLead {
   category: string;
   email: string;
   description: string;
+  estimatedValue: number;
 }
 
 export async function findLeads(city: string, country: string, focus: string): Promise<RawLead[]> {
@@ -150,9 +151,13 @@ export async function findLeads(city: string, country: string, focus: string): P
     3. Category (specific to the industry)
     4. A professional contact email (e.g., info@, hello@, office@, or a specific department).
     5. 1-sentence description.
+    6. estimatedValue: your best estimate of the potential monthly contract value this company could
+       represent for Unitel Global (wholesale voice/SMS termination, CPaaS, interconnect) in EUR per month.
+       Use a realistic figure based on company size (startups ~500, mid-size ~2000-5000, large ~10000-50000).
+       Output an integer only.
 
     Format strictly as a JSON array:
-    [{"name": "...", "website": "...", "category": "...", "email": "...", "description": "..."}]
+    [{"name": "...", "website": "...", "category": "...", "email": "...", "description": "...", "estimatedValue": 0}]
   `;
   const response = await ai.models.generateContent({
     model,
@@ -161,9 +166,9 @@ export async function findLeads(city: string, country: string, focus: string): P
   });
   const parsed = extractJson<RawLead[]>(response.text || "[]", []);
   if (!Array.isArray(parsed)) return [];
-  return parsed.filter(
-    (l) => l && typeof l.name === "string" && typeof l.website === "string" && typeof l.email === "string",
-  );
+  return parsed
+    .filter((l) => l && typeof l.name === "string" && typeof l.website === "string" && typeof l.email === "string")
+    .map((l) => ({ ...l, estimatedValue: Math.max(0, Math.floor(Number(l.estimatedValue) || 0)) }));
 }
 
 export interface GeneratedPitch {

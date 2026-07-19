@@ -243,6 +243,7 @@ const App: React.FC = () => {
               description: l.description,
               focus,
               isVerified: l.isVerified,
+              estimatedValue: l.estimatedValue || 0,
               notes: l.notes,
             }))
           );
@@ -1060,7 +1061,9 @@ const App: React.FC = () => {
                           <th className="px-4 py-4 text-center w-12">Select</th>
                           <th className="px-4 py-4">B2B Carrier/Platform Name</th>
                           <th className="px-4 py-4">Direct Communication Channel</th>
+                          <th className="px-4 py-4 text-center w-36">Est. Value (€/mo)</th>
                           <th className="px-4 py-4 text-center w-36">Audit Result</th>
+                          <th className="px-4 py-4 text-center w-12">Edit</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-900">
@@ -1102,6 +1105,11 @@ const App: React.FC = () => {
                                 </a>
                               </td>
                               <td className="px-4 py-5 text-center">
+                                <span className="text-xs font-mono font-bold text-slate-300">
+                                  €{((lead.estimatedValue as number) || 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="px-4 py-5 text-center">
                                 <div className={`inline-flex items-center gap-1.5 ${
                                   lead.isVerified 
                                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
@@ -1110,6 +1118,16 @@ const App: React.FC = () => {
                                   <span className={`w-1.5 h-1.5 rounded-full ${lead.isVerified ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
                                   {lead.isVerified ? 'AUTHENTIC' : 'UNCONFIRMED'}
                                 </div>
+                              </td>
+                              <td className="px-4 py-5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
+                                  className="text-slate-500 hover:text-sky-400 transition-colors focus:outline-none inline-flex mx-auto"
+                                  title="Edit lead / set value"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
                               </td>
                             </tr>
                           );
