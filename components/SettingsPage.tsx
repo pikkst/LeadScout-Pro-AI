@@ -12,6 +12,7 @@ import {
   EyeOff,
   Sparkles,
   Send,
+  Building2,
 } from 'lucide-react';
 import {
   fetchSettings,
@@ -338,6 +339,63 @@ export const SettingsPage: React.FC = () => {
             Test Email Connection
           </button>
           {renderTestResult(emailTest.result)}
+        </div>
+      </section>
+
+      {/* COMPANY PROFILE SECTION */}
+      <section className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-amber-400" />
+            Company Profile
+          </h3>
+          <p className="text-[11px] text-slate-500 mt-1">
+            This is your organization's identity. The AI agents use it to personalize every scouted pitch
+            and email — fill it once and the outreach writes itself in your brand voice.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Company Name</label>
+            <input className={inputClass} value={String(values.COMPANY_NAME || '')} onChange={(e) => set('COMPANY_NAME', e.target.value)} placeholder="Acme Communications Ltd." />
+          </div>
+          <div>
+            <label className={labelClass}>Website</label>
+            <input className={inputClass} value={String(values.COMPANY_WEBSITE || '')} onChange={(e) => set('COMPANY_WEBSITE', e.target.value)} placeholder="https://acme.com" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Logo URL (public image)</label>
+            <input className={inputClass} value={String(values.COMPANY_LOGO_URL || '')} onChange={(e) => set('COMPANY_LOGO_URL', e.target.value)} placeholder="https://acme.com/logo.png" />
+            <p className="text-[10px] text-slate-500 mt-1.5">Shown in outreach emails. Leave blank to use a text header (no broken images).</p>
+          </div>
+          <div>
+            <label className={labelClass}>Contact Email (signature)</label>
+            <input className={inputClass} value={String(values.COMPANY_CONTACT_EMAIL || '')} onChange={(e) => set('COMPANY_CONTACT_EMAIL', e.target.value)} placeholder="partnerships@acme.com" />
+          </div>
+        </div>
+
+        <div>
+          <label className={labelClass}>What your company does</label>
+          <textarea className={inputClass + ' min-h-[64px]'} value={String(values.COMPANY_DESCRIPTION || '')} onChange={(e) => set('COMPANY_DESCRIPTION', e.target.value)} placeholder="Brief description of your business, market and positioning." />
+        </div>
+
+        <div>
+          <label className={labelClass}>Products / Services you sell</label>
+          <textarea className={inputClass + ' min-h-[64px]'} value={String(values.COMPANY_OFFERINGS || '')} onChange={(e) => set('COMPANY_OFFERINGS', e.target.value)} placeholder="Wholesale voice termination, SMS API, CPaaS, IoT connectivity..." />
+        </div>
+
+        <div>
+          <label className={labelClass}>Value proposition / differentiators</label>
+          <textarea className={inputClass + ' min-h-[64px]'} value={String(values.COMPANY_VALUE_PROP || '')} onChange={(e) => set('COMPANY_VALUE_PROP', e.target.value)} placeholder="Why customers choose you: rates, quality, coverage, support..." />
+        </div>
+
+        <div>
+          <label className={labelClass}>Preferred outreach language</label>
+          <input className={inputClass} value={String(values.COMPANY_LANGUAGE || '')} onChange={(e) => set('COMPANY_LANGUAGE', e.target.value)} placeholder="English" />
         </div>
       </section>
 

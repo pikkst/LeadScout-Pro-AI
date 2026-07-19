@@ -1,7 +1,7 @@
 // AI service: encapsulates all Google Gemini interactions used by the platform.
 import { GoogleGenAI } from "@google/genai";
 import { HttpError } from "../utils/httpError";
-import { getAiSettings } from "./settings.service";
+import { getAiSettings, getCompanyProfile } from "./settings.service";
 
 let client: GoogleGenAI | null = null;
 let clientKey = "";
@@ -185,25 +185,45 @@ export async function generatePitch(
 ): Promise<GeneratedPitch> {
   const { ai, model } = await getAI();
   const focusDesc = FOCUS_PITCH_DESCRIPTIONS[focus] || focus;
-  const prompt = `
-    You are the lead Carrier Relations and B2B Partnership Director for Unitel Global OÜ (a premium international telecommunications operator, wholesale voice carrier, and SMS transit hub based in Estonia, website: www.unitelglobal.com).
+  const company = await getCompanyProfile();
 
-    Create a highly professional, bespoke, and visually stunning B2B sales pitch and partnership invitation for this target client:
+  const headerInstruction = company.logoUrl
+    ? `Use this company logo image at the top of the email: <img src="${company.logoUrl}" alt="${company.name}" style="max-height:48px;margin-bottom:16px;" />. Only use this exact URL — do NOT invent or guess any other image/logo URLs.`
+    : `Use a clean styled text header with the company name "${company.name}" — do NOT include any <img> image tags or external image URLs (they will appear broken).`;
+
+  const signature = company.contactEmail
+    ? `${company.name} Team | ${company.website ? company.website + " | " : ""}${company.contactEmail}`
+    : `${company.name} Team`;
+
+  const companyContext = [
+    company.description && `Company overview: ${company.description}`,
+    company.offerings && `We sell / offer: ${company.offerings}`,
+    company.valueProp && `Our value proposition: ${company.valueProp}`,
+    company.website && `Our website: ${company.website}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = `
+    You are the lead Partnership / Carrier Relations Director for ${company.name}.
+    ${companyContext ? `\nContext about ${company.name} (use this to tailor the pitch):\n${companyContext}\n` : ""}
+
+    Create a highly professional, bespoke, and visually clean B2B sales pitch and partnership invitation for this target client:
     - Client Name: "${lead.name}"
     - Focus Industry/Segment: "${lead.category}"
     - Client Website: "${lead.website}"
     - Description: "${lead.description}"
-    - Our Partnership Type: "${focusDesc}"
+    - Our Partnership Angle: "${focusDesc}"
 
     Language Policy:
-    - If preferred language is "Auto-Detect", analyze the client details (e.g. if Estonia/Baltics, use Estonian/English; if Germany/Austria, use German; if France, use French; if Spanish/LATAM, use Spanish, etc., defaulting to English if unclear or multi-regional).
+    - If preferred language is "Auto-Detect", analyze the client details (e.g. if Estonia/Baltics, use Estonian/English; if Germany/Austria, use German; if France, use French; if Spanish/LATAM, use Spanish, etc., defaulting to English if unclear or multi-regional). The default company language is "${company.language}".
     - Otherwise, write the email specifically in "${preferredLanguage}".
-    - The pitch must feel natural, friendly, and highly professional. Never sound like spam. Respect their business model and align how Unitel Global can help them optimize rates, boost deliverability, or secure routes.
+    - The pitch must feel natural, friendly, and highly professional. Never sound like spam. Respect their business model and align how ${company.name} can help them.
 
     We require a valid JSON object in response containing:
     1. "subject": An elegant, click-worthy email subject line.
-    2. "htmlContent": A modern, responsive HTML email body with embedded CSS styles. Use high-contrast color schemes with a professional Unitel Global header, a personalized hook, bullet-point benefits, a clear call-to-action, and the signature "Unitel Global OÜ Team | Tallinn, Estonia | info@unitelglobal.com".
-    3. "textContent": Plain-text version of the email.
+    2. "htmlContent": A modern, responsive HTML email body with embedded CSS styles. ${headerInstruction} Use a personalized hook, bullet-point benefits, a clear call-to-action, and the signature "${signature}".
+    3. "textContent": Plain-text version of the email (ending with the same signature).
     4. "detectedLanguage": The language name used to write the pitch.
 
     Format strictly as JSON:
@@ -216,10 +236,10 @@ export async function generatePitch(
   });
   const result = extractJson<Partial<GeneratedPitch>>(response.text || "{}", {});
   return {
-    subject: result.subject || `Wholesale Voice/SMS Interconnect Inquiry: Unitel Global <> ${lead.name}`,
+    subject: result.subject || `Partnership Inquiry: ${company.name} <> ${lead.name}`,
     htmlContent: result.htmlContent || "",
     textContent: result.textContent || "",
-    detectedLanguage: result.detectedLanguage || "English",
+    detectedLanguage: result.detectedLanguage || company.language || "English",
   };
 }
 

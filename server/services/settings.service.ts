@@ -10,7 +10,7 @@ export type SettingType = "string" | "number" | "boolean" | "secret";
 export interface SettingDef {
   key: string;
   label: string;
-  group: "ai" | "email" | "security" | "branding";
+  group: "ai" | "email" | "security" | "company";
   type: SettingType;
   /** Fallback taken from .env / config when there is no DB value. */
   envDefault: () => string;
@@ -105,6 +105,74 @@ export const SETTING_DEFS: SettingDef[] = [
     envDefault: () => process.env.ALLOW_PUBLIC_REGISTRATION || "false",
     help: "When off, only admins can create new accounts.",
   },
+
+  // --- Company Profile (used by the AI agents when scouting & pitching) ---
+  {
+    key: "COMPANY_NAME",
+    label: "Company Name",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_NAME || "Your Company",
+    placeholder: "Acme Communications Ltd.",
+  },
+  {
+    key: "COMPANY_LOGO_URL",
+    label: "Company Logo URL",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_LOGO_URL || "",
+    placeholder: "https://yourcompany.com/logo.png",
+    help: "Publicly reachable image URL shown in outreach emails. Leave blank to use a text header.",
+  },
+  {
+    key: "COMPANY_WEBSITE",
+    label: "Company Website",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_WEBSITE || "",
+    placeholder: "https://yourcompany.com",
+  },
+  {
+    key: "COMPANY_DESCRIPTION",
+    label: "What your company does",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_DESCRIPTION || "",
+    placeholder: "Brief description of your business, market and positioning.",
+  },
+  {
+    key: "COMPANY_OFFERINGS",
+    label: "Products / Services you sell",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_OFFERINGS || "",
+    placeholder: "Wholesale voice termination, SMS API, CPaaS, IoT connectivity...",
+  },
+  {
+    key: "COMPANY_VALUE_PROP",
+    label: "Value proposition / differentiators",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_VALUE_PROP || "",
+    placeholder: "Why customers choose you: rates, quality, coverage, support...",
+  },
+  {
+    key: "COMPANY_CONTACT_EMAIL",
+    label: "Contact Email (signature)",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_CONTACT_EMAIL || "",
+    placeholder: "partnerships@yourcompany.com",
+  },
+  {
+    key: "COMPANY_LANGUAGE",
+    label: "Preferred outreach language",
+    group: "company",
+    type: "string",
+    envDefault: () => process.env.COMPANY_LANGUAGE || "English",
+    placeholder: "English",
+    help: "Default language for generated pitches (auto-detect still applies per target).",
+  },
 ];
 
 const DEF_BY_KEY = new Map(SETTING_DEFS.map((d) => [d.key, d]));
@@ -170,6 +238,31 @@ export async function getEmailSettings() {
 export async function getAllowPublicRegistration(): Promise<boolean> {
   const s = await loadAll();
   return s.ALLOW_PUBLIC_REGISTRATION === "true";
+}
+
+export interface CompanyProfile {
+  name: string;
+  logoUrl: string;
+  website: string;
+  description: string;
+  offerings: string;
+  valueProp: string;
+  contactEmail: string;
+  language: string;
+}
+
+export async function getCompanyProfile(): Promise<CompanyProfile> {
+  const s = await loadAll();
+  return {
+    name: s.COMPANY_NAME || "Your Company",
+    logoUrl: s.COMPANY_LOGO_URL || "",
+    website: s.COMPANY_WEBSITE || "",
+    description: s.COMPANY_DESCRIPTION || "",
+    offerings: s.COMPANY_OFFERINGS || "",
+    valueProp: s.COMPANY_VALUE_PROP || "",
+    contactEmail: s.COMPANY_CONTACT_EMAIL || "",
+    language: s.COMPANY_LANGUAGE || "English",
+  };
 }
 
 /** Persist a batch of settings. Only known keys are accepted. Secrets are encrypted. */

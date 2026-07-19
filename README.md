@@ -115,6 +115,11 @@ Settings sections:
 - **Email Sending (SMTP)** — provider presets (Gmail, Microsoft 365/Outlook, SendGrid,
   Mailgun, Brevo, Zoho, Amazon SES) that auto-fill host/port, plus custom fields and a
   *Test Email Connection* button.
+- **Company Profile** — your organization's identity (name, website, logo, what you do,
+  products/services, value proposition, contact email, preferred language). The AI agents
+  read this to personalize every pitch and email in your brand voice, so the tool works for
+  **any** company — not just the original Unitel Global deployment. Leave the logo URL blank
+  to use a clean text header (no broken images).
 - **Security & Access** — toggle public self-registration.
 - **System** — read-only bootstrap values (`NODE_ENV`, `PORT`, database, JWT secret)
   that intentionally stay in `.env` for safety.
