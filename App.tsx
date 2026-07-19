@@ -246,7 +246,10 @@ const App: React.FC = () => {
               notes: l.notes,
             }))
           );
-          allSavedLeads.push(...saved);
+          allSavedLeads.push(...saved.created);
+          if (saved.skippedCount > 0) {
+            addLog(`[CRM-Database] Skipped ${saved.skippedCount} duplicate profile(s) already in pipeline.`);
+          }
           await reloadData();
         }
       }

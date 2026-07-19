@@ -3,6 +3,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
+import type { Lead as PrismaLead } from "@prisma/client";
 import { asyncHandler } from "../utils/asyncHandler";
 import { badRequest, forbidden, notFound } from "../utils/httpError";
 import { validate } from "../middleware/validate";
@@ -15,6 +16,7 @@ import {
 } from "../utils/serializers";
 import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
+import { normalizeDomain, normalizeEmail } from "../utils/normalize";
 
 export const leadsRouter = Router();
 leadsRouter.use(requireAuth);
@@ -89,6 +91,7 @@ leadsRouter.post(
       create: {
         name: body.name,
         website: body.website,
+        domain: normalizeDomain(body.website),
         category: body.category,
         email: body.email,
         description: body.description ?? "",
@@ -117,14 +120,33 @@ leadsRouter.post(
   validate({ body: bulkSchema }),
   asyncHandler(async (req, res) => {
     const { leads } = req.body as z.infer<typeof bulkSchema>;
-    const results = [];
+    const created: PrismaLead[] = [];
+    const skipped: { name: string; website: string; email: string; reason: string }[] = [];
+
     for (const body of leads) {
-      const lead = await prisma.lead.upsert({
-        where: { website_email: { website: body.website, email: body.email } },
-        update: {},
-        create: {
+      const domain = normalizeDomain(body.website);
+      const email = normalizeEmail(body.email);
+
+      // Skip if the same company (domain) or the same email already exists in the
+      // shared pipeline — avoids duplicate scouting results across missions.
+      const existing = await prisma.lead.findFirst({
+        where: { OR: [{ email }, { domain }] },
+        select: { name: true, website: true, email: true },
+      });
+      if (existing) {
+        const reason =
+          normalizeEmail(existing.email) === email
+            ? `email ${email} already in pipeline`
+            : `company ${domain} already in pipeline`;
+        skipped.push({ name: body.name, website: body.website, email: body.email, reason });
+        continue;
+      }
+
+      const lead = await prisma.lead.create({
+        data: {
           name: body.name,
           website: body.website,
+          domain,
           category: body.category,
           email: body.email,
           description: body.description ?? "",
@@ -140,14 +162,20 @@ leadsRouter.post(
         },
         include: leadInclude,
       });
-      results.push(lead);
+      created.push(lead);
     }
+
     await logActivity({
       action: "LEADS_IMPORTED",
-      detail: `${results.length} leads`,
+      detail: `${created.length} imported, ${skipped.length} skipped (duplicates)`,
       userId: req.user!.id,
     });
-    res.status(201).json(results.map(serializeLead));
+    res.status(201).json({
+      created: created.map(serializeLead),
+      skipped,
+      imported: created.length,
+      skippedCount: skipped.length,
+    });
   }),
 );
 

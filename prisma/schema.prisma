@@ -53,6 +53,7 @@ model Lead {
   id             String     @id @default(cuid())
   name           String
   website        String
+  domain         String // normalized website host (lowercase, no protocol/www) for dedupe
   category       String
   email          String
   description    String     @default("")
@@ -79,6 +80,8 @@ model Lead {
   activities   ActivityLog[]
 
   @@unique([website, email])
+  @@index([domain])
+  @@index([email])
   @@index([stage])
   @@index([assignedAgentId])
   @@index([focus])

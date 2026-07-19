@@ -26,10 +26,17 @@ export async function createLead(lead: Partial<CompanyLead> & { focus?: string }
   return api<CompanyLead>("/leads", { method: "POST", body: JSON.stringify(lead) });
 }
 
+export interface ImportResult {
+  created: CompanyLead[];
+  skipped: Array<{ name: string; website: string; email: string; reason: string }>;
+  imported: number;
+  skippedCount: number;
+}
+
 export async function importLeads(
   leads: Array<Partial<CompanyLead> & { focus?: string }>,
-): Promise<CompanyLead[]> {
-  return api<CompanyLead[]>("/leads/bulk", { method: "POST", body: JSON.stringify({ leads }) });
+): Promise<ImportResult> {
+  return api<ImportResult>("/leads/bulk", { method: "POST", body: JSON.stringify({ leads }) });
 }
 
 export async function updateLead(id: string, changes: Partial<CompanyLead>): Promise<CompanyLead> {
