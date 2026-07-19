@@ -1,5 +1,5 @@
 
-export type LeadFocus = 'events' | 'investors' | 'manufacturing' | 'marketing' | 'tech' | 'real_estate' | 'healthcare' | 'legal';
+export type LeadFocus = 'voip_carriers' | 'sms_aggregators' | 'fintech' | 'ecommerce' | 'call_centers' | 'mvnos' | 'enterprise_saas';
 
 export interface CompanyLead {
   id: string;
@@ -10,7 +10,33 @@ export interface CompanyLead {
   description: string;
   sourceUrl?: string;
   isVerified?: boolean;
-  emailConfidence?: number;
+  // CRM Properties
+  stage?: 'Discovered' | 'Contacted' | 'Negotiation' | 'Signed' | 'Active' | 'Archived';
+  notes?: string;
+  phone?: string;
+  estimatedValue?: number; // Potential monthly value in EUR
+  assignedAgent?: string;
+  createdAt?: string;
+  lastContactedAt?: string;
+  followUpTask?: {
+    id: string;
+    taskName: string;
+    dueDate: string;
+    isCompleted?: boolean;
+    notes?: string;
+  };
+  scheduledMeetings?: ScheduledMeeting[];
+}
+
+export interface ScheduledMeeting {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  duration: number; // in minutes
+  type: 'Call' | 'Meeting' | 'Demo' | 'Follow-up';
+  agenda?: string;
+  link?: string;
 }
 
 export interface SearchState {
@@ -22,8 +48,22 @@ export interface SearchState {
 
 export enum AgentTask {
   INITIALIZING = 'Initializing Agents',
-  SEARCHING = 'Scouring Web for Leads',
-  EXTRACTING = 'Extracting Contact Details',
-  VERIFYING = 'Verifying Lead Quality',
-  COMPLETED = 'Mission Accomplished'
+  SEARCHING = 'Web Scouting & Search',
+  EXTRACTING = 'Extracting Contact Info',
+  VERIFYING = 'Verifying Authenticity',
+  COMPLETED = 'Scouting Mission Completed'
+}
+
+export interface OutreachPitch {
+  id: string;
+  leadId: string;
+  leadName: string;
+  leadEmail: string;
+  subject: string;
+  htmlContent: string;
+  textContent: string;
+  language: string;
+  status: 'Draft' | 'Sent' | 'Delivered' | 'Replied';
+  sentAt?: string;
+  opened?: boolean;
 }

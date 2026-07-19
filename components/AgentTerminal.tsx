@@ -28,8 +28,7 @@ const AgentTerminal: React.FC<AgentTerminalProps> = ({ logs }) => {
       >
         {logs.length === 0 && <div className="text-slate-600 italic">Awaiting instructions...</div>}
         {logs.map((log, i) => (
-          <div key={i} className="flex gap-2">
-            <span className="text-emerald-500">[{new Date().toLocaleTimeString()}]</span>
+          <div key={i} className="flex gap-2 text-xs leading-relaxed">
             <span className="text-slate-300">{log}</span>
           </div>
         ))}

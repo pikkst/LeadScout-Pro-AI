@@ -1,7 +1,10 @@
 {
-  "name": "LeadScout Pro AI",
-  "description": "Multi-industry B2B lead generation agent that scouts cities for verified contact data using AI search grounding.",
+  "name": "Unitel Global — CarrierScout AI",
+  "description": "Autonomous VoIP and SMS partner mapping and localized AI-powered B2B email outreach generator for Unitel Global OÜ.",
   "requestFramePermissions": [
     "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }
