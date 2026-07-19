@@ -1064,6 +1064,7 @@ const App: React.FC = () => {
                           <th className="px-4 py-4 text-center w-36">Est. Value (€/mo)</th>
                           <th className="px-4 py-4 text-center w-36">Audit Result</th>
                           <th className="px-4 py-4 text-center w-12">Edit</th>
+                          <th className="px-4 py-4 text-center w-12">Del</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-900">
@@ -1127,6 +1128,16 @@ const App: React.FC = () => {
                                   title="Edit lead / set value"
                                 >
                                   <Edit2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                              <td className="px-4 py-5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLead(lead.id)}
+                                  className="text-slate-500 hover:text-rose-400 transition-colors focus:outline-none inline-flex mx-auto"
+                                  title="Delete lead from database"
+                                >
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </td>
                             </tr>
@@ -1520,7 +1531,9 @@ const App: React.FC = () => {
       {/* CRM PROFILE CREATION / EDITION MODAL */}
       {isCRMModalOpen && (
         <LeadCRMModal 
+          isOpen={isCRMModalOpen}
           lead={selectedCRMLead}
+          focusOptions={FOCUS_OPTIONS}
           onClose={() => { setIsCRMModalOpen(false); setSelectedCRMLead(null); }}
           onSave={handleSaveCRMLead}
         />
