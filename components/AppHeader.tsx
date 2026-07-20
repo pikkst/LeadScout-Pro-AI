@@ -1,8 +1,8 @@
 import React from 'react';
-import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp } from 'lucide-react';
+import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 
 interface Tab {
-  id: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'settings';
+  id: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'settings';
   label: string;
   icon: React.ReactNode;
   badge?: React.ReactNode;
@@ -11,7 +11,7 @@ interface Tab {
 interface AppHeaderProps {
   user: { name?: string; role?: string } | null;
   isAdmin: boolean;
-  activeTab: 'scout' | 'outreach' | 'outreach' | 'crm' | 'dashboard' | 'settings';
+  activeTab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'settings';
   stats: {
     totalLeads: number;
     selectedLeadsCount: number;
@@ -22,7 +22,7 @@ interface AppHeaderProps {
   };
   pitchesCount: number;
   overdueLeadsCount: number;
-  onTabChange: (tab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'settings') => void;
+  onTabChange: (tab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'settings') => void;
   onLogout: () => void;
 }
 
@@ -53,6 +53,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       ) : undefined,
     },
     { id: 'dashboard', label: '4. Executive Analytics', icon: <Layers className="w-4 h-4" /> },
+    { id: 'revenue', label: '5. Revenue', icon: <DollarSign className="w-4 h-4 text-emerald-400" /> },
+    { id: 'calendar', label: '6. Calendar', icon: <Calendar className="w-4 h-4 text-purple-400" /> },
   ];
 
   if (isAdmin) {

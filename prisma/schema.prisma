@@ -26,6 +26,10 @@ model User {
   pitches       Pitch[]
   activities    ActivityLog[]
   createdTemplates PitchTemplate[] @relation("TemplateCreator")
+  deals         Deal[]        @relation("AgentDeals")
+  commissions   Commission[]  @relation("AgentCommissions")
+  routingRules  LeadRoutingRule[] @relation("RoutingAgent")
+  meetingSlots  MeetingSlot[] @relation("MeetingSlots")
 
   @@index([role])
   @@map("users")
@@ -82,6 +86,7 @@ model Lead {
   activities   ActivityLog[]
   customFieldValues CustomFieldValue[]
   sequenceExecutions SequenceExecution[]
+  deals Deal[]
 
   @@unique([website, email])
   @@index([domain])
@@ -140,8 +145,28 @@ model Meeting {
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
+  slots MeetingSlot[]
+
   @@index([leadId])
   @@map("meetings")
+}
+
+/// Available time slots for booking (Calendly-like)
+model MeetingSlot {
+  id          String   @id @default(cuid())
+  date        String   // YYYY-MM-DD
+  startTime   String   // HH:MM
+  endTime     String   // HH:MM
+  isAvailable Boolean  @default(true)
+  isBooked    Boolean  @default(false)
+  agentId     String
+  agent       User     @relation("MeetingSlots", fields: [agentId], references: [id])
+  meetingId   String?  // linked meeting if booked
+  meeting     Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([date])
+  @@map("meeting_slots")
 }
 
 enum MeetingType {
@@ -369,4 +394,72 @@ enum SequenceExecutionStatus {
   PAUSED
   COMPLETED
   STOPPED
+}
+
+/// A closed-won deal with value and commission tracking.
+model Deal {
+  id             String        @id @default(cuid())
+  leadId         String
+  lead           Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  value          Int           // Total deal value in EUR
+  commissionRate Float         @default(10.0) // Agent commission percentage
+  commission     Int           // Commission amount in EUR
+  agentId        String
+  agent          User          @relation("AgentDeals", fields: [agentId], references: [id])
+  closedAt       DateTime      @default(now())
+  notes          String        @default("")
+  commissions    Commission[]
+
+  @@index([agentId])
+  @@index([closedAt])
+  @@map("deals")
+}
+
+/// Commission record for an agent on a specific deal.
+model Commission {
+  id         String   @id @default(cuid())
+  dealId     String
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  agentId    String
+  agent      User     @relation("AgentCommissions", fields: [agentId], references: [id])
+  amount     Int      // Commission in EUR
+  status     CommissionStatus @default(PENDING)
+  paidAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([agentId])
+  @@index([status])
+  @@map("commissions")
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+/// Automated lead routing rules for assigning leads to agents.
+model LeadRoutingRule {
+  id          String   @id @default(cuid())
+  name        String
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  ruleType    RoutingRuleType
+  criteria    String   // JSON: { territory: "...", focus: "...", maxLeads: 5 }
+  assignedAgentId String
+  assignedAgent   User   @relation("RoutingAgent", fields: [assignedAgentId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([assignedAgentId])
+  @@index([isActive])
+  @@map("lead_routing_rules")
+}
+
+enum RoutingRuleType {
+  TERRITORY
+  INDUSTRY
+  ROUND_ROBIN
+  MANUAL
+  SCORE_BASED
 }

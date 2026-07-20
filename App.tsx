@@ -17,6 +17,8 @@ import { AppHeader } from './components/AppHeader';
 import { AppFooter } from './components/AppFooter';
 import { AppModals } from './components/AppModals';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import RevenueTab from './components/RevenueTab';
+import CalendarTab from './components/CalendarTab';
 import { 
   Globe, 
   Search, 
@@ -47,15 +49,16 @@ import {
   Briefcase,
   LogOut,
   Settings as SettingsIcon,
-  Activity
+  Activity,
+  DollarSign
 } from 'lucide-react';
 import { FOCUS_OPTIONS, LANGUAGE_OPTIONS } from './constants';
 
 const App: React.FC = () => {
   const { user, logout } = useAuth();
 
-  // Navigation: scout, outreach, crm, dashboard
-  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'settings'>('scout');
+  // Navigation: scout, outreach, crm, dashboard, revenue, calendar
+  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'settings'>('scout');
   const isAdmin = user?.role === 'ADMIN';
 
   // Lead Finder States
@@ -179,6 +182,8 @@ const App: React.FC = () => {
     'ctrl+2': () => setActiveTab('outreach'),
     'ctrl+3': () => setActiveTab('crm'),
     'ctrl+4': () => setActiveTab('dashboard'),
+    'ctrl+5': () => setActiveTab('revenue'),
+    'ctrl+6': () => setActiveTab('calendar'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1232,6 +1237,16 @@ Date().toISOString().split('T')[0]}.json`);
               )}
 
             </div>
+          )}
+
+          {/* TAB 5: REVENUE & COMMISSION TRACKING */}
+          {activeTab === 'revenue' && (
+            <RevenueTab />
+          )}
+
+          {/* TAB 6: CALENDAR & SCHEDULING */}
+          {activeTab === 'calendar' && (
+            <CalendarTab />
           )}
 
         </div>

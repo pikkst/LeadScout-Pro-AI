@@ -10,6 +10,9 @@ import { sequencesRouter } from "./sequences.routes";
 import { aiRouter } from "./ai.routes";
 import { statsRouter } from "./stats.routes";
 import { settingsRouter } from "./settings.routes";
+import { revenueRouter } from "./revenue.routes";
+import { routingRouter } from "./routing.routes";
+import { calendarRouter } from "./calendar.routes";
 import { getAiSettings, getEmailSettings } from "../services/settings.service";
 
 export const apiRouter = Router();
@@ -35,3 +38,6 @@ apiRouter.use("/sequences", sequencesRouter);
 apiRouter.use("/stats", statsRouter);
 apiRouter.use("/ai", aiRouter);
 apiRouter.use("/settings", settingsRouter);
+apiRouter.use("/revenue", revenueRouter);
+apiRouter.use("/routing", routingRouter);
+apiRouter.use("/calendar", calendarRouter);
