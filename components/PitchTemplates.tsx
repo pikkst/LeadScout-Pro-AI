@@ -8,6 +8,7 @@ export const PitchTemplatesManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState({ name: '', subject: '', htmlContent: '', textContent: '', focus: '' });
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +29,7 @@ export const PitchTemplatesManager: React.FC = () => {
   const resetForm = () => {
     setForm({ name: '', subject: '', htmlContent: '', textContent: '', focus: '' });
     setEditingId(null);
+    setIsFormOpen(false);
     setError(null);
   };
 
@@ -53,6 +55,7 @@ export const PitchTemplatesManager: React.FC = () => {
 
   const handleEdit = (tpl: PitchTemplate) => {
     setEditingId(tpl.id);
+    setIsFormOpen(true);
     setForm({
       name: tpl.name,
       subject: tpl.subject,
@@ -79,9 +82,9 @@ export const PitchTemplatesManager: React.FC = () => {
           </h3>
           <p className="text-[10px] text-slate-500 mt-1">Save reusable email structures for faster outreach drafting.</p>
         </div>
-        {!editingId && (
+        {!editingId && !isFormOpen && (
           <button
-            onClick={() => setForm({ name: '', subject: '', htmlContent: '', textContent: '', focus: '' })}
+            onClick={() => { setIsFormOpen(true); setForm({ name: '', subject: '', htmlContent: '', textContent: '', focus: '' }); }}
             className="flex items-center gap-1.5 text-[10px] bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg font-bold uppercase transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -90,7 +93,7 @@ export const PitchTemplatesManager: React.FC = () => {
         )}
       </div>
 
-      {(editingId || form.name) && (
+      {(editingId || isFormOpen) && (
         <div className="bg-slate-950/60 border border-purple-500/20 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
@@ -175,7 +178,7 @@ export const PitchTemplatesManager: React.FC = () => {
 
       {loading ? (
         <div className="text-center p-6 text-slate-500 text-xs">Loading templates...</div>
-      ) : templates.length === 0 && !editingId ? (
+      ) : templates.length === 0 && !editingId && !isFormOpen ? (
         <div className="text-center p-6 text-slate-500 border border-dashed border-slate-800 rounded-xl text-xs">
           No pitch templates yet. Create your first template above to speed up outreach.
         </div>
