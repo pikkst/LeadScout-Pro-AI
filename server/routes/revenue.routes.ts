@@ -88,7 +88,7 @@ revenueRouter.get("/stats", asyncHandler(async (_req, res) => {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  const [totalDeals, monthDeals, yearDeals, totalCommission, monthCommission, yearCommission] =
+  const [totalDealsCount, monthDealsCount, yearDealsCount, totalAgg, monthAgg, yearAgg] =
     await Promise.all([
       prisma.deal.count(),
       prisma.deal.count({ where: { closedAt: { gte: monthStart } } }),
@@ -105,15 +105,15 @@ revenueRouter.get("/stats", asyncHandler(async (_req, res) => {
     ]);
 
   res.json({
-    totalDeals,
-    monthDeals,
-    yearDeals,
-    totalRevenue: totalDeals._sum.value || 0,
-    monthRevenue: monthDeals._sum.value || 0,
-    yearRevenue: yearDeals._sum.value || 0,
-    totalCommission: totalDeals._sum.commission || 0,
-    monthCommission: monthCommission._sum.commission || 0,
-    yearCommission: yearCommission._sum.commission || 0,
+    totalDeals: totalDealsCount,
+    monthDeals: monthDealsCount,
+    yearDeals: yearDealsCount,
+    totalRevenue: totalAgg._sum.value || 0,
+    monthRevenue: monthAgg._sum.value || 0,
+    yearRevenue: yearAgg._sum.value || 0,
+    totalCommission: totalAgg._sum.commission || 0,
+    monthCommission: monthAgg._sum.commission || 0,
+    yearCommission: yearAgg._sum.commission || 0,
   });
 }));
 

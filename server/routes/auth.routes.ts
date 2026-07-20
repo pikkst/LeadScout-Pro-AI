@@ -170,3 +170,17 @@ authRouter.get(
     res.json(users.map(serializeUser));
   }),
 );
+
+// List all users (for dropdowns, assignment, etc.)
+authRouter.get(
+  "/users",
+  requireAuth,
+  asyncHandler(async (_req, res) => {
+    const users = await prisma.user.findMany({
+      where: { role: { not: "ADMIN" } },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: "asc" },
+    });
+    res.json(users);
+  }),
+);

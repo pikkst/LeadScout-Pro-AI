@@ -200,6 +200,8 @@ model Pitch {
   createdById String?
   createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
+  events PitchEvent[]
+
   @@index([leadId])
   @@index([status])
   @@map("pitches")
@@ -235,6 +237,7 @@ model ActivityLog {
 model PitchEvent {
   id        String      @id @default(cuid())
   pitchId   String
+  pitch     Pitch       @relation(fields: [pitchId], references: [id], onDelete: Cascade)
   type      PitchEventType
   createdAt DateTime    @default(now())
 
