@@ -20,6 +20,7 @@ import { PitchTemplatesManager } from './PitchTemplates';
 import { CustomFieldsSettings } from './CustomFieldsSettings';
 import { SequencesSettings } from './SequencesSettings';
 import { RoutingSettings } from './RoutingSettings';
+import { ApiSettingsTab } from './ApiSettingsTab';
 import {
   fetchSettings,
   saveSettings,
@@ -516,6 +517,7 @@ export const SettingsPage: React.FC = () => {
       <CustomFieldsSettings />
       <SequencesSettings />
       <RoutingSettings />
+      <ApiSettingsTab />
       <PitchTemplatesManager />
     </div>
   );

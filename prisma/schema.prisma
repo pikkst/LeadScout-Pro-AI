@@ -31,6 +31,7 @@ model User {
   routingRules  LeadRoutingRule[] @relation("RoutingAgent")
   meetingSlots  MeetingSlot[] @relation("MeetingSlots")
   createdDocuments GeneratedDocument[] @relation("DocumentCreator")
+  apiKeys ApiKey[] @relation("ApiKeys")
 
   @@index([role])
   @@map("users")
@@ -506,4 +507,23 @@ enum DocumentType {
   QUOTE
   INVOICE
   CUSTOM
+}
+
+/// API keys for external integrations (Zapier, Make, custom scripts).
+model ApiKey {
+  id         String   @id @default(cuid())
+  name       String
+  key        String   @unique
+  keyPrefix  String
+  scopes     String   @default("[]")
+  isRevoked  Boolean  @default(false)
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  userId String
+  user   User   @relation("ApiKeys", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([keyPrefix])
+  @@map("api_keys")
 }

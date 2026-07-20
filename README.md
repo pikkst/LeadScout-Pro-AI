@@ -640,6 +640,30 @@ npm run db:seed
 
 ---
 
+## API Documentation
+
+Full REST API documentation is available in `API.md`. Key endpoints:
+
+- `/api/leads` - Lead management
+- `/api/pitches` - Email pitch generation and sending
+- `/api/sequences` - Automated follow-up sequences
+- `/api/revenue` - Deal and commission tracking
+- `/api/calendar` - Meeting scheduling
+- `/api/documents` - Document generation
+- `/api/stats` - Analytics and forecasting
+- `/api/api-keys` - API key management for external integrations
+
+### External Integrations
+
+Generate API keys in Settings → API Keys to connect with:
+- Zapier
+- Make (formerly Integromat)
+- Custom scripts and automation tools
+
+All API requests require the header: `Authorization: Bearer <your-api-key>`
+
+---
+
 ## License
 
 Proprietary. All rights reserved.
