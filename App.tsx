@@ -20,6 +20,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import RevenueTab from './components/RevenueTab';
 import CalendarTab from './components/CalendarTab';
 import DocumentsTab from './components/DocumentsTab';
+import AnalyticsTab from './components/AnalyticsTab';
 import { 
   Globe, 
   Search, 
@@ -58,8 +59,8 @@ import { FOCUS_OPTIONS, LANGUAGE_OPTIONS } from './constants';
 const App: React.FC = () => {
   const { user, logout } = useAuth();
 
-  // Navigation: scout, outreach, crm, dashboard, revenue, calendar, documents
-  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'settings'>('scout');
+  // Navigation: scout, outreach, crm, dashboard, revenue, calendar, documents, analytics
+  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings'>('scout');
   const isAdmin = user?.role === 'ADMIN';
 
   // Lead Finder States
@@ -186,6 +187,7 @@ const App: React.FC = () => {
     'ctrl+5': () => setActiveTab('revenue'),
     'ctrl+6': () => setActiveTab('calendar'),
     'ctrl+7': () => setActiveTab('documents'),
+    'ctrl+8': () => setActiveTab('analytics'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1254,6 +1256,11 @@ Date().toISOString().split('T')[0]}.json`);
           {/* TAB 7: DOCUMENTS */}
           {activeTab === 'documents' && (
             <DocumentsTab />
+          )}
+
+          {/* TAB 8: ADVANCED ANALYTICS */}
+          {activeTab === 'analytics' && (
+            <AnalyticsTab />
           )}
 
         </div>

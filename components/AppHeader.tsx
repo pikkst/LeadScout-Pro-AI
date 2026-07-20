@@ -56,6 +56,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     { id: 'revenue', label: '5. Revenue', icon: <DollarSign className="w-4 h-4 text-emerald-400" /> },
     { id: 'calendar', label: '6. Calendar', icon: <Calendar className="w-4 h-4 text-purple-400" /> },
     { id: 'documents', label: '7. Documents', icon: <FileText className="w-4 h-4 text-amber-400" /> },
+    { id: 'analytics', label: '8. Analytics', icon: <Activity className="w-4 h-4 text-rose-400" /> },
   ];
 
   if (isAdmin) {
