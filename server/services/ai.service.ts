@@ -56,6 +56,45 @@ const FOCUS_LEAD_PROMPTS: Record<string, string> = {
     "MVNOs (Mobile Virtual Network Operators), regional ISPs, wireless service resellers, and local broadband/voice communication companies looking for transit partners",
   enterprise_saas:
     "SaaS platforms, CRM developers, HR systems, logistics dispatch software, and customer support suite developers looking to integrate global communications APIs (CPaaS)",
+  // Universal / cross-industry segments
+  manufacturing:
+    "manufacturers, factories, production plants, and industrial equipment makers seeking suppliers, distributors, automation partners, or B2B channels",
+  industrial:
+    "heavy industry, machinery builders, chemical plants, and industrial service firms looking for partners, suppliers, or B2B customers",
+  retail:
+    "retail chains, consumer brands, supermarkets, and brick-and-mortar or online shops looking for suppliers, franchises, or B2B partnerships",
+  technology:
+    "technology hardware makers, electronics firms, and deep-tech companies seeking distribution, manufacturing, or partnership channels",
+  it_services:
+    "managed service providers (MSPs), IT consultancies, system integrators, and support firms looking for vendor or client partnerships",
+  software:
+    "software vendors, app developers, and platform companies seeking integration, reseller, or co-marketing partners",
+  healthcare:
+    "hospitals, clinics, pharma companies, medtech firms, and healthcare providers looking for suppliers, distributors, or B2B partners",
+  finance:
+    "banks, insurers, investment firms, and financial service providers seeking fintech, vendor, or institutional partnerships",
+  real_estate:
+    "real estate agencies, property developers, PropTech firms, and property managers looking for investors, tenants, or service partners",
+  construction:
+    "construction companies, contractors, builders, and building-material suppliers looking for projects, subcontractors, or B2B clients",
+  energy:
+    "energy producers, utilities, renewable energy firms, and grid operators seeking suppliers, off-takers, or infrastructure partners",
+  logistics:
+    "freight forwarders, warehousing firms, courier services, and supply-chain companies looking for carriers, shippers, or B2B clients",
+  travel_hospitality:
+    "hotels, resorts, travel agencies, airlines, restaurants, and leisure venues looking for distributors, OTAs, or B2B partners",
+  media:
+    "media agencies, publishers, broadcasters, game studios, and content platforms looking for advertisers, distributors, or production partners",
+  education:
+    "schools, universities, EdTech platforms, and training providers looking for partners, suppliers, or B2B clients",
+  professional_services:
+    "consultancies, law firms, accounting practices, and agencies looking for referral partners or B2B clients",
+  telecom:
+    "telecom operators, connectivity providers, and network equipment vendors looking for wholesale, roaming, or infrastructure partners",
+  automotive:
+    "car makers, mobility startups, dealerships, and auto suppliers looking for manufacturing, distribution, or technology partners",
+  food_beverage:
+    "food producers, beverage brands, restaurants, and distributors looking for suppliers, retailers, or B2B channels",
 };
 
 const FOCUS_PITCH_DESCRIPTIONS: Record<string, string> = {
@@ -73,6 +112,45 @@ const FOCUS_PITCH_DESCRIPTIONS: Record<string, string> = {
     "regional ISP/MVNO transit partnerships, global roaming mobile voice & SMS transit hubs, and eSIM gateway interconnectivity",
   enterprise_saas:
     "Communications-Platform-as-a-Service (CPaaS) APIs for Voice/SMS integrations, flexible webhooks, robust CRM automated triggers, and custom developer tools",
+  // Universal / cross-industry segments
+  manufacturing:
+    "production capacity, supplier networks, distribution reach, and industrial automation or efficiency gains",
+  industrial:
+    "heavy-equipment supply, industrial services, operational efficiency, and B2B supply-chain reliability",
+  retail:
+    "retail distribution, shelf placement, brand reach, and consumer-demand growth channels",
+  technology:
+    "technology integration, hardware distribution, and co-development or OEM partnership opportunities",
+  it_services:
+    "managed services scale, vendor partnerships, and recurring B2B service revenue",
+  software:
+    "software integration, API partnerships, reseller channels, and co-marketing reach",
+  healthcare:
+    "compliance-ready supply, patient outcomes, and trusted healthcare partnership channels",
+  finance:
+    "secure financial infrastructure, regulatory readiness, and institutional trust",
+  real_estate:
+    "property pipeline, occupancy, and investment or development partnership value",
+  construction:
+    "project pipeline, build capacity, and reliable material or subcontractor supply",
+  energy:
+    "energy supply stability, sustainability goals, and infrastructure partnership value",
+  logistics:
+    "shipping capacity, transit reliability, and supply-chain efficiency gains",
+  travel_hospitality:
+    "occupancy, distribution via OTAs, and guest-experience or loyalty partnerships",
+  media:
+    "audience reach, advertising inventory, and content or distribution partnerships",
+  education:
+    "enrollment, learning outcomes, and EdTech or institutional partnerships",
+  professional_services:
+    "billable capacity, referral networks, and trusted advisory relationships",
+  telecom:
+    "connectivity reach, wholesale capacity, and network or roaming interconnects",
+  automotive:
+    "mobility scale, manufacturing capacity, and technology or distribution partnerships",
+  food_beverage:
+    "distribution reach, brand growth, and supply or retail partnership channels",
 };
 
 export async function findMajorCities(location: string, focus: string): Promise<string[]> {
@@ -151,10 +229,9 @@ export async function findLeads(city: string, country: string, focus: string): P
     3. Category (specific to the industry)
     4. A professional contact email (e.g., info@, hello@, office@, or a specific department).
     5. 1-sentence description.
-    6. estimatedValue: your best estimate of the potential monthly contract value this company could
-       represent for Unitel Global (wholesale voice/SMS termination, CPaaS, interconnect) in EUR per month.
-       Use a realistic figure based on company size (startups ~500, mid-size ~2000-5000, large ~10000-50000).
-       Output an integer only.
+     6. estimatedValue: your best estimate of the potential monthly contract value this company could
+       represent for our business in EUR per month, based on company size and the relevant industry
+       (startups ~500, mid-size ~2000-5000, large ~10000-50000). Output an integer only.
 
     Format strictly as a JSON array:
     [{"name": "...", "website": "...", "category": "...", "email": "...", "description": "...", "estimatedValue": 0}]

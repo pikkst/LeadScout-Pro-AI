@@ -1,6 +1,6 @@
 {
-  "name": "Unitel Global — CarrierScout AI",
-  "description": "Autonomous VoIP and SMS partner mapping and localized AI-powered B2B email outreach generator for Unitel Global OÜ.",
+  "name": "LeadScout PRO AI",
+  "description": "Autonomous B2B partner mapping and AI-powered email outreach generator for any industry.",
   "requestFramePermissions": [
     "geolocation"
   ],

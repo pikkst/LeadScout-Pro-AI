@@ -372,7 +372,7 @@ export const CRMStatsDashboard: React.FC<CRMStatsDashboardProps> = ({ leads }) =
             Strategic Telecommunication Recommendations
           </h4>
           <p className="text-[10px] text-slate-400 mt-1">
-            AI-generated Carrier Relations guidance for Unitel Global based on the current active partner pipeline.
+            AI-generated partnership guidance based on the current active pipeline.
           </p>
         </div>
 
@@ -380,21 +380,21 @@ export const CRMStatsDashboard: React.FC<CRMStatsDashboardProps> = ({ leads }) =
           <div className="p-3 bg-slate-950 border border-slate-800/60 rounded-xl space-y-1.5">
             <strong className="text-sky-300 font-bold block">🚨 Pricing Arbitrage Action Needed</strong>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              We have {countNegotiation} carriers in <strong>Negotiation</strong>. It is highly advised to immediately request their latest LCR (Least Cost Routing) voice destinations to compare pricing margins against Tallinn core transit gateways.
+              We have {countNegotiation} partners in <strong>Negotiation</strong>. It is highly advised to immediately request their latest commercial terms and compare pricing/value against your current core offerings.
             </p>
           </div>
 
           <div className="p-3 bg-slate-950 border border-slate-800/60 rounded-xl space-y-1.5">
             <strong className="text-purple-300 font-bold block">📜 Interconnection Acceleration</strong>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              There are {countSigned} bilateral agreements <strong>Signed</strong> but not yet active. Coordinate with NOC tech team to set up SIP trunks, request test traffic (100 test calls), and open routing permissions.
+              There are {countSigned} agreements <strong>Signed</strong> but not yet active. Coordinate with your delivery/ops team to finalize onboarding, run a pilot, and open the partnership for live activity.
             </p>
           </div>
 
           <div className="p-3 bg-slate-950 border border-slate-800/60 rounded-xl space-y-1.5">
             <strong className="text-emerald-300 font-bold block">💰 Revenue Projection Optimism</strong>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              With your pipeline value sitting at <strong>€{valueTotal.toLocaleString()}/month</strong>, converting even 10% of remaining negotiators will bolster Unitel Global gross SMS/VoIP profit margins significantly.
+              With your pipeline value sitting at <strong>€{valueTotal.toLocaleString()}/month</strong>, converting even 10% of remaining negotiators will significantly improve your gross revenue margins.
             </p>
           </div>
         </div>

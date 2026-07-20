@@ -1,6 +1,6 @@
-# Unitel Global — CarrierScout AI
+# LeadScout PRO AI
 
-An AI-powered B2B partner scouting and outreach platform for the Unitel Global team.
+An AI-powered B2B partner scouting and outreach platform for any team.
 Scout VoIP/SMS carriers and other B2B segments, verify contacts, manage a shared
 sales pipeline (CRM), and generate + send personalized outreach emails.
 

@@ -44,13 +44,13 @@ export const LoginScreen: React.FC = () => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-sky-500/10 border border-sky-500/30 px-4 py-1.5 rounded-full text-sky-400 text-xs font-semibold mb-4 uppercase tracking-widest">
             <Globe className="w-3.5 h-3.5" />
-            Unitel Global — CarrierScout AI
+            LeadScout PRO AI
           </div>
           <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-sky-100 to-slate-400 bg-clip-text text-transparent">
             {mode === 'login' ? 'Sign in to your workspace' : 'Create your account'}
           </h1>
           <p className="text-slate-400 text-sm mt-2">
-            B2B partner scouting & outreach platform for the Unitel Global team.
+            B2B partner scouting & outreach platform for your team.
           </p>
         </div>
 
@@ -166,7 +166,7 @@ export const LoginScreen: React.FC = () => {
         </form>
 
         <p className="text-center text-[10px] text-slate-600 mt-6 uppercase tracking-wider">
-          &copy; {new Date().getFullYear()} Unitel Global OÜ — Tallinn, Estonia
+          &copy; {new Date().getFullYear()} LeadScout PRO AI
         </p>
       </div>
     </div>

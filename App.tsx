@@ -45,13 +45,34 @@ import {
 } from 'lucide-react';
 
 const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string; pitchType: string }[] = [
+  // Telecom / Communications (original)
   { value: 'voip_carriers', label: 'VoIP Carriers & Wholesalers', icon: '📞', pitchType: 'Wholesale SIP Interconnection' },
   { value: 'sms_aggregators', label: 'SMS Hubs & Aggregators', icon: '💬', pitchType: 'A2P SMS Route Partnership' },
   { value: 'fintech', label: 'Fintech & Digital Banking', icon: '💳', pitchType: 'OTP & 2FA Deliverability API' },
-  { value: 'ecommerce', label: 'E-commerce & Logistics', icon: '📦', pitchType: 'Customer Delivery Alerts API' },
+  { value: 'ecommerce', label: 'E-commerce & Retail Logistics', icon: '📦', pitchType: 'Customer Delivery Alerts API' },
   { value: 'call_centers', label: 'Contact Centers & CCaaS', icon: '🎧', pitchType: 'SIP Trunking & DID Capacity' },
   { value: 'mvnos', label: 'MVNOs & Local ISPs', icon: '📶', pitchType: 'Gateway Transit Interconnect' },
   { value: 'enterprise_saas', label: 'Enterprise SaaS & CRM Platforms', icon: '☁️', pitchType: 'Developer CPaaS Integration' },
+  // Universal / cross-industry
+  { value: 'manufacturing', label: 'Manufacturing', icon: '🏭', pitchType: 'Industrial Partnership' },
+  { value: 'industrial', label: 'Industrial & Heavy Industry', icon: '⚙️', pitchType: 'Industrial Partnership' },
+  { value: 'retail', label: 'Retail & Consumer Goods', icon: '🛍️', pitchType: 'Retail Partnership' },
+  { value: 'technology', label: 'Technology & Hardware', icon: '🔧', pitchType: 'Technology Partnership' },
+  { value: 'it_services', label: 'IT Services & Managed Services', icon: '🖥️', pitchType: 'IT Services Partnership' },
+  { value: 'software', label: 'Software & Apps', icon: '💻', pitchType: 'Software Partnership' },
+  { value: 'healthcare', label: 'Healthcare & Pharma', icon: '🏥', pitchType: 'Healthcare Partnership' },
+  { value: 'finance', label: 'Finance & Insurance', icon: '🏦', pitchType: 'Financial Partnership' },
+  { value: 'real_estate', label: 'Real Estate & PropTech', icon: '🏢', pitchType: 'Real Estate Partnership' },
+  { value: 'construction', label: 'Construction & Building', icon: '🚧', pitchType: 'Construction Partnership' },
+  { value: 'energy', label: 'Energy & Utilities', icon: '⚡', pitchType: 'Energy Partnership' },
+  { value: 'logistics', label: 'Logistics & Supply Chain', icon: '🚚', pitchType: 'Logistics Partnership' },
+  { value: 'travel_hospitality', label: 'Travel, Hospitality & Leisure', icon: '🏖️', pitchType: 'Travel & Hospitality Partnership' },
+  { value: 'media', label: 'Media & Entertainment', icon: '🎬', pitchType: 'Media Partnership' },
+  { value: 'education', label: 'Education & EdTech', icon: '🎓', pitchType: 'Education Partnership' },
+  { value: 'professional_services', label: 'Professional & Consulting Services', icon: '💼', pitchType: 'Professional Services Partnership' },
+  { value: 'telecom', label: 'Telecom & Connectivity', icon: '📡', pitchType: 'Telecom Partnership' },
+  { value: 'automotive', label: 'Automotive & Mobility', icon: '🚗', pitchType: 'Automotive Partnership' },
+  { value: 'food_beverage', label: 'Food & Beverage', icon: '🍽️', pitchType: 'Food & Beverage Partnership' },
 ];
 
 const LANGUAGE_OPTIONS = [
@@ -88,7 +109,7 @@ const App: React.FC = () => {
     progress: 0,
     currentAgent: 'Idle',
     logs: [
-      '[System] Unitel Global CarrierScout Core online.',
+      '[System] LeadScout PRO AI Core online.',
       '[System] Ready to dispatch scout agents. Configure parameters and start B2B database orchestration.'
     ]
   });
@@ -220,7 +241,8 @@ const App: React.FC = () => {
               ...lead,
               isVerified: isAlive && isAuthentic,
               focus,
-              notes: `Scouted automatically in grid zone: ${city} during Unitel Global CarrierScout reconnaissance.`,
+              notes: `Scouted automatically in grid zone: ${city} during LeadScout PRO AI 
+reconnaissance.`,
             };
             scoutedLeads.push(verifiedLead);
             citySaved.push(verifiedLead);
@@ -484,7 +506,8 @@ const App: React.FC = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `unitel_carrierscout_crm_backup_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute("download", `leadscout_pro_crm_backup_${new 
+Date().toISOString().split('T')[0]}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -635,13 +658,13 @@ const App: React.FC = () => {
         </div>
         <div className="inline-flex items-center gap-2 bg-sky-500/10 border border-sky-500/30 px-4 py-1.5 rounded-full text-sky-400 text-xs font-semibold mb-4 uppercase tracking-widest">
           <Globe className="w-3.5 h-3.5 animate-spin-slow" />
-          Unitel Global — CarrierScout AI Portal
+          LeadScout PRO AI Portal
         </div>
         <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-3 bg-gradient-to-r from-white via-sky-100 to-slate-400 bg-clip-text text-transparent">
-          CarrierScout AI
+          LeadScout PRO AI
         </h1>
         <p className="text-slate-400 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
-          Autonomous B2B partner mapping and strategic negotiation hub for <strong>Unitel Global OÜ</strong>. Real-time city-by-city carrier search, contact verification, and localized AI email outreach engine.
+          Autonomous B2B partner mapping and outreach engine. Real-time city-by-city company search, contact verification, and localized AI email outreach across any industry.
         </p>
       </header>
 
@@ -1036,7 +1059,9 @@ const App: React.FC = () => {
                     </div>
                     <h3 className="text-slate-300 font-bold text-base mb-1.5">No Active Mission</h3>
                     <p className="max-w-md text-xs opacity-60 leading-relaxed mb-6">
-                      Define a partnership segment and location on the left panel to trigger the AI-grounded scouting network. Unitel Global agents will explore the targeted zones and retrieve authenticated B2B profiles.
+                      Define a partnership segment and location on the left panel to trigger the 
+AI-grounded scouting network. Agents will explore the targeted zones and retrieve authenticated B2B 
+profiles.
                     </p>
                     <div className="flex gap-2">
                       <button 
@@ -1167,7 +1192,8 @@ const App: React.FC = () => {
                         </span>
                       )}
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">Review, customize, and execute automated SMTP transmissions on behalf of Unitel Global.</p>
+                    <p className="text-xs text-slate-500 mt-1">Review, customize, and execute automated 
+SMTP transmissions on behalf of your company.</p>
                   </div>
 
                   {pitches.length > 0 && (
@@ -1407,13 +1433,13 @@ const App: React.FC = () => {
 
       {/* FOOTER */}
       <footer className="mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-[10px] font-bold uppercase">
-        <p>&copy; {new Date().getFullYear()} Unitel Global OÜ | Tallinn, Estonia. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} LeadScout PRO AI. All rights reserved.</p>
         <div className="flex gap-8">
           <span className="flex items-center gap-2 opacity-80">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping" /> 
             AI Node Sync: Secure Connected
           </span>
-          <span className="text-slate-500 opacity-60">Autonomous CarrierScout Engine v4.8</span>
+          <span className="text-slate-500 opacity-60">Autonomous LeadScout Engine v4.8</span>
         </div>
       </footer>
 
@@ -1426,7 +1452,8 @@ const App: React.FC = () => {
             <div className="bg-slate-950 p-4 border-b border-slate-850 flex justify-between items-center">
               <div>
                 <h3 className="font-bold text-white text-base">Custom Proposal Editor & Previewer</h3>
-                <p className="text-xs text-slate-500">Formulating wholesale telecommunication interconnect templates on behalf of Unitel Global OÜ</p>
+                <p className="text-xs text-slate-500">Formulating B2B partnership outreach 
+templates on behalf of your company</p>
               </div>
               
               <button 

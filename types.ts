@@ -1,5 +1,31 @@
 
-export type LeadFocus = 'voip_carriers' | 'sms_aggregators' | 'fintech' | 'ecommerce' | 'call_centers' | 'mvnos' | 'enterprise_saas';
+export type LeadFocus =
+  | 'voip_carriers'
+  | 'sms_aggregators'
+  | 'fintech'
+  | 'ecommerce'
+  | 'call_centers'
+  | 'mvnos'
+  | 'enterprise_saas'
+  | 'manufacturing'
+  | 'industrial'
+  | 'retail'
+  | 'technology'
+  | 'it_services'
+  | 'software'
+  | 'healthcare'
+  | 'finance'
+  | 'real_estate'
+  | 'construction'
+  | 'energy'
+  | 'logistics'
+  | 'travel_hospitality'
+  | 'media'
+  | 'education'
+  | 'professional_services'
+  | 'telecom'
+  | 'automotive'
+  | 'food_beverage';
 
 export interface CompanyLead {
   id: string;
