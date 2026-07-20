@@ -18,6 +18,7 @@ interface AppHeaderProps {
     totalSent: number;
     replyRate: number;
     totalReplies: number;
+    totalValue: number;
   };
   pitchesCount: number;
   overdueLeadsCount: number;
@@ -110,10 +111,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Response Rate</span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pipeline Value</span>
           <span className="text-2xl font-black text-emerald-400 mt-1 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            {stats.replyRate}% <span className="text-xs text-slate-500 font-normal">({stats.totalReplies} leads)</span>
+            <TrendingUp className="w-5 h-5 text-emerald-400" />
+            €{stats.totalValue.toLocaleString()}
           </span>
         </div>
       </section>

@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import { config } from "./server/config";
 import { prisma } from "./server/db";
 import { apiRouter } from "./server/routes";
+import { settingsRouter } from "./server/routes/settings.routes";
 import { uploadRouter } from "./server/routes/upload.routes";
 import { webhookRouter } from "./server/routes/webhook.routes";
 import { errorHandler, notFoundHandler } from "./server/middleware/error";
@@ -70,6 +71,7 @@ async function startServer() {
   app.use("/api", apiRouter);
   // Uploaded assets (e.g. company logo) served publicly before the 404 handler.
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  app.use("/api/settings", settingsRouter);
   app.use("/api/settings", uploadRouter);
   app.use("/api", notFoundHandler);
 
@@ -80,7 +82,7 @@ async function startServer() {
     try {
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
-        server: { middlewareMode: true },
+        server: { middlewareMode: true, host: "0.0.0.0" },
         appType: "spa",
       });
       app.use(vite.middlewares);

@@ -182,7 +182,7 @@ const SECRET_KEYS = new Set(SETTING_DEFS.filter((d) => d.type === "secret").map(
 let cache: Record<string, string> | null = null;
 
 async function loadAll(): Promise<Record<string, string>> {
-  if (cache) return cache;
+  if (cache && Object.keys(cache).length > 0) return cache;
   const rows = await prisma.appSetting.findMany();
   const dbValues: Record<string, string> = {};
   for (const row of rows) {
@@ -294,9 +294,9 @@ export async function getSettingsForUi() {
   for (const def of SETTING_DEFS) {
     if (def.type === "secret") {
       out[`${def.key}__set`] = Boolean(s[def.key]);
-      out[def.key] = ""; // never expose the secret
+      out[def.key] = "";
     } else {
-      out[def.key] = s[def.key] ?? "";
+      out[def.key] = s[def.key] ?? def.envDefault();
     }
   }
   return out;

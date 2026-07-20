@@ -585,9 +585,10 @@ Date().toISOString().split('T')[0]}.json`);
     const totalSent = pitches.filter(p => p.status === 'Sent' || p.status === 'Delivered' || p.status === 'Replied').length;
     const totalDelivered = pitches.filter(p => p.status === 'Delivered' || p.status === 'Replied').length;
     const totalReplies = pitches.filter(p => p.status === 'Replied').length;
-    
+
     const deliveryRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
     const replyRate = totalDelivered > 0 ? Math.round((totalReplies / totalDelivered) * 100) : 0;
+    const totalValue = leads.reduce((acc, l) => acc + ((l.estimatedValue as number) || 0), 0);
 
     return {
       totalLeads,
@@ -597,7 +598,8 @@ Date().toISOString().split('T')[0]}.json`);
       totalDelivered,
       totalReplies,
       deliveryRate,
-      replyRate
+      replyRate,
+      totalValue,
     };
   }, [leads, selectedLeadIds, pitches]);
 
@@ -994,6 +996,13 @@ Date().toISOString().split('T')[0]}.json`);
 
         </div>
       </div>
+      )}
+
+      {/* Settings page (admin-only, full width) */}
+      {activeTab === 'settings' && isAdmin && (
+        <div className="mb-8">
+          <SettingsPage />
+        </div>
       )}
 
       <AppFooter />
