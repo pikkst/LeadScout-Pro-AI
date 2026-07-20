@@ -13,6 +13,7 @@ import { settingsRouter } from "./settings.routes";
 import { revenueRouter } from "./revenue.routes";
 import { routingRouter } from "./routing.routes";
 import { calendarRouter } from "./calendar.routes";
+import { documentsRouter } from "./documents.routes";
 import { getAiSettings, getEmailSettings } from "../services/settings.service";
 
 export const apiRouter = Router();
@@ -41,3 +42,4 @@ apiRouter.use("/settings", settingsRouter);
 apiRouter.use("/revenue", revenueRouter);
 apiRouter.use("/routing", routingRouter);
 apiRouter.use("/calendar", calendarRouter);
+apiRouter.use("/documents", documentsRouter);

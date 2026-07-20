@@ -30,6 +30,7 @@ model User {
   commissions   Commission[]  @relation("AgentCommissions")
   routingRules  LeadRoutingRule[] @relation("RoutingAgent")
   meetingSlots  MeetingSlot[] @relation("MeetingSlots")
+  createdDocuments GeneratedDocument[] @relation("DocumentCreator")
 
   @@index([role])
   @@map("users")
@@ -87,6 +88,7 @@ model Lead {
   customFieldValues CustomFieldValue[]
   sequenceExecutions SequenceExecution[]
   deals Deal[]
+  documents GeneratedDocument[]
 
   @@unique([website, email])
   @@index([domain])
@@ -462,4 +464,46 @@ enum RoutingRuleType {
   ROUND_ROBIN
   MANUAL
   SCORE_BASED
+}
+
+/// Document template for proposals, contracts, etc.
+model DocumentTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  type        DocumentType
+  content     String   // HTML or markdown template
+  variables   String   @default("[]") // JSON array of available variables
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@map("document_templates")
+}
+
+/// Generated document for a lead/deal
+model GeneratedDocument {
+  id          String   @id @default(cuid())
+  title       String
+  type        DocumentType
+  content     String   // Final rendered HTML
+  pdfUrl      String?  // Path to generated PDF
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdById String
+  createdBy   User     @relation("DocumentCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+  @@index([type])
+  @@map("generated_documents")
+}
+
+enum DocumentType {
+  PROPOSAL
+  CONTRACT
+  NDA
+  QUOTE
+  INVOICE
+  CUSTOM
 }
