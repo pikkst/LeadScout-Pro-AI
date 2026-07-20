@@ -110,7 +110,7 @@ export const SMTP_PRESETS: SmtpPreset[] = [
   { id: 'brevo', label: 'Brevo (Sendinblue)', host: 'smtp-relay.brevo.com', port: 587, secure: false },
   { id: 'zoho', label: 'Zoho Mail', host: 'smtp.zoho.eu', port: 465, secure: true },
   { id: 'ses', label: 'Amazon SES', host: 'email-smtp.eu-west-1.amazonaws.com', port: 587, secure: false, note: 'Use your region-specific SMTP endpoint and SMTP credentials.' },
-  { id: 'resend', label: 'Resend', host: 'smtp.resend.com', port: 587, secure: false, note: 'Username is literally "resend"; password is your Resend API key. Your verified domain sends from there.' },
+  { id: 'resend', label: 'Resend', host: 'smtp.resend.com', port: 587, secure: false, note: 'Username is literally "resend"; password is your Resend API key. Keep "Use TLS/SSL (port 465)" OFF (STARTTLS on 587) — turning it on causes "wrong version number" SSL errors.' },
 ];
 
 // AI model choices for the dropdown.

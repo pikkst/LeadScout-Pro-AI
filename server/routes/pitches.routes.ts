@@ -103,6 +103,7 @@ pitchesRouter.post(
         html: pitch.htmlContent,
         text: pitch.textContent,
         replyTo: req.user!.email,
+        pitchId: pitch.id,
       });
     } catch (err) {
       await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });

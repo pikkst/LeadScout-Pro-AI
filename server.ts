@@ -10,6 +10,7 @@ import { config } from "./server/config";
 import { prisma } from "./server/db";
 import { apiRouter } from "./server/routes";
 import { uploadRouter } from "./server/routes/upload.routes";
+import { webhookRouter } from "./server/routes/webhook.routes";
 import { errorHandler, notFoundHandler } from "./server/middleware/error";
 
 async function startServer() {
@@ -30,6 +31,26 @@ async function startServer() {
       credentials: true,
     }),
   );
+  // Webhook endpoints need the raw body for signature verification; parse them
+  // as raw text and JSON-decode manually inside the route. Mounted before the
+  // global JSON parser so the raw stream is still available.
+  app.use(
+    "/api/webhooks",
+    express.text({ type: "*/*", limit: "1mb" }),
+    (req, _res, next) => {
+      (req as express.Request & { rawBody?: string }).rawBody = typeof req.body === "string" ? req.body : "";
+      if (req.body) {
+        try {
+          req.body = JSON.parse(req.body);
+        } catch {
+          /* leave as-is; route will validate */
+        }
+      }
+      next();
+    },
+  );
+  app.use("/api/webhooks", webhookRouter);
+
   app.use(express.json({ limit: "2mb" }));
   app.use(cookieParser());
 

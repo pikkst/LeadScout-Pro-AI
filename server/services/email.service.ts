@@ -35,6 +35,7 @@ export interface SendPitchInput {
   html: string;
   text: string;
   replyTo?: string;
+  pitchId?: string;
 }
 
 export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId: string }> {
@@ -48,6 +49,10 @@ export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId
       html: input.html,
       text: input.text,
       replyTo: input.replyTo || fromEmail,
+      // Resend tags let the delivery webhook map events back to this pitch.
+      ...(input.pitchId
+        ? { tags: [{ name: "pitchId", value: input.pitchId }] }
+        : {}),
     });
     return { messageId: info.messageId };
   } catch (err) {

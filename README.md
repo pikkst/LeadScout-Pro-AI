@@ -137,6 +137,23 @@ API:
 > Secrets are encrypted with AES-256-GCM; the client only ever receives a `__set` boolean
 > flag, never the secret itself.
 
+### Email delivery tracking (Resend webhooks)
+
+To know whether an outreach email actually reached the prospect (B2B confirmation), point
+a **Resend webhook** at:
+
+```
+POST https://<your-domain>/api/webhooks/resend
+```
+
+Every sent pitch is tagged with its `pitchId`, so Resend events map back automatically:
+- `email.delivered` → pitch status **Delivered**
+- `email.opened` / `email.clicked` → pitch marked **opened**
+- `email.bounced` / `email.complained` → pitch status **Failed**
+
+Set `RESEND_WEBHOOK_SECRET` (the Resend Signing Secret) in `.env` to verify inbound
+signatures; without it the endpoint still accepts events (useful for local testing).
+
 ## Notes
 
 - The Gemini API key is used **only** on the server and is never bundled into the client.
