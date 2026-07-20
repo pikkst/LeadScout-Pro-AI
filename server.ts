@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import { config } from "./server/config";
 import { prisma } from "./server/db";
 import { apiRouter } from "./server/routes";
+import { uploadRouter } from "./server/routes/upload.routes";
 import { errorHandler, notFoundHandler } from "./server/middleware/error";
 
 async function startServer() {
@@ -46,6 +47,9 @@ async function startServer() {
 
   // --- API ---
   app.use("/api", apiRouter);
+  // Uploaded assets (e.g. company logo) served publicly before the 404 handler.
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  app.use("/api/settings", uploadRouter);
   app.use("/api", notFoundHandler);
 
   // --- Frontend (Vite dev middleware or static build) ---

@@ -13,12 +13,16 @@ import {
   Sparkles,
   Send,
   Building2,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import {
   fetchSettings,
   saveSettings,
   testAiConnection,
   testEmailConnection,
+  uploadLogo,
+  removeLogo,
   SettingsResponse,
   SMTP_PRESETS,
   GEMINI_MODELS,
@@ -42,6 +46,11 @@ export const SettingsPage: React.FC = () => {
   // Test states
   const [aiTest, setAiTest] = useState<{ busy: boolean; result?: TestResult }>({ busy: false });
   const [emailTest, setEmailTest] = useState<{ busy: boolean; result?: TestResult }>({ busy: false });
+
+  // Logo upload state
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,6 +137,35 @@ export const SettingsPage: React.FC = () => {
       SMTP_SECURE: preset.secure,
     }));
     setSaved(false);
+  };
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileRef.current) fileRef.current.value = '';
+    if (!file) return;
+    setLogoBusy(true);
+    setLogoError(null);
+    try {
+      const res = await uploadLogo(file);
+      set('COMPANY_LOGO_URL', res.logoUrl);
+    } catch (err) {
+      setLogoError(err instanceof ApiError ? err.message : 'Logo upload failed');
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setLogoBusy(true);
+    setLogoError(null);
+    try {
+      await removeLogo();
+      set('COMPANY_LOGO_URL', '');
+    } catch (err) {
+      setLogoError(err instanceof ApiError ? err.message : 'Logo removal failed');
+    } finally {
+      setLogoBusy(false);
+    }
   };
 
   if (loading) {
@@ -368,13 +406,47 @@ export const SettingsPage: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className={labelClass}>Logo URL (public image)</label>
-            <input className={inputClass} value={String(values.COMPANY_LOGO_URL || '')} onChange={(e) => set('COMPANY_LOGO_URL', e.target.value)} placeholder="https://acme.com/logo.png" />
-            <p className="text-[10px] text-slate-500 mt-1.5">Shown in outreach emails. Leave blank to use a text header (no broken images).</p>
+            <label className={labelClass}>Logo (upload or URL)</label>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                {values.COMPANY_LOGO_URL ? (
+                  <img src={String(values.COMPANY_LOGO_URL)} alt="logo" className="max-w-full max-h-full object-contain" />
+                ) : (
+                  <Building2 className="w-6 h-6 text-slate-600" />
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={logoBusy}
+                    className="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-sky-400 font-bold px-3 py-2 rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors"
+                  >
+                    {logoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {values.COMPANY_LOGO_URL ? 'Change' : 'Upload'}
+                  </button>
+                  {values.COMPANY_LOGO_URL && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      disabled={logoBusy}
+                      className="text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-rose-400 font-bold px-3 py-2 rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" /> Remove
+                    </button>
+                  )}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+                <span className="text-[10px] text-slate-500">PNG/JPG/WEBP/SVG, max 2 MB.</span>
+              </div>
+            </div>
+            {logoError && <p className="text-[10px] text-rose-400 mt-1.5">{logoError}</p>}
+            <p className="text-[10px] text-slate-500 mt-1.5">Used in outreach emails. Leave blank to use a text header (no broken images).</p>
           </div>
           <div>
-            <label className={labelClass}>Contact Email (signature)</label>
-            <input className={inputClass} value={String(values.COMPANY_CONTACT_EMAIL || '')} onChange={(e) => set('COMPANY_CONTACT_EMAIL', e.target.value)} placeholder="partnerships@acme.com" />
+            <label className={labelClass}>Logo URL (optional, overrides upload)</label>
+            <input className={inputClass} value={String(values.COMPANY_LOGO_URL || '')} onChange={(e) => set('COMPANY_LOGO_URL', e.target.value)} placeholder="https://acme.com/logo.png" />
           </div>
         </div>
 

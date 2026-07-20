@@ -61,6 +61,36 @@ export async function testEmailConnection(input: {
   });
 }
 
+// Logo upload/remove (multipart + DELETE). Uses a raw fetch because apiClient
+// forces JSON; the token is read from the same auth storage.
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = localStorage.getItem('unitel_auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function uploadLogo(file: File): Promise<{ url: string; logoUrl: string }> {
+  const form = new FormData();
+  form.append('logo', file);
+  const res = await fetch('/api/settings/company-logo', {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || 'Logo upload failed');
+  return data as { url: string; logoUrl: string };
+}
+
+export async function removeLogo(): Promise<{ ok: boolean; logoUrl: string }> {
+  const res = await fetch('/api/settings/company-logo', {
+    method: 'DELETE',
+    headers: await authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || 'Logo removal failed');
+  return data as { ok: boolean; logoUrl: string };
+}
+
 // Convenient SMTP provider presets for the UI.
 export interface SmtpPreset {
   id: string;
@@ -80,6 +110,7 @@ export const SMTP_PRESETS: SmtpPreset[] = [
   { id: 'brevo', label: 'Brevo (Sendinblue)', host: 'smtp-relay.brevo.com', port: 587, secure: false },
   { id: 'zoho', label: 'Zoho Mail', host: 'smtp.zoho.eu', port: 465, secure: true },
   { id: 'ses', label: 'Amazon SES', host: 'email-smtp.eu-west-1.amazonaws.com', port: 587, secure: false, note: 'Use your region-specific SMTP endpoint and SMTP credentials.' },
+  { id: 'resend', label: 'Resend', host: 'smtp.resend.com', port: 587, secure: false, note: 'Username is literally "resend"; password is your Resend API key. Your verified domain sends from there.' },
 ];
 
 // AI model choices for the dropdown.
