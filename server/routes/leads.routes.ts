@@ -266,6 +266,34 @@ leadsRouter.patch(
   }),
 );
 
+// ---- Bulk assign multiple leads ----
+const bulkAssignSchema = z.object({
+  leadIds: z.array(z.string()).min(1).max(200),
+  assignedAgentId: z.string().optional().nullable(),
+});
+
+leadsRouter.post(
+  "/bulk/assign",
+  validate({ body: bulkAssignSchema }),
+  asyncHandler(async (req, res) => {
+    const { leadIds, assignedAgentId } = req.body as z.infer<typeof bulkAssignSchema>;
+    if (assignedAgentId) {
+      const agent = await prisma.user.findUnique({ where: { id: assignedAgentId } });
+      if (!agent) throw badRequest("Assigned agent does not exist.");
+    }
+    const result = await prisma.lead.updateMany({
+      where: { id: { in: leadIds } },
+      data: { assignedAgentId },
+    });
+    await logActivity({
+      action: "LEADS_BULK_ASSIGNED",
+      detail: `${result.count} leads reassigned`,
+      userId: req.user!.id,
+    });
+    res.json({ updated: result.count });
+  }),
+);
+
 // ---- Delete ----
 leadsRouter.delete(
   "/:id",
@@ -375,5 +403,43 @@ leadsRouter.delete(
   asyncHandler(async (req, res) => {
     await prisma.meeting.deleteMany({ where: { id: param(req, "meetingId"), leadId: param(req, "id") } });
     res.json({ ok: true });
+  }),
+);
+
+// ---- Duplicate detection ----
+const duplicateCheckSchema = z.object({
+  website: z.string().min(1),
+  email: z.string().email(),
+  name: z.string().optional(),
+});
+
+leadsRouter.post(
+  "/check-duplicate",
+  validate({ body: duplicateCheckSchema }),
+  asyncHandler(async (req, res) => {
+    const { website, email, name } = req.body as z.infer<typeof duplicateCheckSchema>;
+    const domain = normalizeDomain(website);
+    
+    const candidates = await prisma.lead.findMany({
+      where: {
+        OR: [
+          { email: { equals: email, mode: 'insensitive' } },
+          { domain: { equals: domain, mode: 'insensitive' } },
+          ...(name ? [{ name: { contains: name, mode: 'insensitive' as any } }] : []),
+        ],
+      },
+      take: 5,
+      select: { id: true, name: true, website: true, email: true, stage: true },
+    });
+
+    const normalized = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const similar = candidates.filter(c => {
+      const cDomain = normalizeDomain(c.website);
+      const cName = normalized(c.name);
+      const qName = normalized(name || '');
+      return cDomain === domain || c.email.toLowerCase() === email.toLowerCase() || (qName && cName && cName.includes(qName.slice(0, 6)));
+    });
+
+    res.json({ duplicate: similar.length > 0, matches: similar });
   }),
 );

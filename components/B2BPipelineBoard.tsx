@@ -42,6 +42,8 @@ interface B2BPipelineBoardProps {
   selectedLeadIds?: Set<string>;
   onSelectLead?: (id: string) => void;
   onBulkUpdateStage?: (stage: NonNullable<CompanyLead['stage']>) => void;
+  onBulkAssign?: (assignedAgentId: string | null) => void;
+  users?: Array<{ id: string; name: string; email: string }>;
 }
 
 const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: string; bg: string; text: string; border: string; desc: string }[] = [
@@ -107,6 +109,8 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
   selectedLeadIds,
   onSelectLead,
   onBulkUpdateStage,
+  onBulkAssign,
+  users,
 }) => {
   
   // Scheduler rescheduling states
@@ -232,28 +236,46 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
               {selectedLeadIds.size} selected
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            {STAGES.filter(s => s.value !== 'Archived').map(stage => (
+            <div className="flex items-center gap-2">
+              {STAGES.filter(s => s.value !== 'Archived').map(stage => (
+                <button
+                  key={stage.value}
+                  onClick={() => onBulkUpdateStage && onBulkUpdateStage(stage.value)}
+                  className="text-[9px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg font-bold uppercase transition-colors"
+                  title={`Move all selected to ${stage.label}`}
+                >
+                  {stage.icon} {stage.label}
+                </button>
+              ))}
+              {onBulkAssign && users && users.length > 0 && (
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      onBulkAssign(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  className="text-[9px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg font-bold uppercase transition-colors"
+                  defaultValue=""
+                >
+                  <option value="">Assign To...</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                  ))}
+                  <option value="null">Unassign</option>
+                </select>
+              )}
               <button
-                key={stage.value}
-                onClick={() => onBulkUpdateStage && onBulkUpdateStage(stage.value)}
-                className="text-[9px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg font-bold uppercase transition-colors"
-                title={`Move all selected to ${stage.label}`}
+                onClick={() => {
+                  if (onSelectLead) {
+                    selectedLeadIds.forEach(id => onSelectLead(id));
+                  }
+                }}
+                className="text-[9px] bg-rose-900/30 hover:bg-rose-900/50 border border-rose-800/50 text-rose-400 px-2.5 py-1.5 rounded-lg font-bold uppercase transition-colors"
               >
-                {stage.icon} {stage.label}
+                Clear Selection
               </button>
-            ))}
-            <button
-              onClick={() => {
-                if (onSelectLead) {
-                  selectedLeadIds.forEach(id => onSelectLead(id));
-                }
-              }}
-              className="text-[9px] bg-rose-900/30 hover:bg-rose-900/50 border border-rose-800/50 text-rose-400 px-2.5 py-1.5 rounded-lg font-bold uppercase transition-colors"
-            >
-              Clear Selection
-            </button>
-          </div>
+            </div>
         </div>
       )}
 

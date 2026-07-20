@@ -34,9 +34,40 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
   const [assignedAgent, setAssignedAgent] = useState('Carrier Relations Team');
   const [notes, setNotes] = useState('');
   const [isVerified, setIsVerified] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ show: boolean; message: string; matches: any[] }>({ show: false, message: '', matches: [] });
 
   // Scheduled Meetings & Calls
   const [scheduledMeetings, setScheduledMeetings] = useState<ScheduledMeeting[]>([]);
+
+  // Duplicate detection
+  const checkDuplicate = async (website: string, email: string, name: string) => {
+    if (!website && !email) {
+      setDuplicateWarning({ show: false, message: '', matches: [] });
+      return;
+    }
+    try {
+      const res = await fetch('/api/leads/check-duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ website: website || 'https://example.com', email: email || 'test@example.com', name }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.duplicate) {
+          setDuplicateWarning({
+            show: true,
+            message: `Potential duplicate(s) found: ${data.matches.map((m: any) => m.name).join(', ')}`,
+            matches: data.matches,
+          });
+        } else {
+          setDuplicateWarning({ show: false, message: '', matches: [] });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   // Meeting schedule form states
   const [newTitle, setNewTitle] = useState('');
@@ -78,6 +109,17 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     }
     setShowAddForm(false);
   }, [lead, isOpen]);
+
+  // Check for duplicates when website or email changes (debounced)
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      if (website || email) {
+        checkDuplicate(website, email, name);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [website, email, name, isOpen]);
 
   if (!isOpen) return null;
 
@@ -587,8 +629,27 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
             <Save className="w-4 h-4" />
             Save Customer Data
           </button>
-        </div>
-      </div>
-    </div>
+              </div>
+            </div>
+
+            {duplicateWarning.show && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-start gap-2">
+                <span className="text-amber-400 text-xs">⚠️</span>
+                <div>
+                  <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Potential Duplicate</p>
+                  <p className="text-[10px] text-slate-300 mt-0.5">{duplicateWarning.message}</p>
+                  {duplicateWarning.matches.length > 0 && (
+                    <div className="mt-1.5 space-y-1">
+                      {duplicateWarning.matches.map((m: any) => (
+                        <div key={m.id} className="text-[9px] text-slate-400 bg-slate-900/50 rounded px-2 py-1">
+                          {m.name} — {m.website} ({m.stage})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
   );
 };

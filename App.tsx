@@ -16,6 +16,7 @@ import { PitchPreviewModal } from './components/PitchPreviewModal';
 import { AppHeader } from './components/AppHeader';
 import { AppFooter } from './components/AppFooter';
 import { AppModals } from './components/AppModals';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { 
   Globe, 
   Search, 
@@ -65,6 +66,7 @@ const App: React.FC = () => {
   // Server-backed data
   const [leads, setLeads] = useState<CompanyLead[]>([]);
   const [pitches, setPitches] = useState<OutreachPitch[]>([]);
+  const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Team activity feed
@@ -123,9 +125,14 @@ const App: React.FC = () => {
   // Load leads + pitches from the server on mount.
   const reloadData = useCallback(async () => {
     try {
-      const [serverLeads, serverPitches] = await Promise.all([crm.listLeads(), crm.listPitches()]);
+      const [serverLeads, serverPitches, serverUsers] = await Promise.all([
+        crm.listLeads(),
+        crm.listPitches(),
+        fetch('/api/auth/team', { credentials: 'include' }).then(r => r.ok ? r.json() : []).catch(() => []),
+      ]);
       setLeads(serverLeads);
       setPitches(serverPitches);
+      setUsers(Array.isArray(serverUsers) ? serverUsers : []);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to load data from server';
       addLog(`[Critical] ${msg}`);
@@ -156,6 +163,32 @@ const App: React.FC = () => {
       loadActivities();
     }
   }, [activeTab, loadActivities]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    'ctrl+k': () => {
+      const el = document.getElementById('location-input') as HTMLInputElement | null;
+      el?.focus();
+      setActiveTab('scout');
+    },
+    'ctrl+n': () => {
+      setSelectedCRMLead(null);
+      setIsCRMModalOpen(true);
+    },
+    'ctrl+1': () => setActiveTab('scout'),
+    'ctrl+2': () => setActiveTab('outreach'),
+    'ctrl+3': () => setActiveTab('crm'),
+    'ctrl+4': () => setActiveTab('dashboard'),
+    'escape': () => {
+      if (isCRMModalOpen) {
+        setIsCRMModalOpen(false);
+        setSelectedCRMLead(null);
+      } else if (isPreviewMode) {
+        setActivePitch(null);
+        setIsPreviewMode(false);
+      }
+    },
+  });
 
   const updateProgress = (progress: number, task?: string) => {
     setSearchState(prev => ({
@@ -533,6 +566,23 @@ reconnaissance.`,
     }
   };
 
+  const handleBulkAssign = async (assignedAgentId: string | null) => {
+    if (!selectedLeadIds || selectedLeadIds.size === 0) return;
+    const ids = Array.from(selectedLeadIds) as string[];
+    const previous = leads;
+    const agentName = assignedAgentId ? users.find(u => u.id === assignedAgentId)?.name || assignedAgentId : 'Unassigned';
+    setLeads(prev => prev.map(l => selectedLeadIds.has(l.id) ? { ...l, assignedAgentId: assignedAgentId || undefined, assignedAgent: agentName } : l));
+    setSelectedLeadIds(new Set());
+    try {
+      await crm.bulkAssignLeads(ids, assignedAgentId);
+      addLog(`[CRM-Database] Bulk assigned ${ids.length} partners to: ${agentName}`);
+    } catch (err) {
+      setLeads(previous);
+      const msg = err instanceof ApiError ? err.message : 'Failed to bulk assign';
+      addLog(`[Error] ${msg}`);
+    }
+  };
+
   const handleUpdateFollowUpTask = async (
     leadId: string, 
     taskName: string, 
@@ -757,6 +807,7 @@ Date().toISOString().split('T')[0]}.json`);
                 </label>
                 <div className="relative">
                   <input
+                    id="location-input"
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
@@ -992,6 +1043,8 @@ Date().toISOString().split('T')[0]}.json`);
                 selectedLeadIds={selectedLeadIds}
                 onSelectLead={handleSelectLead}
                 onBulkUpdateStage={handleBulkUpdateStage}
+                onBulkAssign={handleBulkAssign}
+                users={users}
                 onUpdateStage={handleUpdateStage}
                 onEditLead={(lead) => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
                 onDeleteLead={handleDeleteLead}

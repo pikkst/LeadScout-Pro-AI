@@ -54,6 +54,10 @@ export async function assignLead(id: string, assignedAgentId: string | null): Pr
   });
 }
 
+export async function bulkAssignLeads(leadIds: string[], assignedAgentId: string | null): Promise<{ updated: number }> {
+  return api<{ updated: number }>("/leads/bulk/assign", { method: "POST", body: JSON.stringify({ leadIds, assignedAgentId }) });
+}
+
 export async function deleteLead(id: string): Promise<void> {
   await api(`/leads/${id}`, { method: "DELETE" });
 }

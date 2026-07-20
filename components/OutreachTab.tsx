@@ -180,23 +180,38 @@ export const OutreachTab: React.FC<OutreachTabProps> = ({
                   )}
                 </div>
 
-                <div className="flex justify-between items-center pt-3 border-t border-slate-850">
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => onOpenPreview(pitch)}
-                      className="p-2 text-slate-400 hover:text-sky-400 bg-slate-950 rounded-lg hover:bg-slate-900 border border-slate-850 transition-all"
-                      title="Edit Subject / Body and Preview HTML"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onDeletePitch(pitch.id)}
-                      className="p-2 text-slate-400 hover:text-rose-400 bg-slate-950 rounded-lg hover:bg-slate-900 border border-slate-850 transition-all"
-                      title="Discard draft"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-850">
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => onOpenPreview(pitch)}
+                        className="p-2 text-slate-400 hover:text-sky-400 bg-slate-950 rounded-lg hover:bg-slate-900 border border-slate-850 transition-all"
+                        title="Edit Subject / Body and Preview HTML"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onDeletePitch(pitch.id)}
+                        className="p-2 text-slate-400 hover:text-rose-400 bg-slate-950 rounded-lg hover:bg-slate-900 border border-slate-850 transition-all"
+                        title="Discard draft"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Generate B variant for A/B testing?')) return;
+                          try {
+                            const variant = await crm.generateAndSavePitch(pitch.leadId, '', pitch.language);
+                            if (onOpenPreview) onOpenPreview(variant);
+                          } catch (err) {
+                            console.error('Failed to generate B variant:', err);
+                          }
+                        }}
+                        className="p-2 text-slate-400 hover:text-purple-400 bg-slate-950 rounded-lg hover:bg-slate-900 border border-slate-850 transition-all"
+                        title="Generate B variant for A/B testing"
+                      >
+                        <span className="text-[9px] font-bold">A/B</span>
+                      </button>
+                    </div>
 
                   {pitch.status === 'Draft' || pitch.status === 'Failed' ? (
                     <button
