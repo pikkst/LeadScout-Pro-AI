@@ -25,6 +25,7 @@ model User {
   createdLeads  Lead[]        @relation("LeadCreator")
   pitches       Pitch[]
   activities    ActivityLog[]
+  createdTemplates PitchTemplate[] @relation("TemplateCreator")
 
   @@index([role])
   @@map("users")
@@ -60,6 +61,7 @@ model Lead {
   phone          String?
   sourceUrl      String?
   focus          String? // LeadFocus segment (voip_carriers, sms_aggregators, ...)
+  source         LeadSource @default(AI_SCOUT)
   isVerified     Boolean    @default(false)
   stage          LeadStage  @default(DISCOVERED)
   notes          String     @default("")
@@ -95,6 +97,14 @@ enum LeadStage {
   SIGNED
   ACTIVE
   ARCHIVED
+}
+
+enum LeadSource {
+  AI_SCOUT
+  MANUAL
+  CSV_IMPORT
+  PITCH_REPLY
+  OTHER
 }
 
 /// A single actionable follow-up task attached to a lead.
@@ -189,4 +199,43 @@ model ActivityLog {
   @@index([leadId])
   @@index([userId])
   @@map("activity_logs")
+}
+
+/// Individual pitch delivery/open event from Resend webhook or manual tracking.
+model PitchEvent {
+  id        String      @id @default(cuid())
+  pitchId   String
+  type      PitchEventType
+  createdAt DateTime    @default(now())
+
+  @@index([pitchId])
+  @@map("pitch_events")
+}
+
+enum PitchEventType {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  REPLIED
+  BOUNCED
+  FAILED
+}
+
+/// Saved pitch template for reuse across the team.
+model PitchTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  htmlContent String
+  textContent String
+  focus       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdById String?
+  createdBy   User?   @relation("TemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([createdById])
+  @@map("pitch_templates")
 }

@@ -19,7 +19,10 @@ pitchesRouter.use(requireAuth);
 pitchesRouter.get(
   "/",
   asyncHandler(async (_req, res) => {
-    const pitches = await prisma.pitch.findMany({ orderBy: { createdAt: "desc" } });
+    const pitches = await prisma.pitch.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { events: { orderBy: { createdAt: "desc" } } },
+    } as any);
     res.json(pitches.map(serializePitch));
   }),
 );
@@ -29,20 +32,30 @@ const generateSchema = z.object({
   leadId: z.string(),
   focus: z.string(),
   preferredLanguage: z.string().default("Auto-Detect"),
+  templateId: z.string().optional().nullable(),
 });
 
 pitchesRouter.post(
   "/generate",
   validate({ body: generateSchema }),
   asyncHandler(async (req, res) => {
-    const { leadId, focus, preferredLanguage } = req.body as z.infer<typeof generateSchema>;
+    const { leadId, focus, preferredLanguage, templateId } = req.body as z.infer<typeof generateSchema>;
     const lead = await prisma.lead.findUnique({ where: { id: leadId } });
     if (!lead) throw notFound("Lead not found");
+
+    let template = null;
+    if (templateId) {
+      const tpl = await prisma.pitchTemplate.findUnique({ where: { id: templateId } });
+      if (tpl) {
+        template = { subject: tpl.subject, htmlContent: tpl.htmlContent, textContent: tpl.textContent };
+      }
+    }
 
     const generated = await generatePitch(
       { name: lead.name, category: lead.category, website: lead.website, description: lead.description },
       focus,
       preferredLanguage,
+      template,
     );
 
     const pitch = await prisma.pitch.create({
@@ -114,6 +127,11 @@ pitchesRouter.post(
       where: { id: pitch.id },
       data: { status: "SENT", sentAt: new Date() },
     });
+    
+    await prisma.pitchEvent.create({
+      data: { pitchId: pitch.id, type: "SENT" },
+    });
+    
     // Advance the lead to "Contacted" when it is still early-stage.
     await prisma.lead.updateMany({
       where: { id: pitch.leadId, stage: "DISCOVERED" },

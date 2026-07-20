@@ -259,6 +259,7 @@ export async function generatePitch(
   lead: { name: string; category: string; website: string; description: string },
   focus: string,
   preferredLanguage: string,
+  template?: { subject: string; htmlContent: string; textContent: string } | null,
 ): Promise<GeneratedPitch> {
   const { ai, model } = await getAI();
   const focusDesc = FOCUS_PITCH_DESCRIPTIONS[focus] || focus;
@@ -281,10 +282,14 @@ export async function generatePitch(
     .filter(Boolean)
     .join("\n");
 
+  const templateInstruction = template
+    ? `\nUse this saved email template as the structural base. Keep its tone, sections, and CTA style, but personalize it for the specific client:\nSubject: ${template.subject}\nHTML: ${template.htmlContent}\nText: ${template.textContent}\n`
+    : "";
+
   const prompt = `
     You are the lead Partnership / Carrier Relations Director for ${company.name}.
     ${companyContext ? `\nContext about ${company.name} (use this to tailor the pitch):\n${companyContext}\n` : ""}
-
+    ${templateInstruction}
     Create a highly professional, bespoke, and visually clean B2B sales pitch and partnership invitation for this target client:
     - Client Name: "${lead.name}"
     - Focus Industry/Segment: "${lead.category}"

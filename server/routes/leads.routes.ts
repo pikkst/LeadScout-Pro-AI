@@ -23,6 +23,7 @@ leadsRouter.use(requireAuth);
 
 const leadInclude = {
   assignedAgent: true,
+  createdBy: { select: { id: true, name: true } },
   followUpTask: true,
   meetings: { orderBy: { date: "asc" as const } },
 };
@@ -78,6 +79,7 @@ const createLeadSchema = z.object({
   notes: z.string().optional(),
   estimatedValue: z.number().int().nonnegative().optional(),
   assignedAgentId: z.string().optional().nullable(),
+  source: z.string().optional(),
 });
 
 leadsRouter.post(
@@ -104,6 +106,7 @@ leadsRouter.post(
         estimatedValue: body.estimatedValue ?? 0,
         assignedAgentId: body.assignedAgentId ?? null,
         createdById: req.user!.id,
+        source: (body.source as any) ?? "MANUAL",
       },
       include: leadInclude,
     });
@@ -159,6 +162,7 @@ leadsRouter.post(
           estimatedValue: body.estimatedValue ?? 0,
           assignedAgentId: body.assignedAgentId ?? null,
           createdById: req.user!.id,
+          source: (body.source as any) ?? "CSV_IMPORT",
         },
         include: leadInclude,
       });

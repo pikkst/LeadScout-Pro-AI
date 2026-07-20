@@ -45,7 +45,8 @@ import {
   Calendar,
   Briefcase,
   LogOut,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Activity
 } from 'lucide-react';
 import { FOCUS_OPTIONS, LANGUAGE_OPTIONS } from './constants';
 
@@ -66,6 +67,21 @@ const App: React.FC = () => {
   const [pitches, setPitches] = useState<OutreachPitch[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
+  // Team activity feed
+  interface ActivityItem {
+    id: string;
+    action: string;
+    detail: string;
+    user: string;
+    lead: string | null;
+    createdAt: string;
+  }
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+
+  // "My Pipeline" filter: when true, only show leads assigned to current user
+  const [mineFilter, setMineFilter] = useState(false);
+
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
 
   const [searchState, setSearchState] = useState<SearchState>({
@@ -80,6 +96,7 @@ const App: React.FC = () => {
 
   // Outreach & B2B Tracker States
   const [preferredLanguage, setPreferredLanguage] = useState('Auto-Detect');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
   const [isGeneratingPitches, setIsGeneratingPitches] = useState(false);
   const [pitchProgress, setPitchProgress] = useState({ current: 0, total: 0, activeName: '' });
@@ -117,9 +134,28 @@ const App: React.FC = () => {
     }
   }, [addLog]);
 
+  // Load team activity feed.
+  const loadActivities = useCallback(async () => {
+    setIsLoadingActivities(true);
+    try {
+      const result = await crm.fetchActivity();
+      setActivities(result);
+    } catch (err) {
+      console.error('Failed to load activities:', err);
+    } finally {
+      setIsLoadingActivities(false);
+    }
+  }, []);
+
   useEffect(() => {
     reloadData();
   }, [reloadData]);
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      loadActivities();
+    }
+  }, [activeTab, loadActivities]);
 
   const updateProgress = (progress: number, task?: string) => {
     setSearchState(prev => ({
@@ -231,6 +267,7 @@ reconnaissance.`,
               isVerified: l.isVerified,
               estimatedValue: l.estimatedValue || 0,
               notes: l.notes,
+              source: 'AI_SCOUT',
             }))
           );
           allSavedLeads.push(...saved.created);
@@ -315,7 +352,7 @@ reconnaissance.`,
       addLog(`[AI-Copywriter] Drafting personalized wholesale pitch in ${preferredLanguage} for ${lead.name}...`);
 
       try {
-        const pitch = await crm.generateAndSavePitch(lead.id, lead.focus || focus, preferredLanguage);
+        const pitch = await crm.generateAndSavePitch(lead.id, lead.focus || focus, preferredLanguage, selectedTemplateId);
         setPitches(prev => {
           const withoutOld = prev.filter(p => !(p.leadId === lead.id && p.status === 'Draft'));
           return [pitch, ...withoutOld];
@@ -343,7 +380,33 @@ reconnaissance.`,
       const updated = await crm.sendPitch(pitchId);
       setPitches(prev => prev.map(p => (p.id === pitchId ? updated : p)));
       addLog(`[Outreach-SMTP] Email delivered to ${pitch.leadName} (${pitch.leadEmail}).`);
-      // The backend advances the lead to "Contacted" — refresh CRM view.
+
+      // Browser notification
+      if (Notification.permission === 'granted') {
+        new Notification('LeadScout PRO AI', { body: `Pitch sent to ${pitch.leadName}`, icon: '/favicon.ico' });
+      } else if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          new Notification('LeadScout PRO AI', { body: `Pitch sent to ${pitch.leadName}`, icon: '/favicon.ico' });
+        }
+      }
+
+      // Auto-schedule a follow-up task for 2 days from now.
+      const followUpDate = new Date();
+      followUpDate.setDate(followUpDate.getDate() + 2);
+      const dueDateStr = followUpDate.toISOString().split('T')[0];
+      try {
+        await crm.setFollowUpTask(pitch.leadId, {
+          taskName: `Follow up on pitch sent to ${pitch.leadName}`,
+          dueDate: dueDateStr,
+          isCompleted: false,
+          notes: `Auto-scheduled after sending "${pitch.subject}" on ${new Date().toLocaleDateString()}.`,
+        });
+        addLog(`[CRM-Scheduler] Auto-scheduled follow-up for ${pitch.leadName} on ${dueDateStr}.`);
+      } catch (followUpErr) {
+        console.warn('Failed to auto-create follow-up task:', followUpErr);
+      }
+
       await reloadData();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'SMTP send failed';
@@ -436,14 +499,36 @@ reconnaissance.`,
   const handleUpdateStage = async (id: string, nextStage: NonNullable<CompanyLead['stage']>) => {
     // Optimistic UI update.
     const previous = leads;
+    const lead = leads.find(l => l.id === id);
     setLeads(prev => prev.map(l => (l.id === id ? { ...l, stage: nextStage } : l)));
     try {
       const updated = await crm.updateLeadStage(id, nextStage);
       setLeads(prev => prev.map(l => (l.id === id ? updated : l)));
       addLog(`[CRM-Database] Upgraded partner stage to: ${nextStage}`);
+      
+      // Browser notification for stage change
+      if (lead && Notification.permission === 'granted') {
+        new Notification('LeadScout PRO AI', { body: `${lead.name} moved to ${nextStage}`, icon: '/favicon.ico' });
+      }
     } catch (err) {
       setLeads(previous); // rollback
       const msg = err instanceof ApiError ? err.message : 'Failed to update stage';
+      addLog(`[Error] ${msg}`);
+    }
+  };
+
+  const handleBulkUpdateStage = async (nextStage: NonNullable<CompanyLead['stage']>) => {
+    if (!selectedLeadIds || selectedLeadIds.size === 0) return;
+    const ids = Array.from(selectedLeadIds) as string[];
+    const previous = leads;
+    setLeads(prev => prev.map(l => selectedLeadIds.has(l.id) ? { ...l, stage: nextStage } : l));
+    setSelectedLeadIds(new Set());
+    try {
+      await Promise.all(ids.map(id => crm.updateLeadStage(id, nextStage)));
+      addLog(`[CRM-Database] Bulk upgraded ${ids.length} partners to: ${nextStage}`);
+    } catch (err) {
+      setLeads(previous);
+      const msg = err instanceof ApiError ? err.message : 'Failed to bulk update stage';
       addLog(`[Error] ${msg}`);
     }
   };
@@ -577,6 +662,16 @@ Date().toISOString().split('T')[0]}.json`);
     }).length;
   }, [leads]);
 
+  // Filtered leads for "My Pipeline" view (client-side for instant feedback)
+  const displayedLeads = useMemo(() => {
+    if (!mineFilter || !user) return leads;
+    return leads.filter(l => l.assignedAgentId === user.id || l.createdById === user.id);
+  }, [leads, mineFilter, user]);
+
+  const handleToggleMineFilter = useCallback(() => {
+    setMineFilter(prev => !prev);
+  }, []);
+
   // Compute stats for Dashboard (kogu B2B olema jälgitav)
   const stats = useMemo(() => {
     const totalLeads = leads.length;
@@ -618,10 +713,11 @@ Date().toISOString().split('T')[0]}.json`);
 
       {/* Main Container */}
       {activeTab !== 'settings' && (
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         
-        {/* Left Control Column (Visible for Leads/Campaign setup) */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* Left Control Column - only visible for Scout / Outreach */}
+        {(activeTab === 'scout' || activeTab === 'outreach') ? (
+        <div className="md:col-span-5 lg:col-span-4 space-y-6">
           
           {/* Section: Strategic Parameters */}
           <section className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
@@ -775,6 +871,17 @@ Date().toISOString().split('T')[0]}.json`);
                   </div>
                 </div>
 
+                <div className="bg-slate-900/40 p-3 rounded-xl border border-slate-850">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pitch Template (optional)</div>
+                  <select
+                    value={selectedTemplateId || ''}
+                    onChange={(e) => setSelectedTemplateId(e.target.value || null)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                  >
+                    <option value="">-- No template (AI generates from scratch) --</option>
+                  </select>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleGeneratePitches}
@@ -819,9 +926,10 @@ Date().toISOString().split('T')[0]}.json`);
           </section>
 
         </div>
+        ) : null}
 
-        {/* Right Active View Column (Dynamic depending on selected tab) */}
-        <div className={(activeTab === 'crm' || activeTab === 'dashboard') ? "lg:col-span-12" : "lg:col-span-8"}>
+        {/* Right Active View Column */}
+        <div className={(activeTab === 'crm' || activeTab === 'dashboard') ? "md:col-span-12 lg:col-span-12" : "md:col-span-7 lg:col-span-8"}>
 
           {/* TAB 1: SCOUT & VERIFY LEADS */}
           {activeTab === 'scout' && (
@@ -836,7 +944,7 @@ Date().toISOString().split('T')[0]}.json`);
               updateProgress={updateProgress}
               addLog={addLog}
               onSearch={handleSearch}
-              leads={leads}
+              leads={displayedLeads}
               selectedLeadIds={selectedLeadIds}
               onSelectLead={handleSelectLead}
               onSelectAll={handleSelectAll}
@@ -848,10 +956,13 @@ Date().toISOString().split('T')[0]}.json`);
               onImportBackup={handleImportBackup}
               onGeneratePitches={handleGeneratePitches}
               isGeneratingPitches={isGeneratingPitches}
-              pitchProgress={pitchProgress}
-              preferredLanguage={preferredLanguage}
-              setPreferredLanguage={setPreferredLanguage}
-            />
+               pitchProgress={pitchProgress}
+               preferredLanguage={preferredLanguage}
+               setPreferredLanguage={setPreferredLanguage}
+               mineFilter={mineFilter}
+               onToggleMineFilter={handleToggleMineFilter}
+               totalLeadsCount={leads.length}
+             />
           )}
 
           {/* TAB 2: AI CAMPAIGN BUILDER (DRAFTS & EMAIL DRAFT GENERATION) */}
@@ -874,7 +985,13 @@ Date().toISOString().split('T')[0]}.json`);
           {activeTab === 'crm' && (
             <div className="space-y-6">
               <B2BPipelineBoard 
-                leads={leads}
+                leads={displayedLeads}
+                mineFilter={mineFilter}
+                onToggleMineFilter={handleToggleMineFilter}
+                totalLeadsCount={leads.length}
+                selectedLeadIds={selectedLeadIds}
+                onSelectLead={handleSelectLead}
+                onBulkUpdateStage={handleBulkUpdateStage}
                 onUpdateStage={handleUpdateStage}
                 onEditLead={(lead) => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
                 onDeleteLead={handleDeleteLead}
@@ -892,6 +1009,66 @@ Date().toISOString().split('T')[0]}.json`);
               
               {/* Performance Metrics & Visual Analytics Diagrams */}
               <CRMStatsDashboard leads={leads} pitches={pitches} />
+
+              {/* Team Activity Feed */}
+              <section className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-sky-400" />
+                      Team Activity Feed
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Recent actions across the shared pipeline — who did what and when.</p>
+                  </div>
+                  <button
+                    onClick={loadActivities}
+                    disabled={isLoadingActivities}
+                    className="text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg font-bold uppercase transition-colors"
+                  >
+                    {isLoadingActivities ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {activities.length === 0 ? (
+                  <div className="text-center p-6 text-slate-500 bg-slate-900/20 border border-slate-850 rounded-xl text-xs">
+                    No recent activity recorded. Actions like lead creation, stage changes, and pitch sends will appear here.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-850 bg-slate-950/40">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-850 text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-900/40">
+                          <th className="px-4 py-3">Time</th>
+                          <th className="px-4 py-3">User</th>
+                          <th className="px-4 py-3">Action</th>
+                          <th className="px-4 py-3">Lead / Target</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-900/50 text-xs">
+                        {activities.slice(0, 20).map((activity) => (
+                          <tr key={activity.id} className="hover:bg-slate-900/10 transition-colors">
+                            <td className="px-4 py-3 text-slate-400 font-mono text-[10px] whitespace-nowrap">
+                              {new Date(activity.createdAt).toLocaleString([], { 
+                                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-slate-300 font-semibold">{activity.user}</td>
+                            <td className="px-4 py-3">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+                                {activity.action.replace(/_/g, ' ')}
+                              </span>
+                              {activity.detail && (
+                                <span className="text-slate-400 ml-2">{activity.detail}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-slate-400">{activity.lead || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
 
               {/* Inbound Telemetry Status Feed */}
               <section className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl">

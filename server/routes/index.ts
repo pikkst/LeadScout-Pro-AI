@@ -3,6 +3,8 @@ import { Router } from "express";
 import { authRouter } from "./auth.routes";
 import { leadsRouter } from "./leads.routes";
 import { pitchesRouter } from "./pitches.routes";
+import { templatesRouter } from "./templates.routes";
+import { eventsRouter } from "./events.routes";
 import { aiRouter } from "./ai.routes";
 import { statsRouter } from "./stats.routes";
 import { settingsRouter } from "./settings.routes";
@@ -23,6 +25,8 @@ apiRouter.get("/health", async (_req, res) => {
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/leads", leadsRouter);
 apiRouter.use("/pitches", pitchesRouter);
+apiRouter.use("/templates", templatesRouter);
+apiRouter.use("/events", eventsRouter);
 apiRouter.use("/stats", statsRouter);
 apiRouter.use("/ai", aiRouter);
 apiRouter.use("/settings", settingsRouter);

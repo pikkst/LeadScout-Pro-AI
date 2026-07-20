@@ -1,6 +1,7 @@
 import React from 'react';
-import { OutreachPitch } from '../types';
-import { SendHorizontal, Sparkles, Edit2, Trash2, Send, Inbox } from 'lucide-react';
+import { OutreachPitch, PitchEvent } from '../types';
+import * as crm from '../services/crmService';
+import { SendHorizontal, Sparkles, Edit2, Trash2, Send, Inbox, RefreshCw } from 'lucide-react';
 
 export interface OutreachTabProps {
   pitches: OutreachPitch[];
@@ -27,9 +28,62 @@ export const OutreachTab: React.FC<OutreachTabProps> = ({
   onMarkReplied,
   onNavigateToScout,
 }) => {
+  const [expandedPitchId, setExpandedPitchId] = React.useState<string | null>(null);
+  const [eventsMap, setEventsMap] = React.useState<Record<string, PitchEvent[]>>({});
+  const [loadingEvents, setLoadingEvents] = React.useState<Record<string, boolean>>({});
+
   const sentOrDeliveredPitches = pitches.filter(
     p => p.status === 'Sent' || p.status === 'Delivered' || p.status === 'Replied'
   );
+
+  const loadEvents = async (pitchId: string) => {
+    setLoadingEvents(prev => ({ ...prev, [pitchId]: true }));
+    try {
+      const events = await crm.fetchPitchEvents(pitchId);
+      setEventsMap(prev => ({ ...prev, [pitchId]: events }));
+    } catch (err) {
+      console.error('Failed to load pitch events:', err);
+    } finally {
+      setLoadingEvents(prev => ({ ...prev, [pitchId]: false }));
+    }
+  };
+
+  const toggleEvents = (pitchId: string) => {
+    if (expandedPitchId === pitchId) {
+      setExpandedPitchId(null);
+    } else {
+      setExpandedPitchId(pitchId);
+      if (!eventsMap[pitchId]) {
+        loadEvents(pitchId);
+      }
+    }
+  };
+
+  const getEventIcon = (type: string) => {
+    switch (type) {
+      case 'SENT': return '📤';
+      case 'DELIVERED': return '📥';
+      case 'OPENED': return '👁️';
+      case 'CLICKED': return '🖱️';
+      case 'REPLIED': return '💬';
+      case 'BOUNCED': return '⚠️';
+      case 'FAILED': return '❌';
+      default: return '📋';
+    }
+  };
+
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case 'SENT': return 'text-sky-400';
+      case 'DELIVERED': return 'text-emerald-400';
+      case 'OPENED': return 'text-purple-400';
+      case 'CLICKED': return 'text-amber-400';
+      case 'REPLIED': return 'text-emerald-400';
+      case 'BOUNCED': return 'text-rose-400';
+      case 'FAILED': return 'text-rose-400';
+      default: return 'text-slate-400';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -109,6 +163,21 @@ export const OutreachTab: React.FC<OutreachTabProps> = ({
                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Subject</div>
                     <div className="text-xs font-mono text-slate-300 line-clamp-1">{pitch.subject}</div>
                   </div>
+
+                  {pitch.events && pitch.events.length > 0 && (
+                    <div className="mb-4 space-y-1.5">
+                      <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Event Timeline</div>
+                      {pitch.events.slice(0, 4).map((event) => (
+                        <div key={event.id} className="flex items-center gap-2 text-[10px]">
+                          <span>{getEventIcon(event.type)}</span>
+                          <span className={`font-mono ${getEventColor(event.type)}`}>{event.type}</span>
+                          <span className="text-slate-500">
+                            {new Date(event.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between items-center pt-3 border-t border-slate-850">

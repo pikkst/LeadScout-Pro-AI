@@ -36,6 +36,7 @@ export interface CompanyLead {
   description: string;
   sourceUrl?: string;
   isVerified?: boolean;
+  source?: 'AI_SCOUT' | 'MANUAL' | 'CSV_IMPORT' | 'PITCH_REPLY' | 'OTHER';
   // CRM Properties
   stage?: 'Discovered' | 'Contacted' | 'Negotiation' | 'Signed' | 'Active' | 'Archived';
   notes?: string;
@@ -43,6 +44,7 @@ export interface CompanyLead {
   estimatedValue?: number; // Potential monthly value in EUR
   assignedAgent?: string;
   assignedAgentId?: string;
+  createdById?: string;
   focus?: string;
   createdAt?: string;
   lastContactedAt?: string;
@@ -94,4 +96,25 @@ export interface OutreachPitch {
   status: 'Draft' | 'Sent' | 'Delivered' | 'Replied' | 'Failed';
   sentAt?: string;
   opened?: boolean;
+  events?: PitchEvent[];
+}
+
+export interface PitchTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  htmlContent: string;
+  textContent: string;
+  focus?: string;
+  createdById?: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PitchEvent {
+  id: string;
+  pitchId: string;
+  type: 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'REPLIED' | 'BOUNCED' | 'FAILED';
+  createdAt: string;
 }

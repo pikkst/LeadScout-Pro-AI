@@ -22,7 +22,9 @@ import {
   Check,
   X,
   Video,
-  ExternalLink
+  ExternalLink,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 
 interface B2BPipelineBoardProps {
@@ -34,6 +36,12 @@ interface B2BPipelineBoardProps {
   onExportBackup?: () => void;
   onImportBackup?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onUpdateFollowUpTask: (leadId: string, taskName: string, dueDate: string, isCompleted: boolean, notes: string) => void;
+  mineFilter?: boolean;
+  onToggleMineFilter?: () => void;
+  totalLeadsCount?: number;
+  selectedLeadIds?: Set<string>;
+  onSelectLead?: (id: string) => void;
+  onBulkUpdateStage?: (stage: NonNullable<CompanyLead['stage']>) => void;
 }
 
 const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: string; bg: string; text: string; border: string; desc: string }[] = [
@@ -92,7 +100,13 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
   onAddLead,
   onExportBackup,
   onImportBackup,
-  onUpdateFollowUpTask
+  onUpdateFollowUpTask,
+  mineFilter,
+  onToggleMineFilter,
+  totalLeadsCount,
+  selectedLeadIds,
+  onSelectLead,
+  onBulkUpdateStage,
 }) => {
   
   // Scheduler rescheduling states
@@ -181,7 +195,9 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
         <div className="flex items-center gap-4 text-xs font-mono">
           <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800/80">
             <span className="text-slate-400">Total Leads:</span>{' '}
-            <strong className="text-white">{leads.filter(l => l.stage !== 'Archived').length}</strong>
+            <strong className="text-white">
+              {mineFilter && totalLeadsCount ? `${leads.filter(l => l.stage !== 'Archived').length}/${totalLeadsCount}` : leads.filter(l => l.stage !== 'Archived').length}
+            </strong>
           </div>
           <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800/80">
             <span className="text-sky-400">Weighted Pipe:</span>{' '}
@@ -193,8 +209,53 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
               <span className="text-[10px] text-slate-500 font-sans ml-1">/mo</span>
             </strong>
           </div>
+          {onToggleMineFilter && (
+            <button
+              onClick={onToggleMineFilter}
+              className={`text-[10px] border px-3 py-1.5 rounded-lg font-bold uppercase transition-all ${
+                mineFilter
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                  : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
+              }`}
+            >
+              {mineFilter ? 'Only Mine' : 'All'}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedLeadIds && selectedLeadIds.size > 0 && (
+        <div className="bg-sky-950/40 border border-sky-800/60 rounded-xl p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider">
+              {selectedLeadIds.size} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {STAGES.filter(s => s.value !== 'Archived').map(stage => (
+              <button
+                key={stage.value}
+                onClick={() => onBulkUpdateStage && onBulkUpdateStage(stage.value)}
+                className="text-[9px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg font-bold uppercase transition-colors"
+                title={`Move all selected to ${stage.label}`}
+              >
+                {stage.icon} {stage.label}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                if (onSelectLead) {
+                  selectedLeadIds.forEach(id => onSelectLead(id));
+                }
+              }}
+              className="text-[9px] bg-rose-900/30 hover:bg-rose-900/50 border border-rose-800/50 text-rose-400 px-2.5 py-1.5 rounded-lg font-bold uppercase transition-colors"
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 🚨 Overdue Follow-up Action Center */}
       {overdueLeads.length > 0 && (
@@ -334,8 +395,32 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
                     return (
                       <div 
                         key={lead.id}
-                        className="p-3.5 bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-xl space-y-3 transition-all duration-200 group shadow-md hover:shadow-lg"
+                        className={`p-3.5 bg-slate-900 border rounded-xl space-y-3 transition-all duration-200 group shadow-md hover:shadow-lg ${
+                          selectedLeadIds?.has(lead.id) 
+                            ? 'border-sky-500/60 ring-1 ring-sky-500/30' 
+                            : 'border-slate-800 hover:border-slate-700/80'
+                        }`}
                       >
+                        {/* Selection Checkbox */}
+                        {onSelectLead && (
+                          <div className="flex justify-between items-center">
+                            <button
+                              type="button"
+                              onClick={() => onSelectLead(lead.id)}
+                              className="text-slate-500 hover:text-sky-400 transition-colors"
+                            >
+                              {selectedLeadIds?.has(lead.id) ? (
+                                <CheckSquare className="w-4 h-4 text-sky-400" />
+                              ) : (
+                                <Square className="w-4 h-4" />
+                              )}
+                            </button>
+                            {selectedLeadIds?.has(lead.id) && (
+                              <span className="text-[8px] font-bold text-sky-400 uppercase tracking-wider">Selected</span>
+                            )}
+                          </div>
+                        )}
+
                         {/* Company Identifier */}
                         <div className="flex justify-between items-start gap-1">
                           <div className="space-y-0.5">

@@ -59,11 +59,13 @@ export function serializeLead(lead: any) {
     sourceUrl: lead.sourceUrl ?? undefined,
     focus: lead.focus ?? undefined,
     isVerified: lead.isVerified,
+    source: lead.source ?? undefined,
     stage: stageFromDb(lead.stage),
     notes: lead.notes ?? "",
     estimatedValue: lead.estimatedValue ?? 0,
     assignedAgent: lead.assignedAgent?.name ?? undefined,
     assignedAgentId: lead.assignedAgentId ?? undefined,
+    createdById: lead.createdBy?.id ?? undefined,
     createdAt: lead.createdAt?.toISOString?.() ?? lead.createdAt,
     lastContactedAt: lead.lastContactedAt?.toISOString?.() ?? lead.lastContactedAt ?? undefined,
     followUpTask: lead.followUpTask
@@ -107,6 +109,23 @@ export function serializePitch(p: any) {
     status: pitchStatusFromDb(p.status),
     sentAt: p.sentAt?.toISOString?.() ?? p.sentAt ?? undefined,
     opened: p.opened,
+    events: Array.isArray(p.events)
+      ? p.events.map((e: any) => ({
+          id: e.id,
+          pitchId: e.pitchId,
+          type: e.type,
+          createdAt: e.createdAt?.toISOString?.() ?? e.createdAt,
+        }))
+      : undefined,
+  };
+}
+
+export function serializePitchEvent(e: any) {
+  return {
+    id: e.id,
+    pitchId: e.pitchId,
+    type: e.type,
+    createdAt: e.createdAt?.toISOString?.() ?? e.createdAt,
   };
 }
 
@@ -118,5 +137,20 @@ export function serializeUser(u: any) {
     role: u.role,
     isActive: u.isActive,
     createdAt: u.createdAt?.toISOString?.() ?? u.createdAt,
+  };
+}
+
+export function serializeTemplate(t: any) {
+  return {
+    id: t.id,
+    name: t.name,
+    subject: t.subject,
+    htmlContent: t.htmlContent,
+    textContent: t.textContent,
+    focus: t.focus ?? undefined,
+    createdById: t.createdBy?.id ?? undefined,
+    createdByName: t.createdBy?.name ?? undefined,
+    createdAt: t.createdAt?.toISOString?.() ?? t.createdAt,
+    updatedAt: t.updatedAt?.toISOString?.() ?? t.updatedAt,
   };
 }

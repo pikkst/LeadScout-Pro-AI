@@ -92,11 +92,9 @@ export async function generateAndSavePitch(
   leadId: string,
   focus: string,
   preferredLanguage: string,
+  templateId?: string | null,
 ): Promise<OutreachPitch> {
-  return api<OutreachPitch>("/pitches/generate", {
-    method: "POST",
-    body: JSON.stringify({ leadId, focus, preferredLanguage }),
-  });
+  return api<OutreachPitch>("/pitches/generate", { method: "POST", body: JSON.stringify({ leadId, focus, preferredLanguage, templateId }) });
 }
 
 export async function updatePitch(
@@ -114,6 +112,10 @@ export async function deletePitch(id: string): Promise<void> {
   await api(`/pitches/${id}`, { method: "DELETE" });
 }
 
+export async function fetchPitchEvents(pitchId: string): Promise<PitchEvent[]> {
+  return api<PitchEvent[]>(`/events/pitch/${pitchId}`);
+}
+
 // ---- Stats ----
 export interface CrmStats {
   totalLeads: number;
@@ -127,4 +129,55 @@ export interface CrmStats {
 
 export async function fetchStats(): Promise<CrmStats> {
   return api<CrmStats>("/stats");
+}
+
+export async function fetchActivity(): Promise<ActivityItem[]> {
+  return api<ActivityItem[]>("/stats/activity");
+}
+
+// ---- Pitch Templates ----
+export async function listTemplates(): Promise<PitchTemplate[]> {
+  return api<PitchTemplate[]>("/templates");
+}
+
+export async function createTemplate(template: Partial<PitchTemplate>): Promise<PitchTemplate> {
+  return api<PitchTemplate>("/templates", { method: "POST", body: JSON.stringify(template) });
+}
+
+export async function updateTemplate(id: string, changes: Partial<PitchTemplate>): Promise<PitchTemplate> {
+  return api<PitchTemplate>(`/templates/${id}`, { method: "PATCH", body: JSON.stringify(changes) });
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await api(`/templates/${id}`, { method: "DELETE" });
+}
+
+// ---- Types ----
+export interface ActivityItem {
+  id: string;
+  action: string;
+  detail: string;
+  user: string;
+  lead: string | null;
+  createdAt: string;
+}
+
+export interface PitchTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  htmlContent: string;
+  textContent: string;
+  focus?: string;
+  createdById?: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PitchEvent {
+  id: string;
+  pitchId: string;
+  type: 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'REPLIED' | 'BOUNCED' | 'FAILED';
+  createdAt: string;
 }

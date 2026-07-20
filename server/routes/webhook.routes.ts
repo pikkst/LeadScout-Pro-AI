@@ -41,7 +41,19 @@ webhookRouter.post("/resend", async (req: Request & { rawBody?: string }, res) =
 
   if (pitchId && Object.keys(updates).length > 0) {
     try {
-      await prisma.pitch.update({ where: { id: pitchId }, data: updates });
+      const pitch = await prisma.pitch.update({ where: { id: pitchId }, data: updates });
+      
+      const eventType = type === "email.delivered" ? "DELIVERED" :
+                         type === "email.opened" ? "OPENED" :
+                         type === "email.clicked" ? "CLICKED" :
+                         type === "email.bounced" || type === "email.complained" ? "BOUNCED" :
+                         type === "email.replied" ? "REPLIED" : null;
+      
+      if (eventType) {
+        await prisma.pitchEvent.create({
+          data: { pitchId, type: eventType as any },
+        });
+      }
     } catch {
       /* pitch may have been deleted; ignore */
     }

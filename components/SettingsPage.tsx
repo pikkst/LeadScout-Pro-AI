@@ -16,6 +16,7 @@ import {
   Upload,
   Trash2,
 } from 'lucide-react';
+import { PitchTemplatesManager } from './PitchTemplates';
 import {
   fetchSettings,
   saveSettings,
@@ -508,6 +509,8 @@ export const SettingsPage: React.FC = () => {
           <ReadonlyRow label="JWT Secret" value={data.bootstrap.jwtConfigured ? 'Set' : 'Weak/Missing'} ok={data.bootstrap.jwtConfigured} />
         </div>
       </section>
+
+      <PitchTemplatesManager />
     </div>
   );
 };
