@@ -998,6 +998,13 @@ Date().toISOString().split('T')[0]}.json`);
       </div>
       )}
 
+      {/* Settings page (admin-only, full width) */}
+      {activeTab === 'settings' && isAdmin && (
+        <div className="mb-8">
+          <SettingsPage />
+        </div>
+      )}
+
       <AppFooter />
 
       <AppModals
