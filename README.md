@@ -60,41 +60,63 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 - **Contact verification**: Live domain pulse check + email authenticity validation
 - **24 industry segments**: VoIP carriers, fintech, manufacturing, healthcare, logistics, automotive, and more
 - **Duplicate prevention**: Skips already-imported leads by normalized domain or email
+- **Lead source tracking**: AI_SCOUT, MANUAL, CSV_IMPORT, PITCH_REPLY
 
 ### 3. Shared CRM Pipeline
-- Visual Kanban board with pipeline stages: New → Contacted → Negotiation → Won / Lost
+- Visual Kanban board with pipeline stages: Discovered → Contacted → Negotiation → Signed → Active
 - Follow-up task scheduling with due dates and completion tracking
 - Meeting notes and activity logging
+- **My Pipeline filter**: view only leads assigned to you or created by you
+- **Bulk stage updates**: select multiple leads and move them across stages
+- **Lead scoring**: 0-100 point score based on verification, value, stage, tasks, and meetings
+- **Overdue follow-up alerts** with action center
 - CSV export and JSON backup/restore
 
 ### 4. AI Outreach Generator
 - Generates localized partnership pitch emails in 7 languages
 - Uses your **Company Profile** (name, offerings, value prop) for brand-consistent messaging
+- **Template-based generation**: select a saved template as the structural base for AI personalization
 - HTML preview with live iframe and raw source editor
 - Bulk send, retry failed sends, and track delivery status
+- **Pitch Event Timeline**: see SENT → DELIVERED → OPENED → CLICKED → REPLIED events per pitch
 
 ### 5. Real Email Delivery (SMTP)
 - Configurable from the UI — no `.env` editing after deployment
 - Provider presets: Gmail, Microsoft 365/Outlook, SendGrid, Mailgun, Brevo, Zoho, Amazon SES, Resend
 - Live connection test button
 - Optional Resend webhook for delivery/open/bounce tracking
+- Auto-scheduled follow-up tasks after sending
 
-### 6. Company Profile System
-- Set once, used everywhere by AI agents
-- Editable fields: company name, logo, website, offerings, value proposition, contact email, preferred language
-- Makes the platform brand-agnostic — any organization can use it
+### 6. Pitch Templates
+- Save reusable email structures for faster outreach drafting
+- CRUD operations from Settings page
+- Templates can be focused by industry segment
+- AI uses templates as structural base while personalizing content
 
-### 7. Security
+### 7. Team Collaboration
+- **Team Activity Feed**: see who did what and when across the shared pipeline
+- Shared database — all leads, pitches, and logs visible to authorized team members
+- Lead assignment and ownership tracking
+
+### 8. Data Management
+- **CSV Import**: bulk import leads from CSV files
+- **CSV Export**: export pipeline to CSV for external analysis
+- JSON backup and restore
+- Column sorting in leads table
+- Lead source tracking (AI scouting, manual entry, CSV import, pitch reply)
+
+### 9. Dashboard & Analytics
+- Real-time stats: scouted profiles, selected targets, outreach sent, response rate
+- Communications log with status tracking
+- Overdue follow-up alerts with action center
+- **Browser notifications** for pitch sends and stage changes
+
+### 10. Security
 - Helmet, CORS, rate limiting
 - Input validation (Zod)
 - Hashed passwords (bcrypt)
 - AES-256-GCM encryption for secrets at rest
 - Optional public self-registration toggle
-
-### 8. Dashboard & Analytics
-- Real-time stats: scouted profiles, selected targets, outreach sent, response rate
-- Communications log with status tracking
-- Overdue follow-up alerts (contacted > 3 days without completion)
 
 ---
 
