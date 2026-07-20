@@ -80,6 +80,7 @@ model Lead {
   meetings     Meeting[]
   pitches      Pitch[]
   activities   ActivityLog[]
+  customFieldValues CustomFieldValue[]
 
   @@unique([website, email])
   @@index([domain])
@@ -238,4 +239,64 @@ model PitchTemplate {
 
   @@index([createdById])
   @@map("pitch_templates")
+}
+
+/// Custom field definition for leads (admin-configurable).
+model CustomFieldDefinition {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   // machine-readable key, e.g. "contract_value"
+  type        CustomFieldType @default(TEXT)
+  options     String? // JSON array for SELECT/MULTISELECT types
+  isRequired  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  values      CustomFieldValue[]
+
+  @@unique([key])
+  @@map("custom_field_definitions")
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  MULTISELECT
+  BOOLEAN
+}
+
+/// Value of a custom field for a specific lead.
+model CustomFieldValue {
+  id          String   @id @default(cuid())
+  value       String   // stored as string, cast based on field type
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  fieldId String
+  field   CustomFieldDefinition @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, fieldId])
+  @@index([leadId])
+  @@index([fieldId])
+  @@map("custom_field_values")
+}
+
+/// Custom pipeline stage (admin-configurable, replaces default LeadStage when active).
+model DealStage {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique // machine-readable key, e.g. "demo_scheduled"
+  color       String   @default("#64748b") // hex color for UI
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("deal_stages")
 }

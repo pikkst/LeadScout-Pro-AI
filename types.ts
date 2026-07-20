@@ -31,6 +31,7 @@ export interface CompanyLead {
   id: string;
   name: string;
   website: string;
+  domain?: string;
   category: string;
   email: string;
   description: string;
@@ -56,6 +57,37 @@ export interface CompanyLead {
     notes?: string;
   };
   scheduledMeetings?: ScheduledMeeting[];
+  customFieldValues?: Array<{
+    id: string;
+    fieldId: string;
+    key?: string;
+    name?: string;
+    type?: string;
+    value: string;
+  }>;
+}
+
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  key: string;
+  type: 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN';
+  options?: string;
+  isRequired?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DealStage {
+  id: string;
+  name: string;
+  key: string;
+  color: string;
+  sortOrder?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ScheduledMeeting {

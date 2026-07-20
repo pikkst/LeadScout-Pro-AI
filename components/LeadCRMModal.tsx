@@ -35,6 +35,8 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
   const [notes, setNotes] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<{ show: boolean; message: string; matches: any[] }>({ show: false, message: '', matches: [] });
+  const [customFields, setCustomFields] = useState<Array<{ id: string; name: string; key: string; type: string; options?: string; isRequired?: boolean }>>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
   // Scheduled Meetings & Calls
   const [scheduledMeetings, setScheduledMeetings] = useState<ScheduledMeeting[]>([]);
@@ -121,6 +123,22 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     return () => clearTimeout(timer);
   }, [website, email, name, isOpen]);
 
+  // Load custom fields definitions
+  useEffect(() => {
+    if (!isOpen) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/custom-fields', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) setCustomFields(data);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { mounted = false; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -142,7 +160,8 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
       notes,
       scheduledMeetings,
       createdAt: lead?.createdAt || new Date().toISOString(),
-      lastContactedAt: lead?.lastContactedAt
+      lastContactedAt: lead?.lastContactedAt,
+      customFieldValues: Object.entries(customFieldValues).map(([fieldId, value]) => ({ fieldId, value })),
     });
   };
 
@@ -373,6 +392,100 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/40 font-semibold"
             />
           </div>
+
+          {/* Custom Fields */}
+          {customFields.length > 0 && (
+            <div className="bg-slate-950/40 border border-purple-500/20 rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                Custom Fields
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {customFields.map(field => (
+                  <div key={field.id}>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      {field.name} {field.isRequired && <span className="text-rose-400">*</span>}
+                    </label>
+                    {field.type === 'TEXT' && (
+                      <input
+                        type="text"
+                        value={customFieldValues[field.id] || ''}
+                        onChange={(e) => setCustomFieldValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                        placeholder={field.name}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      />
+                    )}
+                    {field.type === 'NUMBER' && (
+                      <input
+                        type="number"
+                        value={customFieldValues[field.id] || ''}
+                        onChange={(e) => setCustomFieldValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                        placeholder="0"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      />
+                    )}
+                    {field.type === 'DATE' && (
+                      <input
+                        type="date"
+                        value={customFieldValues[field.id] || ''}
+                        onChange={(e) => setCustomFieldValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      />
+                    )}
+                    {field.type === 'SELECT' && field.options && (
+                      <select
+                        value={customFieldValues[field.id] || ''}
+                        onChange={(e) => setCustomFieldValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      >
+                        <option value="">Select...</option>
+                        {field.options.split(',').map(opt => (
+                          <option key={opt.trim()} value={opt.trim()}>{opt.trim()}</option>
+                        ))}
+                      </select>
+                    )}
+                    {field.type === 'MULTISELECT' && field.options && (
+                      <div className="flex flex-wrap gap-2">
+                        {field.options.split(',').map(opt => {
+                          const val = opt.trim();
+                          const selected = customFieldValues[field.id]?.split(',').includes(val);
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => {
+                                const current = customFieldValues[field.id]?.split(',').filter(Boolean) || [];
+                                const next = selected ? current.filter(v => v !== val) : [...current, val];
+                                setCustomFieldValues(prev => ({ ...prev, [field.id]: next.join(',') }));
+                              }}
+                              className={`text-[10px] px-2.5 py-1.5 rounded-lg border font-semibold transition-colors ${
+                                selected
+                                  ? 'bg-purple-500/20 text-purple-400 border-purple-500/40'
+                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              {val}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {field.type === 'BOOLEAN' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`cf-${field.id}`}
+                          checked={customFieldValues[field.id] === 'true'}
+                          onChange={(e) => setCustomFieldValues(prev => ({ ...prev, [field.id]: e.target.checked ? 'true' : 'false' }))}
+                          className="rounded border-slate-700 bg-slate-900 text-purple-500 focus:ring-purple-500/40"
+                        />
+                        <label htmlFor={`cf-${field.id}`} className="text-[10px] text-slate-400">Yes</label>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Call & Meeting Scheduler (Calendar Integration) */}
           <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-5 space-y-4">

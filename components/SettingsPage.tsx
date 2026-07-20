@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { PitchTemplatesManager } from './PitchTemplates';
+import { CustomFieldsSettings } from './CustomFieldsSettings';
 import {
   fetchSettings,
   saveSettings,
@@ -510,6 +511,7 @@ export const SettingsPage: React.FC = () => {
         </div>
       </section>
 
+      <CustomFieldsSettings />
       <PitchTemplatesManager />
     </div>
   );

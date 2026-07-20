@@ -501,6 +501,16 @@ reconnaissance.`,
       });
 
       addLog(`[CRM-Database] Saved profile for ${result.name} in client index.`);
+
+      // Save custom field values
+      if (savedLead.customFieldValues && savedLead.customFieldValues.length > 0) {
+        try {
+          await crm.setLeadCustomFields(result.id, savedLead.customFieldValues.map(cfv => ({ fieldId: cfv.fieldId, value: cfv.value })));
+        } catch (cfErr) {
+          console.warn('Failed to save custom field values:', cfErr);
+        }
+      }
+
       setIsCRMModalOpen(false);
       setSelectedCRMLead(null);
     } catch (err) {

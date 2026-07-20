@@ -52,6 +52,7 @@ export function serializeLead(lead: any) {
     id: lead.id,
     name: lead.name,
     website: lead.website,
+    domain: lead.domain,
     category: lead.category,
     email: lead.email,
     description: lead.description ?? "",
@@ -80,6 +81,16 @@ export function serializeLead(lead: any) {
     scheduledMeetings: Array.isArray(lead.meetings)
       ? lead.meetings.map(serializeMeeting)
       : undefined,
+    customFieldValues: Array.isArray(lead.customFieldValues)
+      ? lead.customFieldValues.map((cfv: any) => ({
+          id: cfv.id,
+          fieldId: cfv.fieldId,
+          key: cfv.field?.key,
+          name: cfv.field?.name,
+          type: cfv.field?.type,
+          value: cfv.value,
+        }))
+      : [],
   };
 }
 

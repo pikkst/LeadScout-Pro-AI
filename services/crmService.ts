@@ -120,6 +120,48 @@ export async function fetchPitchEvents(pitchId: string): Promise<PitchEvent[]> {
   return api<PitchEvent[]>(`/events/pitch/${pitchId}`);
 }
 
+// ---- Custom Fields ----
+export async function listCustomFields(): Promise<CustomFieldDefinition[]> {
+  return api<CustomFieldDefinition[]>("/custom-fields");
+}
+
+export async function createCustomField(field: Partial<CustomFieldDefinition>): Promise<CustomFieldDefinition> {
+  return api<CustomFieldDefinition>("/custom-fields", { method: "POST", body: JSON.stringify(field) });
+}
+
+export async function updateCustomField(id: string, changes: Partial<CustomFieldDefinition>): Promise<CustomFieldDefinition> {
+  return api<CustomFieldDefinition>(`/custom-fields/${id}`, { method: "PATCH", body: JSON.stringify(changes) });
+}
+
+export async function deleteCustomField(id: string): Promise<void> {
+  await api(`/custom-fields/${id}`, { method: "DELETE" });
+}
+
+export async function getLeadCustomFields(leadId: string): Promise<any[]> {
+  return api<any[]>(`/leads/${leadId}/custom-fields`);
+}
+
+export async function setLeadCustomFields(leadId: string, values: Array<{ fieldId: string; value: string }>): Promise<any[]> {
+  return api<any[]>(`/leads/${leadId}/custom-fields`, { method: "PUT", body: JSON.stringify(values) });
+}
+
+// ---- Deal Stages ----
+export async function listDealStages(): Promise<DealStage[]> {
+  return api<DealStage[]>("/custom-fields/stages");
+}
+
+export async function createDealStage(stage: Partial<DealStage>): Promise<DealStage> {
+  return api<DealStage>("/custom-fields/stages", { method: "POST", body: JSON.stringify(stage) });
+}
+
+export async function updateDealStage(id: string, changes: Partial<DealStage>): Promise<DealStage> {
+  return api<DealStage>(`/custom-fields/stages/${id}`, { method: "PATCH", body: JSON.stringify(changes) });
+}
+
+export async function deleteDealStage(id: string): Promise<void> {
+  await api(`/custom-fields/stages/${id}`, { method: "DELETE" });
+}
+
 // ---- Stats ----
 export interface CrmStats {
   totalLeads: number;
@@ -184,4 +226,27 @@ export interface PitchEvent {
   pitchId: string;
   type: 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'REPLIED' | 'BOUNCED' | 'FAILED';
   createdAt: string;
+}
+
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  key: string;
+  type: 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN';
+  options?: string;
+  isRequired?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DealStage {
+  id: string;
+  name: string;
+  key: string;
+  color: string;
+  sortOrder?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }

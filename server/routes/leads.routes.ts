@@ -26,6 +26,7 @@ const leadInclude = {
   createdBy: { select: { id: true, name: true } },
   followUpTask: true,
   meetings: { orderBy: { date: "asc" as const } },
+  customFieldValues: { include: { field: true } },
 };
 
 const STAGE_VALUES = ["Discovered", "Contacted", "Negotiation", "Signed", "Active", "Archived"] as const;
@@ -443,3 +444,45 @@ leadsRouter.post(
     res.json({ duplicate: similar.length > 0, matches: similar });
   }),
 );
+
+// ---- Custom field values for a lead ----
+const cfvSchema = z.object({
+  fieldId: z.string(),
+  value: z.string().default(""),
+});
+
+leadsRouter.get("/:id/custom-fields", asyncHandler(async (req, res) => {
+  const lead = await prisma.lead.findUnique({
+    where: { id: param(req, "id") },
+    include: {
+      customFieldValues: { include: { field: true } },
+    },
+  });
+  if (!lead) throw notFound("Lead not found");
+  res.json(lead.customFieldValues);
+}));
+
+leadsRouter.put("/:id/custom-fields", validate({ body: z.array(cfvSchema) }), asyncHandler(async (req, res) => {
+  const values = req.body as z.infer<typeof cfvSchema>[];
+  const leadId = param(req, "id");
+
+  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  if (!lead) throw notFound("Lead not found");
+
+  await prisma.customFieldValue.deleteMany({ where: { leadId } });
+
+  const created = await prisma.customFieldValue.createMany({
+    data: values.map(v => ({
+      leadId,
+      fieldId: v.fieldId,
+      value: v.value,
+    })),
+  });
+
+  const updated = await prisma.lead.findUnique({
+    where: { id: leadId },
+    include: { customFieldValues: { include: { field: true } } },
+  });
+
+  res.json(updated?.customFieldValues ?? []);
+}));
