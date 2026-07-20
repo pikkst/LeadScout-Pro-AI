@@ -19,8 +19,8 @@ import {
 import { PitchTemplatesManager } from './PitchTemplates';
 import { CustomFieldsSettings } from './CustomFieldsSettings';
 import { SequencesSettings } from './SequencesSettings';
-import { RoutingSettings } from './RoutingSettings';
-import { ApiSettingsTab } from './ApiSettingsTab';
+import RoutingSettings from './RoutingSettings';
+import ApiSettingsTab from './ApiSettingsTab';
 import {
   fetchSettings,
   saveSettings,

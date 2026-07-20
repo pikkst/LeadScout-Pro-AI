@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText } from 'lucide-react';
+import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity } from 'lucide-react';
 
 interface Tab {
   id: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'settings';
