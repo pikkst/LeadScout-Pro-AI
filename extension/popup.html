@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeadScout PRO AI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>LeadScout PRO AI</h1>
+      <p class="subtitle">Quick Add Lead</p>
+    </header>
+
+    <form id="leadForm">
+      <div class="form-group">
+        <label for="name">Company Name *</label>
+        <input type="text" id="name" name="name" placeholder="Acme Corp" required>
+      </div>
+
+      <div class="form-group">
+        <label for="website">Website</label>
+        <input type="text" id="website" name="website" placeholder="acme.com">
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="info@acme.com">
+      </div>
+
+      <div class="form-group">
+        <label for="category">Category</label>
+        <select id="category" name="category">
+          <option value="voip_carriers">VoIP Carriers</option>
+          <option value="sms_aggregators">SMS Aggregators</option>
+          <option value="fintech">Fintech</option>
+          <option value="ecommerce">E-commerce</option>
+          <option value="call_centers">Call Centers</option>
+          <option value="mvnos">MVNOs</option>
+          <option value="enterprise_saas">Enterprise SaaS</option>
+          <option value="manufacturing">Manufacturing</option>
+          <option value="healthcare">Healthcare</option>
+          <option value="logistics">Logistics</option>
+          <option value="automotive">Automotive</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="2" placeholder="Brief description..."></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" id="saveBtn" class="btn-primary">Save Lead</button>
+        <button type="button" id="autoFillBtn" class="btn-secondary">Auto-fill from Page</button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </form>
+
+    <footer>
+      <p class="text-xs text-gray-500">Powered by LeadScout PRO AI</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

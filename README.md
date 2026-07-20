@@ -303,7 +303,17 @@ The AI generates personalized outreach emails for each selected lead using your 
    - Schedule meetings
    - Add notes and update estimated value
 
----
+### Step 7: Chrome Extension (Quick Add)
+
+1. Open `chrome://extensions/` in Chrome
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `extension` folder
+4. The extension icon appears in your toolbar
+5. Visit any LinkedIn company page, Google Maps listing, or website
+6. Click the extension icon and:
+   - Click **Auto-fill from Page** to extract company info
+   - Or fill in details manually
+   - Click **Save Lead** to add to your pipeline
 
 ## In-App Settings (Admin)
 
