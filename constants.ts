@@ -1,0 +1,40 @@
+import { LeadFocus } from './types';
+
+export const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string; pitchType: string }[] = [
+  { value: 'voip_carriers', label: 'VoIP Carriers & Wholesalers', icon: '📞', pitchType: 'Wholesale SIP Interconnection' },
+  { value: 'sms_aggregators', label: 'SMS Hubs & Aggregators', icon: '💬', pitchType: 'A2P SMS Route Partnership' },
+  { value: 'fintech', label: 'Fintech & Digital Banking', icon: '💳', pitchType: 'OTP & 2FA Deliverability API' },
+  { value: 'ecommerce', label: 'E-commerce & Retail Logistics', icon: '📦', pitchType: 'Customer Delivery Alerts API' },
+  { value: 'call_centers', label: 'Contact Centers & CCaaS', icon: '🎧', pitchType: 'SIP Trunking & DID Capacity' },
+  { value: 'mvnos', label: 'MVNOs & Local ISPs', icon: '📶', pitchType: 'Gateway Transit Interconnect' },
+  { value: 'enterprise_saas', label: 'Enterprise SaaS & CRM Platforms', icon: '☁️', pitchType: 'Developer CPaaS Integration' },
+  { value: 'manufacturing', label: 'Manufacturing', icon: '🏭', pitchType: 'Industrial Partnership' },
+  { value: 'industrial', label: 'Industrial & Heavy Industry', icon: '⚙️', pitchType: 'Industrial Partnership' },
+  { value: 'retail', label: 'Retail & Consumer Goods', icon: '🛍️', pitchType: 'Retail Partnership' },
+  { value: 'technology', label: 'Technology & Hardware', icon: '🔧', pitchType: 'Technology Partnership' },
+  { value: 'it_services', label: 'IT Services & Managed Services', icon: '🖥️', pitchType: 'IT Services Partnership' },
+  { value: 'software', label: 'Software & Apps', icon: '💻', pitchType: 'Software Partnership' },
+  { value: 'healthcare', label: 'Healthcare & Pharma', icon: '🏥', pitchType: 'Healthcare Partnership' },
+  { value: 'finance', label: 'Finance & Insurance', icon: '🏦', pitchType: 'Financial Partnership' },
+  { value: 'real_estate', label: 'Real Estate & PropTech', icon: '🏢', pitchType: 'Real Estate Partnership' },
+  { value: 'construction', label: 'Construction & Building', icon: '🚧', pitchType: 'Construction Partnership' },
+  { value: 'energy', label: 'Energy & Utilities', icon: '⚡', pitchType: 'Energy Partnership' },
+  { value: 'logistics', label: 'Logistics & Supply Chain', icon: '🚚', pitchType: 'Logistics Partnership' },
+  { value: 'travel_hospitality', label: 'Travel, Hospitality & Leisure', icon: '🏖️', pitchType: 'Travel & Hospitality Partnership' },
+  { value: 'media', label: 'Media & Entertainment', icon: '🎬', pitchType: 'Media Partnership' },
+  { value: 'education', label: 'Education & EdTech', icon: '🎓', pitchType: 'Education Partnership' },
+  { value: 'professional_services', label: 'Professional & Consulting Services', icon: '💼', pitchType: 'Professional Services Partnership' },
+  { value: 'telecom', label: 'Telecom & Connectivity', icon: '📡', pitchType: 'Telecom Partnership' },
+  { value: 'automotive', label: 'Automotive & Mobility', icon: '🚗', pitchType: 'Automotive Partnership' },
+  { value: 'food_beverage', label: 'Food & Beverage', icon: '🍽️', pitchType: 'Food & Beverage Partnership' },
+];
+
+export const LANGUAGE_OPTIONS = [
+  { value: 'Auto-Detect', label: '🌐 Auto-Detect Language' },
+  { value: 'English', label: '🇺🇸 English' },
+  { value: 'Estonian', label: '🇪🇪 Estonian (Eesti keel)' },
+  { value: 'German', label: '🇩🇪 German (Deutsch)' },
+  { value: 'French', label: '🇫🇷 French (Français)' },
+  { value: 'Spanish', label: '🇪🇸 Spanish (Español)' },
+  { value: 'Italian', label: '🇮🇹 Italian (Italiano)' },
+];

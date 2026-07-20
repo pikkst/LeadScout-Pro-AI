@@ -10,6 +10,12 @@ import { LeadCRMModal } from './components/LeadCRMModal';
 import { B2BPipelineBoard } from './components/B2BPipelineBoard';
 import { CRMStatsDashboard } from './components/CRMStatsDashboard';
 import { SettingsPage } from './components/SettingsPage';
+import { ScoutTab } from './components/ScoutTab';
+import { OutreachTab } from './components/OutreachTab';
+import { PitchPreviewModal } from './components/PitchPreviewModal';
+import { AppHeader } from './components/AppHeader';
+import { AppFooter } from './components/AppFooter';
+import { AppModals } from './components/AppModals';
 import { 
   Globe, 
   Search, 
@@ -19,7 +25,6 @@ import {
   Square, 
   Send, 
   Download, 
-  FileText, 
   CheckCircle2, 
   AlertCircle, 
   ExternalLink,
@@ -35,7 +40,6 @@ import {
   Inbox,
   Sparkles,
   Layers,
-  FileCode,
   Plus,
   Upload,
   Calendar,
@@ -43,47 +47,7 @@ import {
   LogOut,
   Settings as SettingsIcon
 } from 'lucide-react';
-
-const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string; pitchType: string }[] = [
-  // Telecom / Communications (original)
-  { value: 'voip_carriers', label: 'VoIP Carriers & Wholesalers', icon: '📞', pitchType: 'Wholesale SIP Interconnection' },
-  { value: 'sms_aggregators', label: 'SMS Hubs & Aggregators', icon: '💬', pitchType: 'A2P SMS Route Partnership' },
-  { value: 'fintech', label: 'Fintech & Digital Banking', icon: '💳', pitchType: 'OTP & 2FA Deliverability API' },
-  { value: 'ecommerce', label: 'E-commerce & Retail Logistics', icon: '📦', pitchType: 'Customer Delivery Alerts API' },
-  { value: 'call_centers', label: 'Contact Centers & CCaaS', icon: '🎧', pitchType: 'SIP Trunking & DID Capacity' },
-  { value: 'mvnos', label: 'MVNOs & Local ISPs', icon: '📶', pitchType: 'Gateway Transit Interconnect' },
-  { value: 'enterprise_saas', label: 'Enterprise SaaS & CRM Platforms', icon: '☁️', pitchType: 'Developer CPaaS Integration' },
-  // Universal / cross-industry
-  { value: 'manufacturing', label: 'Manufacturing', icon: '🏭', pitchType: 'Industrial Partnership' },
-  { value: 'industrial', label: 'Industrial & Heavy Industry', icon: '⚙️', pitchType: 'Industrial Partnership' },
-  { value: 'retail', label: 'Retail & Consumer Goods', icon: '🛍️', pitchType: 'Retail Partnership' },
-  { value: 'technology', label: 'Technology & Hardware', icon: '🔧', pitchType: 'Technology Partnership' },
-  { value: 'it_services', label: 'IT Services & Managed Services', icon: '🖥️', pitchType: 'IT Services Partnership' },
-  { value: 'software', label: 'Software & Apps', icon: '💻', pitchType: 'Software Partnership' },
-  { value: 'healthcare', label: 'Healthcare & Pharma', icon: '🏥', pitchType: 'Healthcare Partnership' },
-  { value: 'finance', label: 'Finance & Insurance', icon: '🏦', pitchType: 'Financial Partnership' },
-  { value: 'real_estate', label: 'Real Estate & PropTech', icon: '🏢', pitchType: 'Real Estate Partnership' },
-  { value: 'construction', label: 'Construction & Building', icon: '🚧', pitchType: 'Construction Partnership' },
-  { value: 'energy', label: 'Energy & Utilities', icon: '⚡', pitchType: 'Energy Partnership' },
-  { value: 'logistics', label: 'Logistics & Supply Chain', icon: '🚚', pitchType: 'Logistics Partnership' },
-  { value: 'travel_hospitality', label: 'Travel, Hospitality & Leisure', icon: '🏖️', pitchType: 'Travel & Hospitality Partnership' },
-  { value: 'media', label: 'Media & Entertainment', icon: '🎬', pitchType: 'Media Partnership' },
-  { value: 'education', label: 'Education & EdTech', icon: '🎓', pitchType: 'Education Partnership' },
-  { value: 'professional_services', label: 'Professional & Consulting Services', icon: '💼', pitchType: 'Professional Services Partnership' },
-  { value: 'telecom', label: 'Telecom & Connectivity', icon: '📡', pitchType: 'Telecom Partnership' },
-  { value: 'automotive', label: 'Automotive & Mobility', icon: '🚗', pitchType: 'Automotive Partnership' },
-  { value: 'food_beverage', label: 'Food & Beverage', icon: '🍽️', pitchType: 'Food & Beverage Partnership' },
-];
-
-const LANGUAGE_OPTIONS = [
-  { value: 'Auto-Detect', label: '🌐 Auto-Detect Language' },
-  { value: 'English', label: '🇺🇸 English' },
-  { value: 'Estonian', label: '🇪🇪 Estonian (Eesti keel)' },
-  { value: 'German', label: '🇩🇪 German (Deutsch)' },
-  { value: 'French', label: '🇫🇷 French (Français)' },
-  { value: 'Spanish', label: '🇪🇸 Spanish (Español)' },
-  { value: 'Italian', label: '🇮🇹 Italian (Italiano)' }
-];
+import { FOCUS_OPTIONS, LANGUAGE_OPTIONS } from './constants';
 
 const App: React.FC = () => {
   const { user, logout } = useAuth();
@@ -639,144 +603,16 @@ Date().toISOString().split('T')[0]}.json`);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-12 text-slate-100 font-sans">
-      
-      {/* Header Panel */}
-      <header className="mb-10 text-center relative">
-        <div className="absolute right-0 top-0 flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-bold text-slate-200">{user?.name}</div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">{user?.role}</div>
-          </div>
-          <button
-            onClick={() => logout()}
-            title="Sign out"
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign out</span>
-          </button>
-        </div>
-        <div className="inline-flex items-center gap-2 bg-sky-500/10 border border-sky-500/30 px-4 py-1.5 rounded-full text-sky-400 text-xs font-semibold mb-4 uppercase tracking-widest">
-          <Globe className="w-3.5 h-3.5 animate-spin-slow" />
-          LeadScout PRO AI Portal
-        </div>
-        <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-3 bg-gradient-to-r from-white via-sky-100 to-slate-400 bg-clip-text text-transparent">
-          LeadScout PRO AI
-        </h1>
-        <p className="text-slate-400 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
-          Autonomous B2B partner mapping and outreach engine. Real-time city-by-city company search, contact verification, and localized AI email outreach across any industry.
-        </p>
-      </header>
-
-      {/* Main Stats Ticker */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Scouted Profiles</span>
-          <span className="text-2xl font-black text-white mt-1 flex items-center gap-2">
-            <Database className="w-5 h-5 text-sky-500" />
-            {stats.totalLeads}
-          </span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Targets Selected</span>
-          <span className="text-2xl font-black text-sky-400 mt-1 flex items-center gap-2">
-            <CheckSquare className="w-5 h-5 text-sky-400" />
-            {stats.selectedLeadsCount} / {stats.totalLeads}
-          </span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Outreach Sent</span>
-          <span className="text-2xl font-black text-purple-400 mt-1 flex items-center gap-2">
-            <Mail className="w-5 h-5 text-purple-400" />
-            {stats.totalSent}
-          </span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Response Rate</span>
-          <span className="text-2xl font-black text-emerald-400 mt-1 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-emerald-400" />
-            {stats.replyRate}% <span className="text-xs text-slate-500 font-normal">({stats.totalReplies} leads)</span>
-          </span>
-        </div>
-      </section>
-
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-800 mb-8 gap-1.5 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('scout')}
-          className={`px-5 py-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
-            activeTab === 'scout' 
-              ? 'border-sky-500 text-sky-400 bg-sky-500/5' 
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Search className="w-4 h-4" />
-          1. AI Partner Scout
-        </button>
-        <button
-          onClick={() => setActiveTab('outreach')}
-          className={`px-5 py-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap relative ${
-            activeTab === 'outreach' 
-              ? 'border-sky-500 text-sky-400 bg-sky-500/5' 
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          2. AI Campaigns
-          {pitches.length > 0 && (
-            <span className="bg-sky-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded-full absolute -top-1 -right-1">
-              {pitches.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('crm')}
-          className={`px-5 py-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap relative ${
-            activeTab === 'crm' 
-              ? 'border-sky-500 text-sky-400 bg-sky-500/5' 
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Database className="w-4 h-4 text-sky-400" />
-          3. CRM Client Database
-          {overdueLeadsCount > 0 && (
-            <span className="bg-amber-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded-full absolute -top-1 -right-1 animate-pulse">
-              {overdueLeadsCount} DUE
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`px-5 py-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
-            activeTab === 'dashboard' 
-              ? 'border-sky-500 text-sky-400 bg-sky-500/5' 
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          4. Executive Analytics
-        </button>
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-5 py-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
-              activeTab === 'settings'
-                ? 'border-sky-500 text-sky-400 bg-sky-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <SettingsIcon className="w-4 h-4" />
-            Settings
-          </button>
-        )}
-      </div>
-
-      {/* Settings page (admin-only, full width) */}
-      {activeTab === 'settings' && isAdmin && (
-        <div className="mb-8">
-          <SettingsPage />
-        </div>
-      )}
+      <AppHeader
+        user={user}
+        isAdmin={isAdmin}
+        activeTab={activeTab}
+        stats={stats}
+        pitchesCount={pitches.length}
+        overdueLeadsCount={overdueLeadsCount}
+        onTabChange={setActiveTab}
+        onLogout={logout}
+      />
 
       {/* Main Container */}
       {activeTab !== 'settings' && (
@@ -987,320 +823,49 @@ Date().toISOString().split('T')[0]}.json`);
 
           {/* TAB 1: SCOUT & VERIFY LEADS */}
           {activeTab === 'scout' && (
-            <div className="space-y-6">
-              <section className="bg-slate-950/30 border border-slate-850 rounded-2xl p-6 min-h-[550px] flex flex-col relative shadow-xl">
-                
-                {/* Section Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-slate-850">
-                  <div>
-                    <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-                      Scouted Telecom Partners
-                      {leads.length > 0 && (
-                        <span className="bg-sky-500/10 text-sky-400 text-[10px] px-2.5 py-1 rounded-full border border-sky-500/20 font-mono font-bold">
-                          {leads.length} Verified Targets
-                        </span>
-                      )}
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-1">Select targets to initialize personalized wholesale CPaaS and voice campaigns.</p>
-                  </div>
-
-                  <div className="flex items-center flex-wrap gap-2">
-                    <button
-                      onClick={() => { setSelectedCRMLead(null); setIsCRMModalOpen(true); }}
-                      className="flex items-center gap-1.5 text-[10px] bg-sky-500/15 text-sky-400 hover:text-white hover:bg-sky-500 border border-sky-500/30 px-3 py-1.5 rounded-lg font-bold uppercase transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Partner
-                    </button>
-
-                    {leads.length > 0 && (
-                      <>
-                        <button
-                          onClick={handleSelectAll}
-                          className="text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg font-bold uppercase transition-colors"
-                        >
-                          {selectedLeadIds.size === leads.length ? 'Deselect All' : 'Select All'}
-                        </button>
-                        <button
-                          onClick={() => downloadLeadsAsCSV(leads, location)}
-                          className="flex items-center gap-1.5 text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg font-bold uppercase transition-colors"
-                          title="Download CSV"
-                        >
-                          <Download className="w-3.5 h-3.5 text-sky-400" />
-                          CSV Export
-                        </button>
-                        <button
-                          onClick={handleExportBackup}
-                          className="flex items-center gap-1.5 text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg font-bold uppercase transition-colors"
-                          title="Backup client base database to a JSON file"
-                        >
-                          <Briefcase className="w-3.5 h-3.5 text-purple-400" />
-                          Backup Base
-                        </button>
-                      </>
-                    )}
-                    
-                    <label 
-                      className="flex items-center gap-1.5 text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg font-bold uppercase cursor-pointer transition-colors"
-                      title="Import previous JSON database backup"
-                    >
-                      <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                      Import JSON
-                      <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Empty State */}
-                {leads.length === 0 && !searchState.isSearching ? (
-                  <div className="flex-grow flex flex-col items-center justify-center text-center p-12 text-slate-500 border border-dashed border-slate-850 rounded-2xl">
-                    <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4 border border-slate-850 shadow-inner">
-                      <Globe className="w-8 h-8 text-slate-700 animate-pulse" />
-                    </div>
-                    <h3 className="text-slate-300 font-bold text-base mb-1.5">No Active Mission</h3>
-                    <p className="max-w-md text-xs opacity-60 leading-relaxed mb-6">
-                      Define a partnership segment and location on the left panel to trigger the 
-AI-grounded scouting network. Agents will explore the targeted zones and retrieve authenticated B2B 
-profiles.
-                    </p>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => { setLocation('United Kingdom'); setFocus('voip_carriers'); }}
-                        className="text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-850 text-slate-400 px-3 py-1.5 rounded-lg transition-colors font-medium"
-                      >
-                        Try "United Kingdom"
-                      </button>
-                      <button 
-                        onClick={() => { setLocation('Estonia'); setFocus('fintech'); }}
-                        className="text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-850 text-slate-400 px-3 py-1.5 rounded-lg transition-colors font-medium"
-                      >
-                        Try "Estonia" (Fintech)
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-xl border border-slate-850 bg-slate-950/40 shadow-inner flex-grow">
-                    <table className="w-full text-left border-collapse min-w-[650px]">
-                      <thead>
-                        <tr className="border-b border-slate-850 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 bg-slate-900/60">
-                          <th className="px-4 py-4 text-center w-12">Select</th>
-                          <th className="px-4 py-4">B2B Carrier/Platform Name</th>
-                          <th className="px-4 py-4">Direct Communication Channel</th>
-                          <th className="px-4 py-4 text-center w-36">Est. Value (€/mo)</th>
-                          <th className="px-4 py-4 text-center w-36">Audit Result</th>
-                          <th className="px-4 py-4 text-center w-12">Edit</th>
-                          <th className="px-4 py-4 text-center w-12">Del</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-900">
-                        {leads.map((lead) => {
-                          const isSelected = selectedLeadIds.has(lead.id);
-                          return (
-                            <tr key={lead.id} className={`transition-all group ${isSelected ? 'bg-sky-950/10' : 'hover:bg-slate-900/20'}`}>
-                              <td className="px-4 py-5 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleSelectLead(lead.id)}
-                                  className="text-slate-500 hover:text-sky-400 transition-colors focus:outline-none inline-block mx-auto"
-                                >
-                                  {isSelected ? (
-                                    <CheckSquare className="w-5 h-5 text-sky-400" />
-                                  ) : (
-                                    <Square className="w-5 h-5 text-slate-700 hover:text-slate-500" />
-                                  )}
-                                </button>
-                              </td>
-                              <td className="px-4 py-5">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-slate-200 group-hover:text-sky-400 transition-colors text-sm">{lead.name}</span>
-                                  <span className="bg-slate-800/80 text-slate-400 text-[9px] px-2 py-0.5 rounded font-mono border border-slate-750 font-bold uppercase">{lead.category}</span>
-                                </div>
-                                <div className="text-xs text-slate-400 mt-1.5 max-w-sm line-clamp-2 leading-relaxed">{lead.description}</div>
-                              </td>
-                              <td className="px-4 py-5">
-                                <div className="text-sky-300 text-xs font-mono select-all hover:text-sky-200 transition-colors">{lead.email || 'N/A'}</div>
-                                <a 
-                                  href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-slate-500 mt-1 inline-flex items-center gap-1 hover:text-slate-300 transition-colors"
-                                  title={lead.website}
-                                >
-                                  {lead.website}
-                                  <ExternalLink className="w-2.5 h-2.5" />
-                                </a>
-                              </td>
-                              <td className="px-4 py-5 text-center">
-                                <span className="text-xs font-mono font-bold text-slate-300">
-                                  €{((lead.estimatedValue as number) || 0).toLocaleString()}
-                                </span>
-                              </td>
-                              <td className="px-4 py-5 text-center">
-                                <div className={`inline-flex items-center gap-1.5 ${
-                                  lead.isVerified 
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                } text-[9px] font-black px-2.5 py-1 rounded-md border`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${lead.isVerified ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                                  {lead.isVerified ? 'AUTHENTIC' : 'UNCONFIRMED'}
-                                </div>
-                              </td>
-                              <td className="px-4 py-5 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
-                                  className="text-slate-500 hover:text-sky-400 transition-colors focus:outline-none inline-flex mx-auto"
-                                  title="Edit lead / set value"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                              <td className="px-4 py-5 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteLead(lead.id)}
-                                  className="text-slate-500 hover:text-rose-400 transition-colors focus:outline-none inline-flex mx-auto"
-                                  title="Delete lead from database"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-            </div>
+            <ScoutTab
+              location={location}
+              setLocation={setLocation}
+              intensity={intensity}
+              setIntensity={setIntensity}
+              focus={focus}
+              setFocus={setFocus}
+              searchState={searchState}
+              updateProgress={updateProgress}
+              addLog={addLog}
+              onSearch={handleSearch}
+              leads={leads}
+              selectedLeadIds={selectedLeadIds}
+              onSelectLead={handleSelectLead}
+              onSelectAll={handleSelectAll}
+              isLoadingData={isLoadingData}
+              onAddLead={() => { setSelectedCRMLead(null); setIsCRMModalOpen(true); }}
+              onEditLead={(lead) => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
+              onDeleteLead={handleDeleteLead}
+              onExportBackup={handleExportBackup}
+              onImportBackup={handleImportBackup}
+              onGeneratePitches={handleGeneratePitches}
+              isGeneratingPitches={isGeneratingPitches}
+              pitchProgress={pitchProgress}
+              preferredLanguage={preferredLanguage}
+              setPreferredLanguage={setPreferredLanguage}
+            />
           )}
 
           {/* TAB 2: AI CAMPAIGN BUILDER (DRAFTS & EMAIL DRAFT GENERATION) */}
           {activeTab === 'outreach' && (
-            <div className="space-y-6">
-              <section className="bg-slate-950/30 border border-slate-850 rounded-2xl p-6 min-h-[550px] flex flex-col relative shadow-xl">
-                
-                {/* Header Controls */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-slate-850">
-                  <div>
-                    <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-                      AI Partnership Email Pitch Drafts
-                      {pitches.length > 0 && (
-                        <span className="bg-purple-500/10 text-purple-400 text-[10px] px-2.5 py-1 rounded-full border border-purple-500/20 font-mono font-bold">
-                          {pitches.length} DRAFTS FORMULATED
-                        </span>
-                      )}
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-1">Review, customize, and execute automated 
-SMTP transmissions on behalf of your company.</p>
-                  </div>
-
-                  {pitches.length > 0 && (
-                    <button
-                      onClick={handleBulkSend}
-                      className="flex items-center gap-2 text-[10px] bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-bold uppercase tracking-wider transition-colors shadow-lg shadow-sky-950/20"
-                    >
-                      <SendHorizontal className="w-3.5 h-3.5" />
-                      Bulk Send All Drafts
-                    </button>
-                  )}
-                </div>
-
-                {/* Empty State */}
-                {pitches.length === 0 ? (
-                  <div className="flex-grow flex flex-col items-center justify-center text-center p-12 text-slate-500 border border-dashed border-slate-850 rounded-2xl">
-                    <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4 border border-slate-850 shadow-inner">
-                      <Sparkles className="w-8 h-8 text-slate-700 animate-bounce" />
-                    </div>
-                    <h3 className="text-slate-300 font-bold text-base mb-1.5">No Drafts Formulated Yet</h3>
-                    <p className="max-w-md text-xs opacity-60 leading-relaxed mb-6">
-                      Select one or more active targets on the <strong>AI Partner Scout</strong> tab, choose your preferred localized language on the left Outreach control panel, and click "Draft Custom Pitch" to load drafts here.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('scout')}
-                      className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-4 py-2 rounded-lg font-bold uppercase transition-colors"
-                    >
-                      Browse Partners
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {pitches.map((pitch) => (
-                      <div 
-                        key={pitch.id} 
-                        className="bg-slate-900/60 border border-slate-850 rounded-xl p-5 flex flex-col justify-between hover:border-slate-750 transition-all shadow-md hover:shadow-lg relative overflow-hidden"
-                      >
-                        {pitch.status !== 'Draft' && (
-                          <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-emerald-500 to-sky-500" />
-                        )}
-
-                        <div>
-                          {/* Pitch Status header */}
-                          <div className="flex justify-between items-center mb-3">
-                            <span className="text-[9px] bg-slate-850 border border-slate-800 px-2.5 py-0.5 rounded text-slate-400 font-mono font-bold uppercase">
-                              Language: {pitch.language}
-                            </span>
-                            
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded border ${
-                              pitch.status === 'Draft' 
-                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
-                                : pitch.status === 'Replied'
-                                ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 animate-pulse'
-                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                            }`}>
-                              {pitch.status.toUpperCase()}
-                            </span>
-                          </div>
-
-                          <h3 className="font-bold text-slate-100 text-sm line-clamp-1 mb-1">{pitch.leadName}</h3>
-                          <p className="text-[10px] text-slate-500 mb-4 truncate">{pitch.leadEmail}</p>
-
-                          <div className="bg-slate-950 p-3 rounded-lg border border-slate-850/80 mb-4">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Subject</div>
-                            <div className="text-xs font-mono text-slate-300 line-clamp-1">{pitch.subject}</div>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-3 border-t border-slate-850">
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => openPitchPreview(pitch)}
-                              className="p-2 text-slate-400 hover:text-sky-400 bg-slate-950 rounded-lg hover:bg-slate-900 border border-slate-850 transition-all"
-                              title="Edit Subject / Body and Preview HTML"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePitch(pitch.id)}
-                              className="p-2 text-slate-400 hover:text-rose-400 bg-slate-950 rounded-lg hover:bg-slate-900 border border-slate-850 transition-all"
-                              title="Discard draft"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          {pitch.status === 'Draft' || pitch.status === 'Failed' ? (
-                            <button
-                              onClick={() => handleSendPitch(pitch.id)}
-                              disabled={sendingPitchIds.has(pitch.id)}
-                              className="flex items-center gap-1.5 text-[10px] bg-sky-600/10 hover:bg-sky-600/25 disabled:opacity-50 text-sky-400 border border-sky-500/20 px-3 py-2 rounded-lg font-bold uppercase transition-all"
-                            >
-                              <Send className="w-3 h-3" />
-                              {sendingPitchIds.has(pitch.id) ? 'Sending…' : pitch.status === 'Failed' ? 'Retry Send' : 'Send Email'}
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              Sent {pitch.sentAt ? new Date(pitch.sentAt).toLocaleString() : 'N/A'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </div>
+            <OutreachTab
+              pitches={pitches}
+              sendingPitchIds={sendingPitchIds}
+              isGeneratingPitches={isGeneratingPitches}
+              pitchProgress={pitchProgress}
+              onBulkSend={handleBulkSend}
+              onOpenPreview={openPitchPreview}
+              onDeletePitch={handleDeletePitch}
+              onSendPitch={handleSendPitch}
+              onMarkReplied={handleMarkReplied}
+              onNavigateToScout={() => setActiveTab('scout')}
+            />
           )}
 
           {/* TAB 3: CRM CLIENT DATABASE (KANBAN BOARD & MANAGERS) */}
@@ -1431,140 +996,21 @@ SMTP transmissions on behalf of your company.</p>
       </div>
       )}
 
-      {/* FOOTER */}
-      <footer className="mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-[10px] font-bold uppercase">
-        <p>&copy; {new Date().getFullYear()} LeadScout PRO AI. All rights reserved.</p>
-        <div className="flex gap-8">
-          <span className="flex items-center gap-2 opacity-80">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping" /> 
-            AI Node Sync: Secure Connected
-          </span>
-          <span className="text-slate-500 opacity-60">Autonomous LeadScout Engine v4.8</span>
-        </div>
-      </footer>
+      <AppFooter />
 
-      {/* MODAL: STYLISH HTML EMAIL DRAFT PREVIEWER & EDITOR */}
-      {activePitch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
-            
-            {/* Modal Header */}
-            <div className="bg-slate-950 p-4 border-b border-slate-850 flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-white text-base">Custom Proposal Editor & Previewer</h3>
-                <p className="text-xs text-slate-500">Formulating B2B partnership outreach 
-templates on behalf of your company</p>
-              </div>
-              
-              <button 
-                onClick={() => setActivePitch(null)}
-                className="text-slate-400 hover:text-slate-100 font-bold text-xs bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                Close (ESC)
-              </button>
-            </div>
-
-            {/* Modal Sub-Header (Email headers) */}
-            <div className="p-4 bg-slate-950/40 border-b border-slate-850 space-y-2.5">
-              <div className="flex items-center gap-4 text-xs">
-                <span className="w-16 text-slate-500 font-bold uppercase tracking-wider">Recipient:</span>
-                <span className="font-mono text-sky-400 font-semibold">{activePitch.leadEmail}</span>
-              </div>
-              <div className="flex items-center gap-4 text-xs">
-                <span className="w-16 text-slate-500 font-bold uppercase tracking-wider">Subject:</span>
-                <input 
-                  type="text" 
-                  value={editedSubject}
-                  onChange={(e) => setEditedSubject(e.target.value)}
-                  className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-100 font-semibold flex-grow focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-            </div>
-
-            {/* Switch view buttons */}
-            <div className="flex border-b border-slate-850 bg-slate-950/20">
-              <button
-                onClick={() => setIsPreviewMode(true)}
-                className={`px-4 py-2.5 text-xs font-bold flex items-center gap-2 border-b-2 transition-all ${
-                  isPreviewMode 
-                    ? 'border-sky-500 text-sky-400 bg-sky-500/5' 
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <FileCode className="w-4 h-4" />
-                Live Brand HTML Preview
-              </button>
-              <button
-                onClick={() => setIsPreviewMode(false)}
-                className={`px-4 py-2.5 text-xs font-bold flex items-center gap-2 border-b-2 transition-all ${
-                  !isPreviewMode 
-                    ? 'border-sky-500 text-sky-400 bg-sky-500/5' 
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                Raw Source Editor
-              </button>
-            </div>
-
-            {/* Modal Body / Sandbox Preview */}
-            <div className="flex-grow p-5 overflow-y-auto bg-slate-950/20 max-h-[50vh]">
-              {isPreviewMode ? (
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-white min-h-[380px]">
-                  <iframe 
-                    title="B2B Proposal Preview"
-                    srcDoc={editedBody}
-                    className="w-full h-[400px] border-none bg-white"
-                  />
-                </div>
-              ) : (
-                <textarea
-                  value={editedBody}
-                  onChange={(e) => setEditedBody(e.target.value)}
-                  className="w-full h-[400px] bg-slate-950 text-slate-300 font-mono text-xs p-4 rounded-xl border border-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  placeholder="Paste or write HTML body markup here..."
-                />
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-slate-950 p-4 border-t border-slate-850 flex justify-between items-center">
-              <span className="text-[10px] text-slate-500 font-mono">
-                Language context: {activePitch.language}
-              </span>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActivePitch(null)}
-                  className="text-xs bg-slate-900 hover:bg-slate-850 text-slate-400 border border-slate-800 px-4 py-2 rounded-lg font-bold uppercase transition-colors"
-                >
-                  Discard Changes
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveChanges}
-                  className="text-xs bg-sky-600 hover:bg-sky-500 text-white px-5 py-2 rounded-lg font-bold uppercase tracking-wider transition-colors"
-                >
-                  Save Draft Changes
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* CRM PROFILE CREATION / EDITION MODAL */}
-      {isCRMModalOpen && (
-        <LeadCRMModal 
-          isOpen={isCRMModalOpen}
-          lead={selectedCRMLead}
-          focusOptions={FOCUS_OPTIONS}
-          onClose={() => { setIsCRMModalOpen(false); setSelectedCRMLead(null); }}
-          onSave={handleSaveCRMLead}
-        />
-      )}
+      <AppModals
+        activePitch={activePitch}
+        isPreviewMode={isPreviewMode}
+        editedSubject={editedSubject}
+        editedBody={editedBody}
+        isCRMModalOpen={isCRMModalOpen}
+        selectedCRMLead={selectedCRMLead}
+        focusOptions={FOCUS_OPTIONS}
+        onClosePitchPreview={() => setActivePitch(null)}
+        onCloseCRMModal={() => { setIsCRMModalOpen(false); setSelectedCRMLead(null); }}
+        onSavePitchChanges={handleSaveChanges}
+        onSaveCRMLead={handleSaveCRMLead}
+      />
 
     </div>
   );
