@@ -90,6 +90,40 @@ export interface DealStage {
   updatedAt?: string;
 }
 
+export interface FollowUpSequence {
+  id: string;
+  name: string;
+  description: string;
+  triggerStage: string;
+  isActive: boolean;
+  steps: SequenceStep[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SequenceStep {
+  id: string;
+  order: number;
+  delayDays: number;
+  actionType: 'EMAIL' | 'TASK' | 'WEBHOOK';
+  subject?: string;
+  body?: string;
+  taskName?: string;
+  isActive: boolean;
+}
+
+export interface SequenceExecution {
+  id: string;
+  leadId: string;
+  sequenceId: string;
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'STOPPED';
+  currentStep: number;
+  startedAt: string;
+  completedAt?: string;
+  nextRunAt?: string;
+  sequence?: FollowUpSequence;
+}
+
 export interface ScheduledMeeting {
   id: string;
   title: string;

@@ -81,6 +81,7 @@ model Lead {
   pitches      Pitch[]
   activities   ActivityLog[]
   customFieldValues CustomFieldValue[]
+  sequenceExecutions SequenceExecution[]
 
   @@unique([website, email])
   @@index([domain])
@@ -299,4 +300,73 @@ model DealStage {
   updatedAt   DateTime @updatedAt
 
   @@map("deal_stages")
+}
+
+/// Automated follow-up sequence (e.g. "Cold Outreach", "Demo Follow-up").
+model FollowUpSequence {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  triggerStage String // LeadStage key that triggers this sequence
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps       SequenceStep[]
+  executions  SequenceExecution[]
+
+  @@map("follow_up_sequences")
+}
+
+/// Single step in a follow-up sequence.
+model SequenceStep {
+  id          String   @id @default(cuid())
+  order       Int
+  delayDays   Int      @default(0) // days after previous step
+  actionType  SequenceActionType @default(TASK)
+  subject     String?
+  body        String?
+  taskName    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sequenceId String
+  sequence   FollowUpSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+  @@map("sequence_steps")
+}
+
+enum SequenceActionType {
+  EMAIL
+  TASK
+  WEBHOOK
+}
+
+/// Execution of a sequence for a specific lead.
+model SequenceExecution {
+  id          String   @id @default(cuid())
+  status      SequenceExecutionStatus @default(ACTIVE)
+  currentStep Int      @default(0)
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  nextRunAt   DateTime?
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  sequenceId String
+  sequence   FollowUpSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([sequenceId])
+  @@map("sequence_executions")
+}
+
+enum SequenceExecutionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  STOPPED
 }

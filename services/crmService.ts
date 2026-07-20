@@ -1,5 +1,5 @@
 // CRM service: persist and manage leads, pitches, follow-ups and meetings server-side.
-import { CompanyLead, OutreachPitch, ScheduledMeeting } from "../types";
+import { CompanyLead, OutreachPitch, ScheduledMeeting, FollowUpSequence, SequenceExecution } from "../types";
 import { api } from "./apiClient";
 
 type Stage = NonNullable<CompanyLead["stage"]>;
@@ -160,6 +160,35 @@ export async function updateDealStage(id: string, changes: Partial<DealStage>): 
 
 export async function deleteDealStage(id: string): Promise<void> {
   await api(`/custom-fields/stages/${id}`, { method: "DELETE" });
+}
+
+// ---- Follow-up Sequences ----
+export async function listSequences(): Promise<FollowUpSequence[]> {
+  return api<FollowUpSequence[]>("/sequences");
+}
+
+export async function createSequence(sequence: Partial<FollowUpSequence>): Promise<FollowUpSequence> {
+  return api<FollowUpSequence>("/sequences", { method: "POST", body: JSON.stringify(sequence) });
+}
+
+export async function updateSequence(id: string, changes: Partial<FollowUpSequence>): Promise<FollowUpSequence> {
+  return api<FollowUpSequence>(`/sequences/${id}`, { method: "PATCH", body: JSON.stringify(changes) });
+}
+
+export async function deleteSequence(id: string): Promise<void> {
+  await api(`/sequences/${id}`, { method: "DELETE" });
+}
+
+export async function startSequence(sequenceId: string, leadId: string): Promise<SequenceExecution> {
+  return api<SequenceExecution>(`/sequences/${sequenceId}/start/${leadId}`, { method: "POST" });
+}
+
+export async function stopSequence(sequenceId: string, leadId: string): Promise<SequenceExecution> {
+  return api<SequenceExecution>(`/sequences/${sequenceId}/stop/${leadId}`, { method: "POST" });
+}
+
+export async function getLeadSequences(leadId: string): Promise<SequenceExecution[]> {
+  return api<SequenceExecution[]>(`/sequences/lead/${leadId}`);
 }
 
 // ---- Stats ----

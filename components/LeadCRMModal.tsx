@@ -4,6 +4,7 @@ import {
   X, Save, Building, Mail, Globe, Phone, DollarSign, User, FileText, 
   Calendar, Clock, Video, Plus, Trash2, Edit3, ExternalLink, CalendarDays 
 } from 'lucide-react';
+import { SequenceSection } from './SequenceSection';
 
 interface LeadCRMModalProps {
   isOpen: boolean;
@@ -709,6 +710,9 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
               </div>
             )}
           </div>
+
+          {/* Follow-up Sequences */}
+          <SequenceSection leadId={lead?.id || ''} leadStage={stage} />
 
           {/* Verification toggle */}
           <div className="flex items-center gap-3 bg-slate-950/50 p-3.5 rounded-xl border border-slate-800/60">

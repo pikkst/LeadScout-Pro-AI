@@ -123,6 +123,90 @@ async function startServer() {
     console.log("[server] Runtime settings (AI, Email) are managed in Settings → Admin.");
   });
 
+  // --- Sequence execution engine (simple in-memory scheduler) ---
+  const runSequenceEngine = async () => {
+    try {
+      const now = new Date();
+      const dueExecutions = await prisma.sequenceExecution.findMany({
+        where: {
+          status: "ACTIVE",
+          nextRunAt: { lte: now },
+        },
+        include: {
+          sequence: { include: { steps: { orderBy: { order: "asc" } } } },
+          lead: true,
+        },
+      });
+
+    for (const exec of dueExecutions) {
+      const sequence = exec.sequence;
+      const steps = sequence.steps;
+      const currentStepIndex = exec.currentStep;
+
+      if (currentStepIndex >= steps.length) {
+        await prisma.sequenceExecution.update({
+          where: { id: exec.id },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+        continue;
+      }
+
+      const step = steps[currentStepIndex];
+      if (!step?.isActive) {
+        await prisma.sequenceExecution.update({
+          where: { id: exec.id },
+          data: { currentStep: currentStepIndex + 1 },
+        });
+        continue;
+      }
+
+      // Execute step action
+      if (step.actionType === "TASK" && step.taskName) {
+        await prisma.followUpTask.upsert({
+          where: { leadId: exec.leadId },
+          update: {
+            taskName: step.taskName,
+            dueDate: new Date(),
+            notes: `Auto-created by sequence: ${sequence.name}`,
+          },
+          create: {
+            leadId: exec.leadId,
+            taskName: step.taskName,
+            dueDate: new Date(),
+            notes: `Auto-created by sequence: ${sequence.name}`,
+          },
+        });
+      } else if (step.actionType === "EMAIL" && step.subject && step.body) {
+        // Email would be sent here via SMTP service
+        console.log(`[Sequence] Would send email to lead ${exec.leadId}: ${step.subject}`);
+      }
+
+      // Advance to next step
+      const nextStepIndex = currentStepIndex + 1;
+      if (nextStepIndex >= steps.length) {
+        await prisma.sequenceExecution.update({
+          where: { id: exec.id },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+      } else {
+        const nextStep = steps[nextStepIndex];
+        const nextRun = new Date();
+        nextRun.setDate(nextRun.getDate() + (nextStep?.delayDays ?? 0));
+        await prisma.sequenceExecution.update({
+          where: { id: exec.id },
+          data: { currentStep: nextStepIndex, nextRunAt: nextRun },
+        });
+      }
+    }
+    } catch (err) {
+      console.error("[SequenceEngine] Error:", err);
+    }
+  };
+
+  // Run immediately on start, then every 5 minutes
+  runSequenceEngine();
+  setInterval(runSequenceEngine, 5 * 60 * 1000);
+
   // --- Graceful shutdown ---
   const shutdown = async (signal: string) => {
     console.log(`\n[server] ${signal} received, shutting down...`);

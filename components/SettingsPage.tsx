@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { PitchTemplatesManager } from './PitchTemplates';
 import { CustomFieldsSettings } from './CustomFieldsSettings';
+import { SequencesSettings } from './SequencesSettings';
 import {
   fetchSettings,
   saveSettings,
@@ -512,6 +513,7 @@ export const SettingsPage: React.FC = () => {
       </section>
 
       <CustomFieldsSettings />
+      <SequencesSettings />
       <PitchTemplatesManager />
     </div>
   );
