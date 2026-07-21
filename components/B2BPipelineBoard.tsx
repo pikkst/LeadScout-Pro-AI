@@ -460,10 +460,15 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
                             </p>
                           </div>
                           
-                          {/* Value Badge */}
-                          <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
-                            €{(lead.estimatedValue || 0).toLocaleString()}
-                          </div>
+                           {/* Value Badge */}
+                           <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
+                             €{(lead.estimatedValue || 0).toLocaleString()}
+                           </div>
+                           {lead.aiScore !== undefined && (
+                             <div className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
+                               AI {lead.aiScore}%
+                             </div>
+                           )}
                         </div>
 
                         {/* Summary / Description */}

@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { CompanyLead } from '../types';
 import { FOCUS_OPTIONS, LANGUAGE_OPTIONS } from '../constants';
 import * as crm from '../services/crmService';
-import AgentTerminal from './AgentTerminal';
 import {
   Globe,
   Plus,
@@ -15,6 +14,10 @@ import {
   Trash2,
   ExternalLink,
   FileSpreadsheet,
+  Sparkles,
+  Database,
+  Loader2,
+  Brain,
 } from 'lucide-react';
 
 export interface ScoutTabProps {
@@ -46,6 +49,7 @@ export interface ScoutTabProps {
   mineFilter?: boolean;
   onToggleMineFilter?: () => void;
   totalLeadsCount?: number;
+  onUpdateLead?: (lead: CompanyLead) => void;
 }
 
 export const ScoutTab: React.FC<ScoutTabProps> = ({
@@ -77,10 +81,12 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
   mineFilter,
   onToggleMineFilter,
   totalLeadsCount,
+  onUpdateLead,
 }) => {
   const selectedFocusLabel = FOCUS_OPTIONS.find(o => o.value === focus)?.label || focus;
   const [sortField, setSortField] = useState<string>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
 
   const sortedLeads = useMemo(() => {
     if (!sortField) return leads;
@@ -108,6 +114,7 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
   };
 
   const getLeadScore = (lead: CompanyLead) => {
+    if (typeof lead.aiScore === 'number') return lead.aiScore;
     let score = 0;
     if (lead.isVerified) score += 30;
     score += Math.min(50, Math.round((lead.estimatedValue || 0) / 1000) * 10);
@@ -116,6 +123,49 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
     if (lead.followUpTask) score += 10;
     if (lead.scheduledMeetings && lead.scheduledMeetings.length > 0) score += 10;
     return Math.min(100, score);
+  };
+
+  const getScoreLabel = (lead: CompanyLead) => {
+    if (typeof lead.aiScore === 'number') return 'AI';
+    return 'RULE';
+  };
+
+  const handleAiScore = async (lead: CompanyLead) => {
+    setAiLoadingId(lead.id);
+    try {
+      const updated = await crm.calculateLeadAiScore(lead.id);
+      onUpdateLead?.(updated);
+      addLog(`[AI] Calculated conversion score for ${lead.name}: ${updated.aiScore}%`);
+    } catch (err) {
+      addLog(`[Error] AI score failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    } finally {
+      setAiLoadingId(null);
+    }
+  };
+
+  const handleAiEnrich = async (lead: CompanyLead) => {
+    setAiLoadingId(lead.id);
+    try {
+      const updated = await crm.enrichLeadData(lead.id);
+      onUpdateLead?.(updated);
+      addLog(`[AI] Enriched data for ${lead.name}`);
+    } catch (err) {
+      addLog(`[Error] AI enrichment failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    } finally {
+      setAiLoadingId(null);
+    }
+  };
+
+  const handlePredictStage = async (lead: CompanyLead) => {
+    setAiLoadingId(lead.id);
+    try {
+      const prediction = await crm.predictLeadStage(lead.id);
+      addLog(`[AI] ${lead.name}: ${prediction.predictedStage} in ~${prediction.estimatedDays}d (${prediction.probability}%) — ${prediction.reasoning}`);
+    } catch (err) {
+      addLog(`[Error] AI prediction failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    } finally {
+      setAiLoadingId(null);
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -399,6 +449,9 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
                           <span className={`text-[9px] font-mono font-bold ${getScoreColor(getLeadScore(lead))}`}>
                             {getLeadScore(lead)}pts
                           </span>
+                          <span className="text-[8px] font-bold text-slate-600 uppercase tracking-wider">
+                            {getScoreLabel(lead)}
+                          </span>
                         </div>
                         <div className="text-xs text-slate-400 mt-1.5 max-w-sm line-clamp-2 leading-relaxed">{lead.description}</div>
                       </td>
@@ -431,14 +484,43 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
                         </div>
                       </td>
                       <td className="px-4 py-5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => onEditLead(lead)}
-                          className="text-slate-500 hover:text-sky-400 transition-colors focus:outline-none inline-flex mx-auto"
-                          title="Edit lead / set value"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleAiScore(lead)}
+                            disabled={aiLoadingId === lead.id}
+                            className="text-slate-500 hover:text-purple-400 transition-colors focus:outline-none inline-flex mx-auto disabled:opacity-50"
+                            title="Calculate AI conversion score"
+                          >
+                            {aiLoadingId === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAiEnrich(lead)}
+                            disabled={aiLoadingId === lead.id}
+                            className="text-slate-500 hover:text-emerald-400 transition-colors focus:outline-none inline-flex mx-auto disabled:opacity-50"
+                            title="AI enrich company data"
+                          >
+                            {aiLoadingId === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePredictStage(lead)}
+                            disabled={aiLoadingId === lead.id}
+                            className="text-slate-500 hover:text-amber-400 transition-colors focus:outline-none inline-flex mx-auto disabled:opacity-50"
+                            title="Predict next stage"
+                          >
+                            {aiLoadingId === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onEditLead(lead)}
+                            className="text-slate-500 hover:text-sky-400 transition-colors focus:outline-none inline-flex mx-auto"
+                            title="Edit lead / set value"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-5 text-center">
                         <button

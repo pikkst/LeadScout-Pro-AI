@@ -21,6 +21,9 @@ const stepSchema = z.object({
   body: z.string().optional().nullable(),
   taskName: z.string().optional().nullable(),
   isActive: z.boolean().optional().default(true),
+  triggerEvent: z.enum(["SENT", "DELIVERED", "OPENED", "CLICKED", "REPLIED", "BOUNCED", "FAILED"]).optional().nullable(),
+  eventDelayDays: z.number().int().nonnegative().optional().nullable(),
+  stopOnEvent: z.boolean().optional().default(false),
 });
 
 type StepInput = z.infer<typeof stepSchema>;
@@ -61,6 +64,9 @@ sequencesRouter.post("/", validate({ body: sequenceSchema }), asyncHandler(async
           body: s.body ?? null,
           taskName: s.taskName ?? null,
           isActive: s.isActive ?? true,
+          triggerEvent: s.triggerEvent ?? null,
+          eventDelayDays: s.eventDelayDays ?? null,
+          stopOnEvent: s.stopOnEvent ?? false,
         })),
       },
     },
@@ -90,6 +96,9 @@ sequencesRouter.patch("/:id", validate({ body: sequenceSchema.partial() }), asyn
         body: s.body ?? null,
         taskName: s.taskName ?? null,
         isActive: s.isActive ?? true,
+        triggerEvent: s.triggerEvent ?? null,
+        eventDelayDays: s.eventDelayDays ?? null,
+        stopOnEvent: s.stopOnEvent ?? false,
       })),
     };
   }

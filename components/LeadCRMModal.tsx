@@ -727,6 +727,76 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
               Mark domain and wholesale email contacts as verified (SMTP checked)
             </label>
           </div>
+
+          {/* AI Intelligence Panel */}
+          {(lead?.aiScore !== undefined || lead?.enrichmentData) && (
+            <div className="bg-slate-950/50 p-4 rounded-xl border border-purple-500/20 space-y-3">
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-purple-400 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5" />
+                AI Intelligence
+              </h3>
+              
+              {lead?.aiScore !== undefined && (
+                <div className="flex items-center gap-3">
+                  <div className="bg-purple-500/10 text-purple-300 border border-purple-500/20 px-2 py-1 rounded text-xs font-mono font-bold">
+                    {lead.aiScore}% conversion probability
+                  </div>
+                  {lead?.aiScoreReason && (
+                    <p className="text-[10px] text-slate-400 italic">{lead.aiScoreReason}</p>
+                  )}
+                </div>
+              )}
+
+              {lead?.enrichmentData && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[10px]">
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wider">Company Size</span>
+                    <p className="text-slate-300 mt-0.5 capitalize">{lead.enrichmentData.companySize}</p>
+                  </div>
+                  {lead.enrichmentData.employeeCount && (
+                    <div>
+                      <span className="font-bold text-slate-400 uppercase tracking-wider">Employees</span>
+                      <p className="text-slate-300 mt-0.5">{lead.enrichmentData.employeeCount.toLocaleString()}</p>
+                    </div>
+                  )}
+                  {lead.enrichmentData.techStack?.length > 0 && (
+                    <div className="sm:col-span-2">
+                      <span className="font-bold text-slate-400 uppercase tracking-wider">Tech Stack</span>
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {lead.enrichmentData.techStack.map((tech: string) => (
+                          <span key={tech} className="bg-sky-500/10 text-sky-300 border border-sky-500/20 px-1.5 py-0.5 rounded text-[9px] font-mono">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {lead.enrichmentData.recentNews?.length > 0 && (
+                    <div className="sm:col-span-2">
+                      <span className="font-bold text-slate-400 uppercase tracking-wider">Recent News</span>
+                      <ul className="mt-0.5 space-y-0.5">
+                        {lead.enrichmentData.recentNews.map((news: string, idx: number) => (
+                          <li key={idx} className="text-slate-400 italic">- {news}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {lead.enrichmentData.decisionMakers?.length > 0 && (
+                    <div className="sm:col-span-2">
+                      <span className="font-bold text-slate-400 uppercase tracking-wider">Decision Makers</span>
+                      <div className="flex flex-wrap gap-2 mt-0.5">
+                        {lead.enrichmentData.decisionMakers.map((dm: any, idx: number) => (
+                          <span key={idx} className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px] font-mono">
+                            {dm.name} — {dm.title}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </form>
 
         {/* Footer Actions */}

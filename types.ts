@@ -43,6 +43,15 @@ export interface CompanyLead {
   notes?: string;
   phone?: string;
   estimatedValue?: number; // Potential monthly value in EUR
+  aiScore?: number;        // AI conversion probability 0-100
+  aiScoreReason?: string;  // Explanation for AI score
+  enrichmentData?: {
+    companySize?: string;
+    employeeCount?: number;
+    techStack?: string[];
+    recentNews?: string[];
+    decisionMakers?: Array<{ name: string; title: string }>;
+  };
   assignedAgent?: string;
   assignedAgentId?: string;
   createdById?: string;
@@ -110,6 +119,9 @@ export interface SequenceStep {
   body?: string;
   taskName?: string;
   isActive: boolean;
+  triggerEvent?: 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'REPLIED' | 'BOUNCED' | 'FAILED';
+  eventDelayDays?: number;
+  stopOnEvent?: boolean;
 }
 
 export interface SequenceExecution {
@@ -121,6 +133,7 @@ export interface SequenceExecution {
   startedAt: string;
   completedAt?: string;
   nextRunAt?: string;
+  lastEventCheckedAt?: string;
   sequence?: FollowUpSequence;
 }
 
@@ -183,4 +196,25 @@ export interface PitchEvent {
   pitchId: string;
   type: 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'REPLIED' | 'BOUNCED' | 'FAILED';
   createdAt: string;
+}
+
+export interface StagePrediction {
+  predictedStage: string;
+  probability: number;
+  estimatedDays: number;
+  reasoning: string;
+}
+
+export interface AiForecast {
+  next30Days: { estimatedDeals: number; estimatedValue: number };
+  next90Days: { estimatedDeals: number; estimatedValue: number };
+  confidence: number;
+  assumptions: string[];
+}
+
+export interface MeetingPrep {
+  talkingPoints: string[];
+  winThemes: string[];
+  potentialObjections: string[];
+  recommendedApproach: string;
 }

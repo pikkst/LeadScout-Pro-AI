@@ -191,6 +191,27 @@ export async function getLeadSequences(leadId: string): Promise<SequenceExecutio
   return api<SequenceExecution[]>(`/sequences/lead/${leadId}`);
 }
 
+// ---- AI Intelligence ----
+export async function calculateLeadAiScore(leadId: string): Promise<CompanyLead> {
+  return api<CompanyLead>(`/ai/score/${leadId}`, { method: "POST" });
+}
+
+export async function enrichLeadData(leadId: string): Promise<CompanyLead> {
+  return api<CompanyLead>(`/ai/enrich/${leadId}`, { method: "POST" });
+}
+
+export async function predictLeadStage(leadId: string): Promise<StagePrediction> {
+  return api<StagePrediction>(`/ai/predict/${leadId}`, { method: "POST" });
+}
+
+export async function fetchAiForecast(): Promise<AiForecast> {
+  return api<AiForecast>("/stats/forecast/ai");
+}
+
+export async function generateMeetingPrep(meetingId: string): Promise<MeetingPrep> {
+  return api<MeetingPrep>(`/ai/meeting-prep/${meetingId}`, { method: "POST" });
+}
+
 // ---- Stats ----
 export interface CrmStats {
   totalLeads: number;

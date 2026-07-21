@@ -24,7 +24,7 @@ async function getAI(): Promise<{ ai: GoogleGenAI; model: string }> {
 }
 
 /** Extract the first JSON value (object or array) from a possibly noisy model response. */
-function extractJson<T>(text: string, fallback: T): T {
+export function extractJson<T>(text: string, fallback: T): T {
   if (!text) return fallback;
   try {
     return JSON.parse(text) as T;
@@ -354,4 +354,287 @@ export async function verifyAiConfig(cfg?: {
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
+}
+
+export interface LeadScoreResult {
+  score: number;
+  reason: string;
+}
+
+export async function calculateLeadScore(lead: {
+  name: string;
+  category: string;
+  website: string;
+  description: string;
+  estimatedValue: number;
+  isVerified: boolean;
+  stage: string;
+}): Promise<LeadScoreResult> {
+  const { ai, model } = await getAI();
+  const prompt = `
+    You are a B2B sales AI. Analyze this lead and predict their conversion probability (0-100).
+
+    Lead details:
+    - Name: "${lead.name}"
+    - Industry: "${lead.category}"
+    - Website: "${lead.website}"
+    - Description: "${lead.description}"
+    - Estimated monthly value: EUR ${lead.estimatedValue}
+    - Verification status: ${lead.isVerified ? 'verified' : 'unverified'}
+    - Pipeline stage: "${lead.stage}"
+
+    Return ONLY a JSON object:
+    {
+      "score": 0-100,
+      "reason": "1-2 sentence explanation of why this score was given"
+    }
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { responseMimeType: "application/json", temperature: 0.2 },
+  });
+  const result = extractJson<{ score?: number; reason?: string }>(response.text || "{}", {});
+  const score = Math.max(0, Math.min(100, Math.round(Number(result.score ?? 50))));
+  return {
+    score,
+    reason: result.reason || "AI analysis completed",
+  };
+}
+
+export interface EnrichmentResult {
+  companySize: string;
+  employeeCount?: number;
+  techStack: string[];
+  recentNews: string[];
+  decisionMakers: Array<{ name: string; title: string }>;
+}
+
+export async function enrichLead(lead: {
+  name: string;
+  category: string;
+  website: string;
+  description: string;
+}): Promise<EnrichmentResult> {
+  const { ai, model } = await getAI();
+  const prompt = `
+    Research and enrich this company profile using your knowledge and search capabilities.
+
+    Company:
+    - Name: "${lead.name}"
+    - Industry: "${lead.category}"
+    - Website: "${lead.website}"
+    - Description: "${lead.description}"
+
+    Return ONLY a JSON object:
+    {
+      "companySize": "startup|small|medium|large|enterprise",
+      "employeeCount": estimated integer or null,
+      "techStack": ["tech1", "tech2", ...],
+      "recentNews": ["brief news item 1", "brief news item 2"],
+      "decisionMakers": [{"name": "Full Name", "title": "Job Title"}, ...]
+    }
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { tools: [{ googleSearch: {} }], temperature: 0.3 },
+  });
+  const result = extractJson<Partial<EnrichmentResult>>(response.text || "{}", {});
+  return {
+    companySize: result.companySize || "unknown",
+    employeeCount: result.employeeCount,
+    techStack: Array.isArray(result.techStack) ? result.techStack : [],
+    recentNews: Array.isArray(result.recentNews) ? result.recentNews : [],
+    decisionMakers: Array.isArray(result.decisionMakers) ? result.decisionMakers : [],
+  };
+}
+
+export interface StagePrediction {
+  predictedStage: string;
+  probability: number;
+  estimatedDays: number;
+  reasoning: string;
+}
+
+export async function predictStageTransition(lead: {
+  name: string;
+  category: string;
+  stage: string;
+  estimatedValue: number;
+  isVerified: boolean;
+  lastContactedAt?: string;
+  followUpTask?: { isCompleted: boolean };
+  pitches?: Array<{ status: string }>;
+}): Promise<StagePrediction> {
+  const { ai, model } = await getAI();
+  const prompt = `
+    You are a B2B sales AI. Predict the next pipeline stage transition for this lead.
+
+    Lead details:
+    - Name: "${lead.name}"
+    - Industry: "${lead.category}"
+    - Current stage: "${lead.stage}"
+    - Estimated monthly value: EUR ${lead.estimatedValue}
+    - Verification status: ${lead.isVerified ? 'verified' : 'unverified'}
+    - Last contacted: ${lead.lastContactedAt || 'never'}
+    - Has active follow-up task: ${lead.followUpTask?.isCompleted ? 'completed' : 'pending or none'}
+    - Pitch count: ${lead.pitches?.length || 0}
+
+    Possible next stages: Contacted, Negotiation, Signed, Active, Archived
+
+    Return ONLY a JSON object:
+    {
+      "predictedStage": "next stage name",
+      "probability": 0-100,
+      "estimatedDays": integer estimate of days until transition,
+      "reasoning": "1-2 sentence explanation"
+    }
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { responseMimeType: "application/json", temperature: 0.2 },
+  });
+  const result = extractJson<Partial<StagePrediction>>(response.text || "{}", {});
+  return {
+    predictedStage: result.predictedStage || "Contacted",
+    probability: Math.max(0, Math.min(100, Math.round(Number(result.probability ?? 50)))),
+    estimatedDays: Math.max(1, Math.round(Number(result.estimatedDays ?? 7))),
+    reasoning: result.reasoning || "AI analysis completed",
+  };
+}
+
+export interface AiForecast {
+  next30Days: { estimatedDeals: number; estimatedValue: number };
+  next90Days: { estimatedDeals: number; estimatedValue: number };
+  confidence: number;
+  assumptions: string[];
+}
+
+export async function generateAiForecast(leads: Array<{
+  stage: string;
+  estimatedValue: number;
+  aiScore?: number;
+}>, recentDeals: Array<{ value: number; closedAt: string }>): Promise<AiForecast> {
+  const { ai, model } = await getAI();
+  const stageDistribution = leads.reduce((acc, lead) => {
+    acc[lead.stage] = (acc[lead.stage] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const avgScore = leads.filter(l => l.aiScore !== undefined).length > 0
+    ? Math.round(leads.filter(l => l.aiScore !== undefined).reduce((sum, l) => sum + (l.aiScore || 0), 0) / leads.filter(l => l.aiScore !== undefined).length)
+    : null;
+
+  const prompt = `
+    You are a B2B sales forecasting AI. Generate a revenue forecast based on pipeline data.
+
+    Pipeline summary:
+    - Total leads: ${leads.length}
+    - Stage distribution: ${JSON.stringify(stageDistribution)}
+    - Average AI score: ${avgScore ?? 'not available'}
+    - Recent closed deals (last 90 days): ${recentDeals.length} deals totaling EUR ${recentDeals.reduce((sum, d) => sum + d.value, 0)}
+
+    Historical conversion context:
+    - Discovered -> Contacted: ~30%
+    - Contacted -> Negotiation: ~25%
+    - Negotiation -> Signed: ~50%
+    - Signed -> Active: ~90%
+
+    Return ONLY a JSON object:
+    {
+      "next30Days": { "estimatedDeals": integer, "estimatedValue": integer },
+      "next90Days": { "estimatedDeals": integer, "estimatedValue": integer },
+      "confidence": 0-100,
+      "assumptions": ["assumption 1", "assumption 2", ...]
+    }
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { responseMimeType: "application/json", temperature: 0.3 },
+  });
+  const result = extractJson<Partial<AiForecast>>(response.text || "{}", {});
+  return {
+    next30Days: {
+      estimatedDeals: Math.round(Number(result.next30Days?.estimatedDeals ?? 0)),
+      estimatedValue: Math.round(Number(result.next30Days?.estimatedValue ?? 0)),
+    },
+    next90Days: {
+      estimatedDeals: Math.round(Number(result.next90Days?.estimatedDeals ?? 0)),
+      estimatedValue: Math.round(Number(result.next90Days?.estimatedValue ?? 0)),
+    },
+    confidence: Math.max(0, Math.min(100, Math.round(Number(result.confidence ?? 60)))),
+    assumptions: Array.isArray(result.assumptions) ? result.assumptions : [],
+  };
+}
+
+export interface MeetingPrep {
+  talkingPoints: string[];
+  winThemes: string[];
+  potentialObjections: string[];
+  recommendedApproach: string;
+}
+
+export async function generateMeetingPrep(meeting: {
+  title: string;
+  type: string;
+  agenda: string;
+  lead: {
+    name: string;
+    category: string;
+    website: string;
+    description: string;
+    stage: string;
+    estimatedValue: number;
+    enrichmentData?: {
+      companySize?: string;
+      techStack?: string[];
+      recentNews?: string[];
+      decisionMakers?: Array<{ name: string; title: string }>;
+    };
+  };
+}): Promise<MeetingPrep> {
+  const { ai, model } = await getAI();
+  const prompt = `
+    You are a B2B sales director preparing for an important meeting. Generate meeting preparation insights.
+
+    Meeting:
+    - Title: "${meeting.title}"
+    - Type: "${meeting.type}"
+    - Agenda: "${meeting.agenda || 'No agenda provided'}"
+
+    Lead/Company:
+    - Name: "${meeting.lead.name}"
+    - Industry: "${meeting.lead.category}"
+    - Website: "${meeting.lead.website}"
+    - Description: "${meeting.lead.description}"
+    - Pipeline stage: "${meeting.lead.stage}"
+    - Estimated value: EUR ${meeting.lead.estimatedValue}
+    - Company size: ${meeting.lead.enrichmentData?.companySize || 'unknown'}
+    - Tech stack: ${meeting.lead.enrichmentData?.techStack?.join(', ') || 'unknown'}
+    - Recent news: ${meeting.lead.enrichmentData?.recentNews?.join('; ') || 'none'}
+    - Decision makers: ${meeting.lead.enrichmentData?.decisionMakers?.map(dm => `${dm.name} (${dm.title})`).join('; ') || 'unknown'}
+
+    Return ONLY a JSON object:
+    {
+      "talkingPoints": ["point 1", "point 2", "point 3"],
+      "winThemes": ["theme 1", "theme 2"],
+      "potentialObjections": ["objection 1", "objection 2"],
+      "recommendedApproach": "1-2 sentence strategic recommendation"
+    }
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { responseMimeType: "application/json", temperature: 0.4 },
+  });
+  const result = extractJson<Partial<MeetingPrep>>(response.text || "{}", {});
+  return {
+    talkingPoints: Array.isArray(result.talkingPoints) ? result.talkingPoints : ["Review lead background", "Discuss partnership opportunities"],
+    winThemes: Array.isArray(result.winThemes) ? result.winThemes : ["Value proposition alignment", "Mutual growth potential"],
+    potentialObjections: Array.isArray(result.potentialObjections) ? result.potentialObjections : ["Budget constraints", "Timing concerns"],
+    recommendedApproach: result.recommendedApproach || "Focus on mutual benefits and clear ROI.",
+  };
 }

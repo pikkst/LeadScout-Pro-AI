@@ -4,6 +4,7 @@ import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { requireAuth } from "../middleware/auth";
 import { stageFromDb } from "../utils/serializers";
+import * as ai from "../services/ai.service";
 
 export const statsRouter = Router();
 statsRouter.use(requireAuth);
@@ -214,5 +215,35 @@ statsRouter.get(
     });
 
     res.json(performance);
+  }),
+);
+
+// AI-enhanced revenue forecast
+statsRouter.get(
+  "/forecast/ai",
+  asyncHandler(async (_req, res) => {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const [leads, recentDeals] = await Promise.all([
+      prisma.lead.findMany({
+        select: { stage: true, estimatedValue: true, aiScore: true },
+      }),
+      prisma.deal.findMany({
+        where: { closedAt: { gte: ninetyDaysAgo } },
+        select: { value: true, closedAt: true },
+      }),
+    ]);
+
+    const forecast = await ai.generateAiForecast(
+      leads.map(l => ({
+        stage: l.stage,
+        estimatedValue: l.estimatedValue,
+        aiScore: l.aiScore ?? undefined,
+      })),
+      recentDeals.map(d => ({ value: d.value, closedAt: d.closedAt.toISOString() })),
+    );
+
+    res.json(forecast);
   }),
 );

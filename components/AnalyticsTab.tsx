@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, BarChart3, Users, Target, DollarSign, Activity } from 'lucide-react';
+import { TrendingUp, BarChart3, Users, Target, DollarSign, Activity, Brain, Zap } from 'lucide-react';
 
 interface ForecastData {
   current: {
@@ -39,10 +39,25 @@ interface AgentPerformance {
   totalCommission: number;
 }
 
+interface StagePrediction {
+  predictedStage: string;
+  probability: number;
+  estimatedDays: number;
+  reasoning: string;
+}
+
+interface AiForecast {
+  next30Days: { estimatedDeals: number; estimatedValue: number };
+  next90Days: { estimatedDeals: number; estimatedValue: number };
+  confidence: number;
+  assumptions: string[];
+}
+
 const AnalyticsTab: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [conversion, setConversion] = useState<ConversionData[]>([]);
   const [agentPerformance, setAgentPerformance] = useState<AgentPerformance[]>([]);
+  const [aiForecast, setAiForecast] = useState<AiForecast | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,19 +66,22 @@ const AnalyticsTab: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [forecastRes, conversionRes, agentRes] = await Promise.all([
+      const [forecastRes, conversionRes, agentRes, aiForecastRes] = await Promise.all([
         fetch('/api/stats/forecast'),
         fetch('/api/stats/conversion'),
         fetch('/api/stats/agent-performance'),
+        fetch('/api/stats/forecast/ai'),
       ]);
-      const [forecastData, conversionData, agentData] = await Promise.all([
+      const [forecastData, conversionData, agentData, aiForecastData] = await Promise.all([
         forecastRes.json(),
         conversionRes.json(),
         agentRes.json(),
+        aiForecastRes.json(),
       ]);
       setForecast(forecastData);
       setConversion(conversionData);
       setAgentPerformance(agentData);
+      setAiForecast(aiForecastData);
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
@@ -136,6 +154,44 @@ const AnalyticsTab: React.FC = () => {
               {forecast.performance.recentDeals} deals closed recently
             </div>
           </div>
+        </div>
+      )}
+
+      {/* AI Forecast Section */}
+      {aiForecast && (
+        <div className="bg-slate-950/40 border border-purple-500/20 rounded-2xl p-6 shadow-xl">
+          <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4">
+            <Brain className="w-4 h-4 text-purple-400" />
+            AI Revenue Forecast
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <div className="text-xs text-slate-400 mb-1">30-Day Prediction</div>
+              <div className="text-2xl font-black text-white">{aiForecast.next30Days.estimatedDeals} deals</div>
+              <div className="text-xs text-slate-500">{formatCurrency(aiForecast.next30Days.estimatedValue)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 mb-1">90-Day Prediction</div>
+              <div className="text-2xl font-black text-white">{aiForecast.next90Days.estimatedDeals} deals</div>
+              <div className="text-xs text-slate-500">{formatCurrency(aiForecast.next90Days.estimatedValue)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 mb-1">AI Confidence</div>
+              <div className="text-2xl font-black text-white">{aiForecast.confidence}%</div>
+              <div className="text-xs text-slate-500">Based on pipeline + history</div>
+            </div>
+          </div>
+          {aiForecast.assumptions.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assumptions</div>
+              {aiForecast.assumptions.map((assumption, idx) => (
+                <div key={idx} className="text-[10px] text-slate-500 flex items-start gap-2">
+                  <span className="text-purple-400 mt-0.5">•</span>
+                  {assumption}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

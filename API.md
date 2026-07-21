@@ -110,6 +110,80 @@ Body:
 }
 ```
 
+## AI Intelligence
+
+### Calculate AI lead score
+```
+POST /api/ai/score/:leadId
+```
+
+Body:
+```json
+{
+  "leadId": "lead-id"
+}
+```
+
+Response: updated lead with `aiScore` (0-100) and `aiScoreReason`.
+
+### Enrich lead data
+```
+POST /api/ai/enrich/:leadId
+```
+
+Body:
+```json
+{
+  "leadId": "lead-id"
+}
+```
+
+Response: updated lead with `enrichmentData` (company size, tech stack, recent news, decision makers).
+
+### Predict stage transition
+```
+POST /api/ai/predict/:leadId
+```
+
+Body:
+```json
+{
+  "leadId": "lead-id"
+}
+```
+
+Response:
+```json
+{
+  "predictedStage": "Negotiation",
+  "probability": 75,
+  "estimatedDays": 5,
+  "reasoning": "Lead has high engagement and verified contacts."
+}
+```
+
+### Generate meeting prep
+```
+POST /api/ai/meeting-prep/:meetingId
+```
+
+Body:
+```json
+{
+  "meetingId": "meeting-id"
+}
+```
+
+Response:
+```json
+{
+  "talkingPoints": ["Review their current setup", "Discuss integration timeline"],
+  "winThemes": ["Cost savings", "Scalability"],
+  "potentialObjections": ["Budget", "Timing"],
+  "recommendedApproach": "Lead with ROI data and offer a pilot program."
+}
+```
+
 ## Sequences
 
 ### List sequences
@@ -121,6 +195,34 @@ GET /api/sequences
 ```
 POST /api/sequences
 ```
+
+Body:
+```json
+{
+  "name": "Cold Outreach",
+  "description": "Initial outreach sequence",
+  "triggerStage": "Discovered",
+  "isActive": true,
+  "steps": [
+    {
+      "order": 0,
+      "delayDays": 2,
+      "actionType": "TASK",
+      "taskName": "Send initial email",
+      "isActive": true,
+      "triggerEvent": "OPENED",
+      "eventDelayDays": 1,
+      "stopOnEvent": false
+    }
+  ]
+}
+```
+
+Step fields:
+- `delayDays` — days to wait before executing step (default)
+- `triggerEvent` — pitch event that triggers this step (OPENED, CLICKED, REPLIED, etc.)
+- `eventDelayDays` — delay in days when trigger event fires (overrides `delayDays`)
+- `stopOnEvent` — if true, complete sequence when trigger event fires
 
 ### Start sequence for lead
 ```
@@ -239,6 +341,21 @@ GET /api/stats
 ### Forecast
 ```
 GET /api/stats/forecast
+```
+
+### AI Forecast
+```
+GET /api/stats/forecast/ai
+```
+
+Response:
+```json
+{
+  "next30Days": { "estimatedDeals": 12, "estimatedValue": 45000 },
+  "next90Days": { "estimatedDeals": 35, "estimatedValue": 120000 },
+  "confidence": 78,
+  "assumptions": ["Conversion rates stable", "No major market shifts"]
+}
 ```
 
 ### Conversion by segment

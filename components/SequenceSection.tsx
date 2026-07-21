@@ -79,7 +79,16 @@ export const SequenceSection: React.FC<SequenceSectionProps> = ({ leadId, leadSt
                 <div key={exec.id} className="flex items-center justify-between bg-sky-500/10 border border-sky-500/20 rounded-xl px-4 py-3">
                   <div>
                     <div className="text-xs font-bold text-sky-400">{exec.sequence?.name || 'Unknown Sequence'}</div>
-                    <div className="text-[10px] text-slate-500">Step {exec.currentStep + 1} · Next: {exec.nextRunAt ? new Date(exec.nextRunAt).toLocaleDateString() : 'Pending'}</div>
+                    <div className="text-[10px] text-slate-500">
+                      Step {exec.currentStep + 1} of {exec.sequence?.steps?.length || 0}
+                      {exec.sequence?.steps?.[exec.currentStep]?.triggerEvent && (
+                        <span className="ml-2 text-purple-400">
+                          · Trigger: {exec.sequence.steps[exec.currentStep].triggerEvent}
+                          {exec.sequence.steps[exec.currentStep].stopOnEvent && ' (stop)'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-500">Next: {exec.nextRunAt ? new Date(exec.nextRunAt).toLocaleDateString() : 'Pending'}</div>
                   </div>
                   <button
                     onClick={() => handleStop(exec.sequenceId)}
@@ -97,16 +106,20 @@ export const SequenceSection: React.FC<SequenceSectionProps> = ({ leadId, leadSt
           {/* Available sequences */}
           <div className="space-y-2">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Available Sequences</p>
-            {sequences
-              .filter(s => s.triggerStage === leadStage && s.isActive)
-              .map(seq => {
-                const isActive = activeExecutions.some(e => e.sequenceId === seq.id);
-                return (
-                  <div key={seq.id} className="flex items-center justify-between bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3">
-                    <div>
-                      <div className="text-xs font-bold text-white">{seq.name}</div>
-                      <div className="text-[10px] text-slate-500">{seq.steps?.length || 0} steps</div>
-                    </div>
+                 {sequences
+                  .filter(s => s.triggerStage === leadStage && s.isActive)
+                  .map(seq => {
+                    const isActive = activeExecutions.some(e => e.sequenceId === seq.id);
+                    const hasTrigger = seq.steps?.some(s => s.triggerEvent);
+                    return (
+                      <div key={seq.id} className="flex items-center justify-between bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3">
+                        <div>
+                          <div className="text-xs font-bold text-white">{seq.name}</div>
+                          <div className="text-[10px] text-slate-500">
+                            {seq.steps?.length || 0} steps
+                            {hasTrigger && <span className="ml-2 text-purple-400">· Event-driven</span>}
+                          </div>
+                        </div>
                     {isActive ? (
                       <button
                         onClick={() => handleStop(seq.id)}

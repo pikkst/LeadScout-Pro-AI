@@ -146,7 +146,7 @@ async function startServer() {
       if (currentStepIndex >= steps.length) {
         await prisma.sequenceExecution.update({
           where: { id: exec.id },
-          data: { status: "COMPLETED", completedAt: new Date() },
+          data: { status: "COMPLETED", completedAt: new Date(), lastEventCheckedAt: now },
         });
         continue;
       }
@@ -155,7 +155,54 @@ async function startServer() {
       if (!step?.isActive) {
         await prisma.sequenceExecution.update({
           where: { id: exec.id },
-          data: { currentStep: currentStepIndex + 1 },
+          data: { currentStep: currentStepIndex + 1, lastEventCheckedAt: now },
+        });
+        continue;
+      }
+
+      let shouldAdvance = true;
+      let nextRun = new Date();
+
+      // Event-driven step handling
+      if (step.triggerEvent && exec.leadId) {
+        const since = exec.lastEventCheckedAt || exec.startedAt;
+        const matchingEvents = await prisma.pitchEvent.findMany({
+          where: {
+            pitch: {
+              leadId: exec.leadId,
+            },
+            type: step.triggerEvent,
+            createdAt: { gt: since },
+          },
+          take: 1,
+        });
+
+        if (matchingEvents.length > 0) {
+          if (step.stopOnEvent) {
+            await prisma.sequenceExecution.update({
+              where: { id: exec.id },
+              data: { status: "COMPLETED", completedAt: new Date(), lastEventCheckedAt: now },
+            });
+            continue;
+          }
+          const delay = step.eventDelayDays ?? step.delayDays ?? 0;
+          nextRun.setDate(nextRun.getDate() + delay);
+          shouldAdvance = true;
+        } else {
+          const delay = step.delayDays ?? 0;
+          nextRun.setDate(nextRun.getDate() + delay);
+          shouldAdvance = true;
+        }
+      } else {
+        const delay = step.delayDays ?? 0;
+        nextRun.setDate(nextRun.getDate() + delay);
+        shouldAdvance = true;
+      }
+
+      if (!shouldAdvance) {
+        await prisma.sequenceExecution.update({
+          where: { id: exec.id },
+          data: { lastEventCheckedAt: now },
         });
         continue;
       }
@@ -177,7 +224,6 @@ async function startServer() {
           },
         });
       } else if (step.actionType === "EMAIL" && step.subject && step.body) {
-        // Email would be sent here via SMTP service
         console.log(`[Sequence] Would send email to lead ${exec.leadId}: ${step.subject}`);
       }
 
@@ -186,15 +232,12 @@ async function startServer() {
       if (nextStepIndex >= steps.length) {
         await prisma.sequenceExecution.update({
           where: { id: exec.id },
-          data: { status: "COMPLETED", completedAt: new Date() },
+          data: { status: "COMPLETED", completedAt: new Date(), lastEventCheckedAt: now },
         });
       } else {
-        const nextStep = steps[nextStepIndex];
-        const nextRun = new Date();
-        nextRun.setDate(nextRun.getDate() + (nextStep?.delayDays ?? 0));
         await prisma.sequenceExecution.update({
           where: { id: exec.id },
-          data: { currentStep: nextStepIndex, nextRunAt: nextRun },
+          data: { currentStep: nextStepIndex, nextRunAt: nextRun, lastEventCheckedAt: now },
         });
       }
     }

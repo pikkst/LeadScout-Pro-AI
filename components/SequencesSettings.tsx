@@ -195,6 +195,31 @@ export const SequencesSettings: React.FC = () => {
                       <input type="text" value={step.taskName || step.subject || ''} onChange={e => updateStep(idx, step.actionType === 'EMAIL' ? { subject: e.target.value } : { taskName: e.target.value })} placeholder={step.actionType === 'EMAIL' ? 'Email subject' : 'Task name'} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/40" />
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Trigger Event</label>
+                      <select value={step.triggerEvent || ''} onChange={e => updateStep(idx, { triggerEvent: e.target.value || null })} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+                        <option value="">None (fixed delay)</option>
+                        <option value="OPENED">Opened</option>
+                        <option value="CLICKED">Clicked</option>
+                        <option value="REPLIED">Replied</option>
+                        <option value="SENT">Sent</option>
+                        <option value="DELIVERED">Delivered</option>
+                        <option value="BOUNCED">Bounced</option>
+                        <option value="FAILED">Failed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Event Delay (days)</label>
+                      <input type="number" value={step.eventDelayDays ?? ''} onChange={e => updateStep(idx, { eventDelayDays: e.target.value ? parseInt(e.target.value) : null })} placeholder="Same as delay" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/40" />
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
+                        <input type="checkbox" checked={step.stopOnEvent || false} onChange={e => updateStep(idx, { stopOnEvent: e.target.checked })} className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-purple-500 focus:ring-purple-500/40" />
+                        Stop sequence on event
+                      </label>
+                    </div>
+                  </div>
                   {step.actionType === 'EMAIL' && (
                     <div>
                       <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Email Body</label>
@@ -252,7 +277,7 @@ export const SequencesSettings: React.FC = () => {
                   <button onClick={() => handleDelete(seq.id)} className="p-1.5 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-950/40"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
-              {seq.steps && seq.steps.length > 0 && (
+                  {seq.steps && seq.steps.length > 0 && (
                 <div className="space-y-1.5">
                   {seq.steps.map((step, idx) => (
                     <div key={step.id} className="flex items-center gap-2 text-[10px] bg-slate-950/40 rounded-lg px-3 py-2">
@@ -264,6 +289,11 @@ export const SequencesSettings: React.FC = () => {
                         'bg-purple-500/10 text-purple-400'
                       }`}>{step.actionType}</span>
                       <span className="text-slate-300 truncate">{step.taskName || step.subject || 'Unnamed step'}</span>
+                      {step.triggerEvent && (
+                        <span className="text-purple-400 font-mono text-[9px] ml-auto">
+                          {step.triggerEvent}{step.stopOnEvent ? ' ■' : ''}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

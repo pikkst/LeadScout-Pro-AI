@@ -72,6 +72,9 @@ model Lead {
   stage          LeadStage  @default(DISCOVERED)
   notes          String     @default("")
   estimatedValue Int        @default(0) // Potential monthly value in EUR
+  aiScore        Int?       // AI-calculated conversion probability 0-100
+  aiScoreReason  String?    // Explanation for the AI score
+  enrichmentData String?    // JSON: company size, tech stack, news, decision makers
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   lastContactedAt DateTime?
@@ -359,7 +362,10 @@ model SequenceStep {
   body        String?
   taskName    String?
   isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  triggerEvent PitchEventType? // pitch event that triggers this step
+  eventDelayDays Int?    // delay in days when trigger event fires (null = use delayDays)
+  stopOnEvent   Boolean @default(false) // complete sequence when trigger event fires
+  createdAt   DateTime   @default(now())
   updatedAt   DateTime @updatedAt
 
   sequenceId String
@@ -383,6 +389,7 @@ model SequenceExecution {
   startedAt   DateTime @default(now())
   completedAt DateTime?
   nextRunAt   DateTime?
+  lastEventCheckedAt DateTime? // last time pitch events were checked for trigger events
 
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)

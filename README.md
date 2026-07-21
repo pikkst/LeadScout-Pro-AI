@@ -68,9 +68,17 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 - Meeting notes and activity logging
 - **My Pipeline filter**: view only leads assigned to you or created by you
 - **Bulk stage updates**: select multiple leads and move them across stages
-- **Lead scoring**: 0-100 point score based on verification, value, stage, tasks, and meetings
+- **AI Lead Scoring**: 0-100 conversion probability calculated by Google Gemini with reasoning
+- **Lead Enrichment**: company size, tech stack, recent news, and decision-maker names
+- **Smart Follow-up Sequences**: event-driven automation (opened → 2d, clicked → 1d, replied → pause/stop)
 - **Overdue follow-up alerts** with action center
 - CSV export and JSON backup/restore
+
+### 4. Predictive Analytics (AI)
+- **Stage Transition Prediction**: AI predicts next pipeline stage, probability, and estimated days
+- **AI Revenue Forecast**: 30-day and 90-day revenue predictions with confidence scores and assumptions
+- **Meeting Prep AI**: auto-generated talking points, win themes, potential objections, and recommended approach
+- Conversion by segment and agent performance analytics
 
 ### 4. AI Outreach Generator
 - Generates localized partnership pitch emails in 7 languages
@@ -661,6 +669,26 @@ Generate API keys in Settings → API Keys to connect with:
 - Custom scripts and automation tools
 
 All API requests require the header: `Authorization: Bearer <your-api-key>`
+
+---
+
+## Changelog
+
+### Stage 1 — AI Lead Intelligence (2026-07-21)
+- **AI Lead Score**: 0-100 conversion probability calculated by Google Gemini with reasoning
+- **AI Enrichment**: company size, tech stack, recent news, and decision-maker names
+- **Smart Follow-up Sequences**: event-driven automation (opened → 2d, clicked → 1d, replied → pause/stop)
+- New endpoints: `POST /api/ai/score/:leadId`, `POST /api/ai/enrich/:leadId`
+- New sequence step fields: `triggerEvent`, `eventDelayDays`, `stopOnEvent`
+- Added vitest test suite for backend utilities and sequence engine logic
+
+### Stage 2 — Predictive Analytics (2026-07-21)
+- **Stage Transition Prediction**: AI predicts next pipeline stage with probability and estimated days
+- **AI Revenue Forecast**: 30-day and 90-day predictions with confidence scores
+- **Meeting Prep AI**: talking points, win themes, objections, and recommended approach
+- New endpoints: `POST /api/ai/predict/:leadId`, `POST /api/ai/meeting-prep/:meetingId`, `GET /api/stats/forecast/ai`
+- Added fallback-safe prediction/forecast/meeting-prep services with JSON extraction
+- Added vitest tests for Stage 2 prediction logic and fallbacks
 
 ---
 

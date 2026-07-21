@@ -741,7 +741,7 @@ Date().toISOString().split('T')[0]}.json`);
     setMineFilter(prev => !prev);
   }, []);
 
-  // Compute stats for Dashboard (kogu B2B olema jälgitav)
+  // Compute stats for Dashboard (all B2B activity tracked)
   const stats = useMemo(() => {
     const totalLeads = leads.length;
     const selectedLeadsCount = selectedLeadIds.size;
@@ -1003,36 +1003,37 @@ Date().toISOString().split('T')[0]}.json`);
 
           {/* TAB 1: SCOUT & VERIFY LEADS */}
           {activeTab === 'scout' && (
-            <ScoutTab
-              location={location}
-              setLocation={setLocation}
-              intensity={intensity}
-              setIntensity={setIntensity}
-              focus={focus}
-              setFocus={setFocus}
-              searchState={searchState}
-              updateProgress={updateProgress}
-              addLog={addLog}
-              onSearch={handleSearch}
-              leads={displayedLeads}
-              selectedLeadIds={selectedLeadIds}
-              onSelectLead={handleSelectLead}
-              onSelectAll={handleSelectAll}
-              isLoadingData={isLoadingData}
-              onAddLead={() => { setSelectedCRMLead(null); setIsCRMModalOpen(true); }}
-              onEditLead={(lead) => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
-              onDeleteLead={handleDeleteLead}
-              onExportBackup={handleExportBackup}
-              onImportBackup={handleImportBackup}
-              onGeneratePitches={handleGeneratePitches}
-              isGeneratingPitches={isGeneratingPitches}
-               pitchProgress={pitchProgress}
-               preferredLanguage={preferredLanguage}
-               setPreferredLanguage={setPreferredLanguage}
-               mineFilter={mineFilter}
-               onToggleMineFilter={handleToggleMineFilter}
-               totalLeadsCount={leads.length}
-             />
+              <ScoutTab
+                location={location}
+                setLocation={setLocation}
+                intensity={intensity}
+                setIntensity={setIntensity}
+                focus={focus}
+                setFocus={setFocus}
+                searchState={searchState}
+                updateProgress={updateProgress}
+                addLog={addLog}
+                onSearch={handleSearch}
+                leads={displayedLeads}
+                selectedLeadIds={selectedLeadIds}
+                onSelectLead={handleSelectLead}
+                onSelectAll={handleSelectAll}
+                isLoadingData={isLoadingData}
+                onAddLead={() => { setSelectedCRMLead(null); setIsCRMModalOpen(true); }}
+                onEditLead={(lead) => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
+                onDeleteLead={handleDeleteLead}
+                onExportBackup={handleExportBackup}
+                onImportBackup={handleImportBackup}
+                onGeneratePitches={handleGeneratePitches}
+                isGeneratingPitches={isGeneratingPitches}
+                 pitchProgress={pitchProgress}
+                 preferredLanguage={preferredLanguage}
+                 setPreferredLanguage={setPreferredLanguage}
+                 mineFilter={mineFilter}
+                 onToggleMineFilter={handleToggleMineFilter}
+                 totalLeadsCount={leads.length}
+                 onUpdateLead={(updated) => setLeads(prev => prev.map(l => l.id === updated.id ? updated : l))}
+               />
           )}
 
           {/* TAB 2: AI CAMPAIGN BUILDER (DRAFTS & EMAIL DRAFT GENERATION) */}
