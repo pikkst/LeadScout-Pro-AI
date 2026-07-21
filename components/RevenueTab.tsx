@@ -67,7 +67,7 @@ const RevenueTab: React.FC = () => {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('et-EE', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 0,
@@ -75,7 +75,7 @@ const RevenueTab: React.FC = () => {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('et-EE');
+    return new Date(dateStr).toLocaleDateString('en-US');
   };
 
   if (loading) {

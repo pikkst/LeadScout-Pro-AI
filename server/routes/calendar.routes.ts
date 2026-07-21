@@ -57,7 +57,7 @@ calendarRouter.post("/slots", asyncHandler(async (req, res) => {
   if (!agent) throw notFound("Agent not found");
 
   const slot = await prisma.meetingSlot.create({
-    data,
+    data: data as any,
     include: { agent: { select: { name: true } } },
   });
 
@@ -79,9 +79,14 @@ calendarRouter.post("/slots/bulk", asyncHandler(async (req, res) => {
   if (!agent) throw notFound("Agent not found");
 
   const slots: { date: string; startTime: string; endTime: string; agentId: string }[] = [];
-  const current = new Date(startDate);
+  const start = new Date(startDate);
   const end = new Date(endDate);
 
+  if (start > end) {
+    return res.json({ created: 0, slots: [] });
+  }
+
+  let current = new Date(start);
   while (current <= end) {
     const dateStr = current.toISOString().split('T')[0];
     let [sh, sm] = startTime.split(':').map(Number);
@@ -102,7 +107,7 @@ calendarRouter.post("/slots/bulk", asyncHandler(async (req, res) => {
       sm = nextM;
     }
 
-    current.setDate(current.getDate() + 1);
+    current = new Date(current.getTime() + 24 * 60 * 60 * 1000);
   }
 
   const created = await prisma.meetingSlot.createMany({ data: slots });

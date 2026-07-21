@@ -8,6 +8,7 @@ import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { logActivity } from "../utils/activity";
 import { serializeLead } from "../utils/serializers";
+import { param } from "../utils/param";
 import * as ai from "../services/ai.service";
 
 export const aiRouter = Router();
@@ -95,7 +96,7 @@ aiRouter.post(
     body: z.object({ leadId: z.string().min(1) }),
   }),
   asyncHandler(async (req, res) => {
-    const leadId = req.params.leadId;
+    const leadId = param(req, "leadId");
     const lead = await prisma.lead.findUnique({ where: { id: leadId } });
     if (!lead) return res.status(404).json({ error: "Lead not found" });
 
@@ -129,7 +130,7 @@ aiRouter.post(
     body: z.object({ leadId: z.string().min(1) }),
   }),
   asyncHandler(async (req, res) => {
-    const leadId = req.params.leadId;
+    const leadId = param(req, "leadId");
     const lead = await prisma.lead.findUnique({ where: { id: leadId } });
     if (!lead) return res.status(404).json({ error: "Lead not found" });
 
@@ -159,7 +160,7 @@ aiRouter.post(
     body: z.object({ leadId: z.string().min(1) }),
   }),
   asyncHandler(async (req, res) => {
-    const leadId = req.params.leadId;
+    const leadId = param(req, "leadId");
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       include: { followUpTask: true, pitches: true },
@@ -188,7 +189,7 @@ aiRouter.post(
     body: z.object({ meetingId: z.string().min(1) }),
   }),
   asyncHandler(async (req, res) => {
-    const meetingId = req.params.meetingId;
+    const meetingId = param(req, "meetingId");
     const meeting = await prisma.meeting.findUnique({
       where: { id: meetingId },
       include: { lead: true },

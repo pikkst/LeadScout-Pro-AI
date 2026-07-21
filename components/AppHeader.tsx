@@ -2,7 +2,7 @@ import React from 'react';
 import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity } from 'lucide-react';
 
 interface Tab {
-  id: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'settings';
+  id: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings';
   label: string;
   icon: React.ReactNode;
   badge?: React.ReactNode;
@@ -11,7 +11,7 @@ interface Tab {
 interface AppHeaderProps {
   user: { name?: string; role?: string } | null;
   isAdmin: boolean;
-  activeTab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'settings';
+  activeTab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings';
   stats: {
     totalLeads: number;
     selectedLeadsCount: number;
@@ -22,7 +22,7 @@ interface AppHeaderProps {
   };
   pitchesCount: number;
   overdueLeadsCount: number;
-  onTabChange: (tab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'settings') => void;
+  onTabChange: (tab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings') => void;
   onLogout: () => void;
 }
 

@@ -32,7 +32,7 @@ export const FOCUS_OPTIONS: { value: LeadFocus; label: string; icon: string; pit
 export const LANGUAGE_OPTIONS = [
   { value: 'Auto-Detect', label: '🌐 Auto-Detect Language' },
   { value: 'English', label: '🇺🇸 English' },
-  { value: 'Estonian', label: '🇪🇪 Estonian (Eesti keel)' },
+  { value: 'Estonian', label: '🇪🇪 Estonian' },
   { value: 'German', label: '🇩🇪 German (Deutsch)' },
   { value: 'French', label: '🇫🇷 French (Français)' },
   { value: 'Spanish', label: '🇪🇸 Spanish (Español)' },

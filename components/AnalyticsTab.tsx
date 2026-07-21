@@ -86,11 +86,11 @@ const AnalyticsTab: React.FC = () => {
         fetch('/api/optimization/coaching/me'),
       ]);
       const [forecastData, conversionData, agentData, aiForecastData, coachingData] = await Promise.all([
-        forecastRes.json(),
-        conversionRes.json(),
-        agentRes.json(),
-        aiForecastRes.json(),
-        coachingRes.json(),
+        forecastRes.json() as Promise<ForecastData>,
+        conversionRes.json() as Promise<ConversionData[]>,
+        agentRes.json() as Promise<AgentPerformance[]>,
+        aiForecastRes.json() as Promise<AiForecast>,
+        coachingRes.json() as Promise<CoachingInsight[]>,
       ]);
       setForecast(forecastData);
       setConversion(conversionData);
@@ -105,7 +105,7 @@ const AnalyticsTab: React.FC = () => {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('et-EE', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 0,
@@ -227,15 +227,15 @@ const AnalyticsTab: React.FC = () => {
                   <div
                     className="h-full bg-sky-500 rounded-full transition-all"
                     style={{
-                      width: `${Math.min(100, (data.count / forecast.current.totalLeads) * 100)}%`,
+                      width: `${Math.min(100, ((data as ForecastData['current']['byStage'][string]).count / forecast.current.totalLeads) * 100)}%`,
                     }}
                   />
                 </div>
                 <div className="w-16 text-right text-xs font-bold text-white">
-                  {data.count}
+                  {(data as ForecastData['current']['byStage'][string]).count}
                 </div>
                 <div className="w-24 text-right text-xs text-slate-400">
-                  {formatCurrency(data.value)}
+                  {formatCurrency((data as ForecastData['current']['byStage'][string]).value)}
                 </div>
               </div>
             ))}

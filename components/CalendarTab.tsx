@@ -148,7 +148,7 @@ const CalendarTab: React.FC = () => {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('et-EE', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',

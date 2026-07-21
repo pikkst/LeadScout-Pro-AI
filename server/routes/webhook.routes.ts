@@ -17,8 +17,8 @@ function verifyResendSignature(req: Request, secret: string): boolean {
   const parts = signature.split(".");
   const payload = `${timestamp}.${rawBody}`;
   const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  // Accept either the full "t.uid.sig" form or a bare hex signature.
   const candidate = parts[parts.length - 1];
+  if (candidate.length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(expected));
 }
 

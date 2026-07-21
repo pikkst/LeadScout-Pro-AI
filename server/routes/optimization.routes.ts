@@ -67,7 +67,7 @@ optimizationRouter.post("/coaching/generate", asyncHandler(async (req, res) => {
 
   const [assignedLeads, deals, activities] = await Promise.all([
     prisma.lead.findMany({ where: { assignedAgentId: agentId }, select: { stage: true, estimatedValue: true } }),
-    prisma.deal.findMany({ where: { agentId }, select: { value: true, commissionRate: true, closedAt: true } }),
+    prisma.deal.findMany({ where: { agentId }, select: { value: true, commission: true, commissionRate: true, closedAt: true } }),
     prisma.activityLog.findMany({ where: { userId: agentId }, orderBy: { createdAt: "desc" }, take: 20, select: { action: true, detail: true, createdAt: true } }),
   ]);
 

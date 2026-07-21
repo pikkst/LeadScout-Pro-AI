@@ -1,5 +1,5 @@
 // CRM service: persist and manage leads, pitches, follow-ups and meetings server-side.
-import { CompanyLead, OutreachPitch, ScheduledMeeting, FollowUpSequence, SequenceExecution } from "../types";
+import { CompanyLead, OutreachPitch, ScheduledMeeting, FollowUpSequence, SequenceExecution, StagePrediction, AiForecast, MeetingPrep, SendTimeRecord, CoachingInsight, MonitoringAlert } from "../types";
 import { api } from "./apiClient";
 
 type Stage = NonNullable<CompanyLead["stage"]>;

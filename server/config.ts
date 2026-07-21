@@ -38,6 +38,9 @@ export const config = {
   jwtExpiresIn: optional(process.env.JWT_EXPIRES_IN, "7d"),
   cookieName: optional(process.env.AUTH_COOKIE_NAME, "unitel_token"),
 
+  // CORS
+  corsOrigin: process.env.CORS_ORIGIN || "",
+
   // AI
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: optional(process.env.GEMINI_MODEL, "gemini-2.5-flash"),

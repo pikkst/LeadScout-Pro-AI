@@ -28,7 +28,7 @@ async function startServer() {
   );
   app.use(
     cors({
-      origin: config.isProduction ? true : true,
+      origin: config.isProduction ? config.corsOrigin || false : true,
       credentials: true,
     }),
   );
@@ -99,7 +99,7 @@ async function startServer() {
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
-    console.log("[server] Serving production build from " + distPath);
+    console.log("[server] Serving production build from " + path.basename(distPath) + " (" + distPath + ")");
   }
 
   // Error handler must be last.

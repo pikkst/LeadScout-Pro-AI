@@ -36,7 +36,7 @@ documentsRouter.get("/templates", asyncHandler(async (_req, res) => {
 // ---- Create template ----
 documentsRouter.post("/templates", asyncHandler(async (req, res) => {
   const data = templateSchema.parse(req.body);
-  const template = await prisma.documentTemplate.create({ data });
+  const template = await prisma.documentTemplate.create({ data: data as any });
   res.json(template);
 }));
 
@@ -90,7 +90,7 @@ documentsRouter.post("/generate", asyncHandler(async (req, res) => {
         lead_description: lead.description || '',
         agent_name: lead.assignedAgent?.name || '',
         company_name: 'Unitel Global',
-        date: new Date().toLocaleDateString('et-EE'),
+        date: new Date().toLocaleDateString('en-US'),
       };
 
       Object.entries(autoVars).forEach(([key, value]) => {

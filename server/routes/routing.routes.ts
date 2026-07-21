@@ -39,7 +39,7 @@ routingRouter.post("/rules", asyncHandler(async (req, res) => {
   if (!agent) throw notFound("Agent not found");
 
   const rule = await prisma.leadRoutingRule.create({
-    data,
+    data: data as any,
     include: {
       assignedAgent: { select: { id: true, name: true, email: true } },
     },

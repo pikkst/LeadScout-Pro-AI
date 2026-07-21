@@ -3,7 +3,7 @@ import { CompanyLead, LeadFocus, ScheduledMeeting } from '../types';
 import { 
   X, Save, Building, Mail, Globe, Phone, DollarSign, User, FileText, 
   Calendar, Clock, Video, Plus, Trash2, Edit3, ExternalLink, CalendarDays,
-  Brain, Sparkles, Bell, Send, AlertTriangle, CheckCircle2
+  Brain, Sparkles, Bell, Send, AlertTriangle, CheckCircle2, Zap
 } from 'lucide-react';
 import { SequenceSection } from './SequenceSection';
 

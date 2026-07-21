@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { requireAuth } from "../middleware/auth";
+import { param } from "../utils/param";
 import crypto from "crypto";
 
 export const apiKeysRouter = Router();
@@ -43,7 +44,7 @@ apiKeysRouter.post("/", asyncHandler(async (req, res) => {
       key: rawKey,
       keyPrefix,
       userId: req.user!.id,
-      scopes: data.scopes,
+      scopes: JSON.stringify(data.scopes),
     },
   });
 
@@ -60,7 +61,7 @@ apiKeysRouter.post("/", asyncHandler(async (req, res) => {
 // ---- Revoke API key ----
 apiKeysRouter.delete("/:id", asyncHandler(async (req, res) => {
   await prisma.apiKey.delete({
-    where: { id: req.params.id, userId: req.user!.id },
+    where: { id: param(req, "id"), userId: req.user!.id },
   });
   res.json({ success: true });
 }));

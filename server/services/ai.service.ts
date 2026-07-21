@@ -1,6 +1,7 @@
 // AI service: encapsulates all Google Gemini interactions used by the platform.
 import { GoogleGenAI } from "@google/genai";
 import { HttpError } from "../utils/httpError";
+import { prisma } from "../db";
 import { getAiSettings, getCompanyProfile } from "./settings.service";
 
 let client: GoogleGenAI | null = null;
@@ -652,14 +653,14 @@ export async function recommendSendTime(leadId: string, agentId?: string): Promi
     where: { id: leadId },
     include: {
       pitches: {
-        where: { status: { in: ["SENT", "DELIVERED", "OPENED", "CLICKED", "REPLIED"] } },
+        where: { status: { in: ["SENT", "DELIVERED", "REPLIED"] } },
         include: { events: true },
       },
     },
   });
   if (!lead) throw new Error("Lead not found");
 
-  const pitchEvents = lead.pitches.flatMap(p => p.events);
+  const pitchEvents = (lead.pitches as Array<{ events: Array<{ type: string; createdAt: Date }> }>).flatMap(p => p.events);
   const openedEvents = pitchEvents.filter(e => e.type === "OPENED");
   const clickedEvents = pitchEvents.filter(e => e.type === "CLICKED");
 

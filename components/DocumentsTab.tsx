@@ -267,7 +267,7 @@ const DocumentsTab: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-xs text-slate-500 mt-1">
-                  Created by {doc.createdBy.name} • {new Date(doc.createdAt).toLocaleDateString('et-EE')}
+                  Created by {doc.createdBy.name} • {new Date(doc.createdAt).toLocaleDateString('en-US')}
                   {doc.lead && ` • For: ${doc.lead.name}`}
                 </div>
               </div>

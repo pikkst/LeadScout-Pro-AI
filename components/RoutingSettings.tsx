@@ -5,6 +5,7 @@ interface Agent {
   id: string;
   name: string;
   email: string;
+  role: string;
 }
 
 interface RoutingRule {

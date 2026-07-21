@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 
 // Note: The Gemini API key is used ONLY on the server (see server/config.ts).
 // It is intentionally NOT injected into the client bundle for security.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default defineConfig(() => {
   return {
     server: {
@@ -11,7 +12,7 @@ export default defineConfig(() => {
       host: '0.0.0.0',
       fs: {
         ignore: ['extension/**'],
-      },
+      } as any,
     },
     plugins: [react()],
     resolve: {

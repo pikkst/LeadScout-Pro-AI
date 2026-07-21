@@ -22,7 +22,7 @@ pitchesRouter.get(
     const pitches = await prisma.pitch.findMany({
       orderBy: { createdAt: "desc" },
       include: { events: { orderBy: { createdAt: "desc" } } },
-    } as any);
+    });
     res.json(pitches.map(serializePitch));
   }),
 );

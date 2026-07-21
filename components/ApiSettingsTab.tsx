@@ -184,8 +184,8 @@ const ApiSettingsTab: React.FC = () => {
             <div>
               <div className="text-sm font-semibold text-white">{key.name}</div>
               <div className="text-xs text-slate-500 mt-1">
-                {key.keyPrefix}... • Created {new Date(key.createdAt).toLocaleDateString('et-EE')}
-                {key.lastUsedAt && ` • Last used ${new Date(key.lastUsedAt).toLocaleDateString('et-EE')}`}
+                 {key.keyPrefix}... • Created {new Date(key.createdAt).toLocaleDateString('en-US')}
+                 {key.lastUsedAt && ` • Last used ${new Date(key.lastUsedAt).toLocaleDateString('en-US')}`}
               </div>
               <div className="flex gap-1 mt-2">
                 {key.scopes.map((scope) => (
