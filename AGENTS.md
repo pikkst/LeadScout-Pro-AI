@@ -57,3 +57,10 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Conventional commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 - One logical change per commit
 - Never commit secrets, `.env`, or `dist/`
+
+## Branch & Pull Request Rules
+- Every update, change, or git push must be made on a new branch, not directly on `main`
+- After pushing, open a Pull Request for review before merging
+- Branch naming: `<type>/<short-description>` (e.g. `feat/lead-search-filter`, `fix/auth-timeout`)
+- Do not merge your own PR without at least one review or CI approval
+- PR description must reference the related issue or task, include a changelog summary, and pass all checks
