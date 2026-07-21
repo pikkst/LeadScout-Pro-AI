@@ -25,7 +25,7 @@ monitoringRouter.get("/lead/:leadId", asyncHandler(async (req, res) => {
 }));
 
 monitoringRouter.post("/lead/:leadId/check", canWrite, validate({
-  body: z.object({ leadId: z.string().min(1) }),
+  body: z.object({ leadId: z.string().min(1).optional() }),
 }), asyncHandler(async (req, res) => {
   const leadId = param(req, "leadId");
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });

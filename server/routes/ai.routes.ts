@@ -93,7 +93,7 @@ aiRouter.post(
 aiRouter.post(
   "/score/:leadId",
   validate({
-    body: z.object({ leadId: z.string().min(1) }),
+    body: z.object({ leadId: z.string().min(1).optional() }),
   }),
   asyncHandler(async (req, res) => {
     const leadId = param(req, "leadId");
@@ -127,7 +127,7 @@ aiRouter.post(
 aiRouter.post(
   "/enrich/:leadId",
   validate({
-    body: z.object({ leadId: z.string().min(1) }),
+    body: z.object({ leadId: z.string().min(1).optional() }),
   }),
   asyncHandler(async (req, res) => {
     const leadId = param(req, "leadId");
@@ -157,7 +157,7 @@ aiRouter.post(
 aiRouter.post(
   "/predict/:leadId",
   validate({
-    body: z.object({ leadId: z.string().min(1) }),
+    body: z.object({ leadId: z.string().min(1).optional() }),
   }),
   asyncHandler(async (req, res) => {
     const leadId = param(req, "leadId");
