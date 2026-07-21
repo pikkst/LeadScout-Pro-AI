@@ -184,6 +184,116 @@ Response:
 }
 ```
 
+## Optimization
+
+### Get send-time recommendation
+```
+POST /api/optimization/send-time/:leadId
+```
+
+Body:
+```json
+{
+  "leadId": "lead-id",
+  "agentId": "agent-id"
+}
+```
+
+Response:
+```json
+{
+  "id": "rec-id",
+  "leadId": "lead-id",
+  "recommendedHour": 10,
+  "recommendedDay": "Tuesday",
+  "confidence": 85,
+  "reason": "Historical open rates peak at this time",
+  "createdAt": "2026-07-21T..."
+}
+```
+
+### List send-time recommendations
+```
+GET /api/optimization/send-time/:leadId
+```
+
+### Generate coaching insights
+```
+POST /api/optimization/coaching/generate
+```
+
+Response:
+```json
+[
+  {
+    "id": "coaching-id",
+    "agentId": "agent-id",
+    "insightType": "CONVERSION_RATE",
+    "title": "Improve follow-up timing",
+    "description": "Your conversion rate is below average...",
+    "priority": "MEDIUM",
+    "isRead": false,
+    "isResolved": false,
+    "createdAt": "2026-07-21T..."
+  }
+]
+```
+
+### Get my coaching insights
+```
+GET /api/optimization/coaching/me
+```
+
+### Mark coaching insight as read
+```
+PATCH /api/optimization/coaching/:id/read
+```
+
+### Resolve coaching insight
+```
+PATCH /api/optimization/coaching/:id/resolve
+```
+
+## Monitoring
+
+### Get monitoring alerts for lead
+```
+GET /api/monitoring/lead/:leadId
+```
+
+### Check competitors for lead
+```
+POST /api/monitoring/lead/:leadId/check
+```
+
+Body:
+```json
+{
+  "leadId": "lead-id"
+}
+```
+
+Response:
+```json
+[
+  {
+    "id": "alert-id",
+    "leadId": "lead-id",
+    "type": "COMPETITOR",
+    "title": "Competitor alert: Test Corp",
+    "description": "Test Corp launched a new product...",
+    "source": "AI Generated",
+    "isRead": false,
+    "createdAt": "2026-07-21T..."
+  }
+]
+```
+
+### Mark alert as read
+```
+PATCH /api/monitoring/:id/read
+```
+
 ## Sequences
 
 ### List sequences

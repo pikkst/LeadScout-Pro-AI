@@ -72,6 +72,9 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 - **Lead Enrichment**: company size, tech stack, recent news, and decision-maker names
 - **Smart Follow-up Sequences**: event-driven automation (opened → 2d, clicked → 1d, replied → pause/stop)
 - **Overdue follow-up alerts** with action center
+- **Competitor & Lead Monitoring**: AI-powered alerts on competitor moves and market changes
+- **Send-Time Optimization**: AI recommendations for optimal outreach timing
+- **Agent Coaching Insights**: personalized performance feedback and improvement suggestions
 - CSV export and JSON backup/restore
 
 ### 4. Predictive Analytics (AI)
@@ -689,6 +692,14 @@ All API requests require the header: `Authorization: Bearer <your-api-key>`
 - New endpoints: `POST /api/ai/predict/:leadId`, `POST /api/ai/meeting-prep/:meetingId`, `GET /api/stats/forecast/ai`
 - Added fallback-safe prediction/forecast/meeting-prep services with JSON extraction
 - Added vitest tests for Stage 2 prediction logic and fallbacks
+
+### Stage 3 — Autonomous Optimization (2026-07-21)
+- **Send-Time Optimization**: AI recommends optimal day and hour for outreach based on historical engagement
+- **Competitor & Lead Monitoring**: automated scanning for competitor moves and market intelligence alerts
+- **Agent Coaching Insights**: AI-generated personalized performance feedback with priority levels
+- New endpoints: `POST /api/optimization/send-time/:leadId`, `POST /api/monitoring/lead/:leadId/check`, `GET /api/optimization/coaching/me`
+- Added monitoring alerts and coaching insights UI to Analytics, CRM, and Scout tabs
+- Added vitest tests for Stage 3 optimization and monitoring logic
 
 ---
 

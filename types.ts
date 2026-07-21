@@ -218,3 +218,45 @@ export interface MeetingPrep {
   potentialObjections: string[];
   recommendedApproach: string;
 }
+
+export interface SendTimeRecord {
+  id: string;
+  leadId: string;
+  agentId?: string;
+  recommendedHour: number;
+  recommendedDay: string;
+  confidence: number;
+  reason: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+export interface MonitoringAlert {
+  id: string;
+  leadId: string;
+  type: string;
+  title: string;
+  description: string;
+  source?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface CoachingInsight {
+  id: string;
+  agentId: string;
+  insightType: string;
+  title: string;
+  description: string;
+  priority: string;
+  isRead: boolean;
+  isResolved: boolean;
+  createdAt: string;
+}
+
+export interface CompetitorInsight {
+  competitor: string;
+  recentMoves: string[];
+  threatLevel: "LOW" | "MEDIUM" | "HIGH";
+  recommendation: string;
+}

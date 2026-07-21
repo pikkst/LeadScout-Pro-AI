@@ -13,19 +13,8 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 ## Stage Plan
 
 ### Stage 1 — AI Lead Intelligence (Completed)
-- AI Lead Score: 0-100 conversion probability via Gemini with reasoning
-- Smart Follow-ups: event-driven sequence steps (opened → 2d, clicked → 1d, replied → pause/stop)
-- AI Enrichment: company size, tech stack, recent news, decision-maker names
-
 ### Stage 2 — Predictive Analytics (Completed)
-- Lead stage transition prediction with probability and estimated days
-- AI-enhanced revenue pipeline forecasting (30-day and 90-day)
-- Meeting prep AI: talking points, win themes, objections, recommended approach
-
-### Stage 3 — Autonomous Optimization (Next)
-- Send-time optimization
-- Competitor/lead monitoring
-- Agent coaching insights
+### Stage 3 — Autonomous Optimization (Completed)
 
 ## Lessons Learned
 - Prisma schema changes require migration + regenerate cycle on Windows (file locking may block generate; stop node processes first)
@@ -48,6 +37,13 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - [ ] Duplicates: no repeated logic, shared utilities extracted
 - [ ] Best practices: error handling, logging, rate limiting, idempotency
 - [ ] English: no Estonian/Russian/other strings in code or UI
+- [ ] Security vulnerabilities: SQL injection, XSS, etc.
+- [ ] Performance issues: slow queries, memory leaks, high CPU usage, inefficient loops.
+- [ ] Bug detection: edge cases, race conditions, data corruption, invalid inputs, etc.
+- [ ] Code style: consistency, readability, maintainability, formatting, naming conventions, etc.
+- [ ] Test coverage: minimum 80% for new code, edge cases covered, proper assertions
+- [ ] Documentation: API docs updated, inline comments added, changelog updated, readme updated
+
 
 ## Bug Fix Protocol
 1. Reproduce and log the bug

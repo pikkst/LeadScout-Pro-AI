@@ -32,6 +32,8 @@ model User {
   meetingSlots  MeetingSlot[] @relation("MeetingSlots")
   createdDocuments GeneratedDocument[] @relation("DocumentCreator")
   apiKeys ApiKey[] @relation("ApiKeys")
+  sendTimeOptimizations SendTimeOptimization[] @relation("SendTimeOptimizations")
+  coachingInsights AgentCoaching[] @relation("AgentCoaching")
 
   @@index([role])
   @@map("users")
@@ -93,6 +95,8 @@ model Lead {
   sequenceExecutions SequenceExecution[]
   deals Deal[]
   documents GeneratedDocument[]
+  monitoringAlerts LeadMonitoring[]
+  sendTimeOptimizations SendTimeOptimization[]
 
   @@unique([website, email])
   @@index([domain])
@@ -537,3 +541,68 @@ model ApiKey {
   @@index([keyPrefix])
   @@map("api_keys")
 }
+
+/// Monitoring alert for a lead (news, events, changes).
+model LeadMonitoring {
+  id           String        @id @default(cuid())
+  leadId       String
+  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type         MonitoringType @default(NEWS)
+  title        String
+  description  String        @default("")
+  source       String?       // URL or source name
+  isRead       Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+
+  @@index([leadId])
+  @@index([createdAt])
+  @@map("lead_monitoring")
+}
+
+enum MonitoringType {
+  NEWS
+  EVENT
+  FUNDING
+  HIRING
+  COMPETITOR
+  CUSTOM
+}
+
+/// Send-time optimization record for a lead/agent combination.
+model SendTimeOptimization {
+  id           String   @id @default(cuid())
+  leadId       String
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agentId      String?
+  agent        User?    @relation("SendTimeOptimizations", fields: [agentId], references: [id], onDelete: SetNull)
+  recommendedHour Int    // 0-23
+  recommendedDay  String // "Monday", "Tuesday", etc.
+  confidence   Int      // 0-100
+  reason       String   @default("")
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([leadId])
+  @@index([agentId])
+  @@map("send_time_optimizations")
+}
+
+/// Agent coaching insight based on performance analysis.
+model AgentCoaching {
+  id           String   @id @default(cuid())
+  agentId      String
+  agent        User     @relation("AgentCoaching", fields: [agentId], references: [id], onDelete: Cascade)
+  insightType  String   // "STAGE_TRANSITION", "RESPONSE_RATE", "PITCH_QUALITY", "FOLLOW_UP", "GENERAL"
+  title        String
+  description  String
+  priority     String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  isRead       Boolean  @default(false)
+  isResolved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([agentId])
+  @@index([createdAt])
+  @@map("agent_coaching")
+}
+
+// Update User model to include relations

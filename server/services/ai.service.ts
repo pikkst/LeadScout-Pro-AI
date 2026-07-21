@@ -638,3 +638,195 @@ export async function generateMeetingPrep(meeting: {
     recommendedApproach: result.recommendedApproach || "Focus on mutual benefits and clear ROI.",
   };
 }
+
+export interface SendTimeRecommendation {
+  recommendedHour: number;
+  recommendedDay: string;
+  confidence: number;
+  reason: string;
+}
+
+export async function recommendSendTime(leadId: string, agentId?: string): Promise<SendTimeRecommendation> {
+  const { ai, model } = await getAI();
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    include: {
+      pitches: {
+        where: { status: { in: ["SENT", "DELIVERED", "OPENED", "CLICKED", "REPLIED"] } },
+        include: { events: true },
+      },
+    },
+  });
+  if (!lead) throw new Error("Lead not found");
+
+  const pitchEvents = lead.pitches.flatMap(p => p.events);
+  const openedEvents = pitchEvents.filter(e => e.type === "OPENED");
+  const clickedEvents = pitchEvents.filter(e => e.type === "CLICKED");
+
+  const hourCounts: Record<number, number> = {};
+  openedEvents.forEach(e => {
+    const hour = new Date(e.createdAt).getUTCHours();
+    hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+  });
+
+  const dayCounts: Record<string, number> = {};
+  openedEvents.forEach(e => {
+    const day = new Date(e.createdAt).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+    dayCounts[day] = (dayCounts[day] || 0) + 1;
+  });
+
+  const bestHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+  const bestDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
+
+  const prompt = `
+    You are an email marketing AI. Recommend the best send time for a B2B outreach email.
+
+    Lead: ${lead.name}
+    Industry: ${lead.category}
+    Country/Region: unknown
+
+    Historical engagement data:
+    - Total opened emails: ${openedEvents.length}
+    - Total clicked emails: ${clickedEvents.length}
+    - Best hour by opens: ${bestHour ? `${bestHour[0]}:00 UTC (${bestHour[1]} opens)` : 'no data'}
+    - Best day by opens: ${bestDay ? bestDay[0] : 'no data'}
+
+    Return ONLY a JSON object:
+    {
+      "recommendedHour": 0-23,
+      "recommendedDay": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday",
+      "confidence": 0-100,
+      "reason": "1 sentence explanation"
+    }
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { responseMimeType: "application/json", temperature: 0.2 },
+  });
+  const result = extractJson<Partial<SendTimeRecommendation>>(response.text || "{}", {});
+  return {
+    recommendedHour: Math.max(0, Math.min(23, Math.round(Number(result.recommendedHour ?? 9)))),
+    recommendedDay: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].includes(result.recommendedDay || "") ? result.recommendedDay! : "Tuesday",
+    confidence: Math.max(0, Math.min(100, Math.round(Number(result.confidence ?? 50)))),
+    reason: result.reason || "Based on general B2B best practices.",
+  };
+}
+
+export interface MonitoringAlert {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  source?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface CompetitorInsight {
+  competitor: string;
+  recentMoves: string[];
+  threatLevel: "LOW" | "MEDIUM" | "HIGH";
+  recommendation: string;
+}
+
+export async function generateCompetitorInsights(lead: {
+  name: string;
+  category: string;
+  website: string;
+  description: string;
+  enrichmentData?: {
+    techStack?: string[];
+    recentNews?: string[];
+  };
+}): Promise<CompetitorInsight[]> {
+  const { ai, model } = await getAI();
+  const prompt = `
+    You are a B2B competitive intelligence analyst. Identify 2-3 likely competitors for this company and assess competitive threats.
+
+    Company:
+    - Name: "${lead.name}"
+    - Industry: "${lead.category}"
+    - Website: "${lead.website}"
+    - Description: "${lead.description}"
+    - Tech stack: ${lead.enrichmentData?.techStack?.join(", ") || "unknown"}
+    - Recent news: ${lead.enrichmentData?.recentNews?.join("; ") || "none"}
+
+    Return ONLY a JSON array:
+    [
+      {
+        "competitor": "Competitor Name",
+        "recentMoves": ["move 1", "move 2"],
+        "threatLevel": "LOW" | "MEDIUM" | "HIGH",
+        "recommendation": "1 sentence action"
+      }
+    ]
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json", temperature: 0.3 },
+  });
+  const result = extractJson<Partial<CompetitorInsight>[]>(response.text || "[]", []);
+  return result.map(r => ({
+    competitor: r.competitor || "Unknown",
+    recentMoves: Array.isArray(r.recentMoves) ? r.recentMoves : [],
+    threatLevel: ["LOW", "MEDIUM", "HIGH"].includes(r.threatLevel || "") ? r.threatLevel! : "LOW",
+    recommendation: r.recommendation || "Monitor this competitor.",
+  }));
+}
+
+export interface AgentCoachingInsight {
+  insightType: string;
+  title: string;
+  description: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+}
+
+export async function generateAgentCoaching(agentId: string, agentName: string, stats: {
+  totalLeads: number;
+  byStage: Record<string, number>;
+  deals: number;
+  totalDealValue: number;
+  totalCommission: number;
+  avgDealSize: number;
+  conversionRate: number;
+  recentActivities: Array<{ action: string; detail: string; createdAt: string }>;
+}): Promise<AgentCoachingInsight[]> {
+  const { ai, model } = await getAI();
+  const prompt = `
+    You are a B2B sales coach. Analyze this agent's performance and generate actionable coaching insights.
+
+    Agent: ${agentName}
+    - Total leads: ${stats.totalLeads}
+    - Pipeline stages: ${JSON.stringify(stats.byStage)}
+    - Deals closed: ${stats.deals}
+    - Total deal value: EUR ${stats.totalDealValue}
+    - Total commission: EUR ${stats.totalCommission}
+    - Avg deal size: EUR ${stats.avgDealSize}
+    - Conversion rate: ${stats.conversionRate}%
+    - Recent activities: ${stats.recentActivities.slice(0, 5).map(a => `${a.action}: ${a.detail}`).join("; ")}
+
+    Return ONLY a JSON array of 2-3 insights:
+    [
+      {
+        "insightType": "STAGE_TRANSITION" | "RESPONSE_RATE" | "PITCH_QUALITY" | "FOLLOW_UP" | "GENERAL",
+        "title": "Short title",
+        "description": "Detailed coaching advice",
+        "priority": "LOW" | "MEDIUM" | "HIGH"
+      }
+    ]
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { responseMimeType: "application/json", temperature: 0.4 },
+  });
+  const result = extractJson<Partial<AgentCoachingInsight>[]>(response.text || "[]", []);
+  return result.map(r => ({
+    insightType: r.insightType || "GENERAL",
+    title: r.title || "Performance insight",
+    description: r.description || "Keep up the good work.",
+    priority: ["LOW", "MEDIUM", "HIGH"].includes(r.priority || "") ? r.priority! : "MEDIUM",
+  }));
+}

@@ -18,6 +18,7 @@ import {
   Database,
   Loader2,
   Brain,
+  Bell,
 } from 'lucide-react';
 
 export interface ScoutTabProps {
@@ -87,6 +88,7 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
   const [sortField, setSortField] = useState<string>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
+  const [monitoringAlerts, setMonitoringAlerts] = useState<Record<string, any[]>>({});
 
   const sortedLeads = useMemo(() => {
     if (!sortField) return leads;
@@ -163,6 +165,19 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
       addLog(`[AI] ${lead.name}: ${prediction.predictedStage} in ~${prediction.estimatedDays}d (${prediction.probability}%) — ${prediction.reasoning}`);
     } catch (err) {
       addLog(`[Error] AI prediction failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    } finally {
+      setAiLoadingId(null);
+    }
+  };
+
+  const handleCheckMonitoring = async (lead: CompanyLead) => {
+    setAiLoadingId(lead.id);
+    try {
+      const alerts = await crm.checkLeadMonitoring(lead.id);
+      setMonitoringAlerts(prev => ({ ...prev, [lead.id]: alerts }));
+      addLog(`[Monitoring] Checked ${alerts.length} competitor insights for ${lead.name}`);
+    } catch (err) {
+      addLog(`[Error] Monitoring check failed: ${err instanceof Error ? err.message : 'Unknown'}`);
     } finally {
       setAiLoadingId(null);
     }
@@ -483,7 +498,7 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
                           {lead.isVerified ? 'AUTHENTIC' : 'UNCONFIRMED'}
                         </div>
                       </td>
-                      <td className="px-4 py-5 text-center">
+                       <td className="px-4 py-5 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
@@ -511,6 +526,15 @@ export const ScoutTab: React.FC<ScoutTabProps> = ({
                             title="Predict next stage"
                           >
                             {aiLoadingId === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCheckMonitoring(lead)}
+                            disabled={aiLoadingId === lead.id}
+                            className="text-slate-500 hover:text-rose-400 transition-colors focus:outline-none inline-flex mx-auto disabled:opacity-50"
+                            title="Check competitor monitoring"
+                          >
+                            {aiLoadingId === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
                           </button>
                           <button
                             type="button"

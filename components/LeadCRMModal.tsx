@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { CompanyLead, LeadFocus, ScheduledMeeting } from '../types';
 import { 
   X, Save, Building, Mail, Globe, Phone, DollarSign, User, FileText, 
-  Calendar, Clock, Video, Plus, Trash2, Edit3, ExternalLink, CalendarDays 
+  Calendar, Clock, Video, Plus, Trash2, Edit3, ExternalLink, CalendarDays,
+  Brain, Sparkles, Bell, Send, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import { SequenceSection } from './SequenceSection';
 
@@ -38,6 +39,12 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
   const [duplicateWarning, setDuplicateWarning] = useState<{ show: boolean; message: string; matches: any[] }>({ show: false, message: '', matches: [] });
   const [customFields, setCustomFields] = useState<Array<{ id: string; name: string; key: string; type: string; options?: string; isRequired?: boolean }>>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+
+  // Monitoring & Optimization
+  const [monitoringAlerts, setMonitoringAlerts] = useState<any[]>([]);
+  const [sendTimeRec, setSendTimeRec] = useState<any>(null);
+  const [isCheckingMonitoring, setIsCheckingMonitoring] = useState(false);
+  const [isOptimizingSendTime, setIsOptimizingSendTime] = useState(false);
 
   // Scheduled Meetings & Calls
   const [scheduledMeetings, setScheduledMeetings] = useState<ScheduledMeeting[]>([]);
@@ -140,6 +147,25 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     return () => { mounted = false; };
   }, [isOpen]);
 
+  // Load monitoring alerts for the lead
+  useEffect(() => {
+    if (!isOpen || !lead?.id) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/monitoring/lead/${lead.id}`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) {
+            setMonitoringAlerts(data);
+            setSendTimeRec(null);
+          }
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { mounted = false; };
+  }, [isOpen, lead?.id]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -195,6 +221,48 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
 
   const handleRemoveMeeting = (id: string) => {
     setScheduledMeetings(prev => prev.filter(m => m.id !== id));
+  };
+
+  const handleCheckMonitoring = async () => {
+    if (!lead?.id) return;
+    setIsCheckingMonitoring(true);
+    try {
+      const res = await fetch(`/api/monitoring/lead/${lead.id}/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leadId: lead.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMonitoringAlerts(data);
+      }
+    } catch (err) {
+      console.error('Failed to check monitoring:', err);
+    } finally {
+      setIsCheckingMonitoring(false);
+    }
+  };
+
+  const handleOptimizeSendTime = async () => {
+    if (!lead?.id) return;
+    setIsOptimizingSendTime(true);
+    try {
+      const res = await fetch(`/api/optimization/send-time/${lead.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leadId: lead.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSendTimeRec(data);
+      }
+    } catch (err) {
+      console.error('Failed to optimize send time:', err);
+    } finally {
+      setIsOptimizingSendTime(false);
+    }
   };
 
   return (
@@ -794,6 +862,108 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Monitoring Alerts */}
+          {lead && (
+            <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                    Competitor & Lead Monitoring
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCheckMonitoring}
+                  disabled={isCheckingMonitoring}
+                  className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-3 py-1.5 rounded-lg border border-amber-500/20 flex items-center gap-1 transition-all"
+                >
+                  {isCheckingMonitoring ? (
+                    <>
+                      <Brain className="w-3.5 h-3.5 animate-spin" />
+                      Checking...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Check Competitors
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {monitoringAlerts.length === 0 ? (
+                <p className="text-[10px] text-slate-500 italic">No monitoring alerts for this lead yet. Click "Check Competitors" to scan for new market intelligence.</p>
+              ) : (
+                <div className="space-y-2">
+                  {monitoringAlerts.map((alert: any) => (
+                    <div key={alert.id} className="bg-slate-950 border border-slate-850 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                          alert.type === 'COMPETITOR' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' :
+                          'bg-sky-500/15 text-sky-400 border border-sky-500/20'
+                        }`}>
+                          {alert.type}
+                        </span>
+                        <h4 className="text-xs font-bold text-white">{alert.title}</h4>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">{alert.description}</p>
+                      {!alert.isRead && (
+                        <span className="inline-block mt-2 text-[8px] font-bold text-amber-400 uppercase tracking-wider">New</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Send-Time Optimization */}
+          {lead && (
+            <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Send className="w-4 h-4 text-sky-400" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                    Send-Time Optimization
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOptimizeSendTime}
+                  disabled={isOptimizingSendTime}
+                  className="text-[10px] font-bold uppercase tracking-wider bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg border border-sky-500/20 flex items-center gap-1 transition-all"
+                >
+                  {isOptimizingSendTime ? (
+                    <>
+                      <Brain className="w-3.5 h-3.5 animate-spin" />
+                      Optimizing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" />
+                      Optimize Send Time
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {sendTimeRec ? (
+                <div className="bg-slate-900/50 border border-sky-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="bg-sky-500/10 text-sky-300 border border-sky-500/20 px-2 py-1 rounded text-xs font-mono font-bold">
+                      {sendTimeRec.recommendedDay} at {sendTimeRec.recommendedHour}:00
+                    </div>
+                    <span className="text-[10px] text-slate-400">{sendTimeRec.confidence}% confidence</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">{sendTimeRec.reason}</p>
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-500 italic">No send-time recommendation yet. Click "Optimize Send Time" to get AI-powered timing suggestions.</p>
               )}
             </div>
           )}

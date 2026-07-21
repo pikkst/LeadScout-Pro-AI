@@ -15,6 +15,8 @@ import { routingRouter } from "./routing.routes";
 import { calendarRouter } from "./calendar.routes";
 import { documentsRouter } from "./documents.routes";
 import { apiKeysRouter } from "./api-keys.routes";
+import { monitoringRouter } from "./monitoring.routes";
+import { optimizationRouter } from "./optimization.routes";
 import { getAiSettings, getEmailSettings } from "../services/settings.service";
 
 export const apiRouter = Router();
@@ -45,3 +47,5 @@ apiRouter.use("/routing", routingRouter);
 apiRouter.use("/calendar", calendarRouter);
 apiRouter.use("/documents", documentsRouter);
 apiRouter.use("/api-keys", apiKeysRouter);
+apiRouter.use("/monitoring", monitoringRouter);
+apiRouter.use("/optimization", optimizationRouter);

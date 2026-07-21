@@ -212,6 +212,39 @@ export async function generateMeetingPrep(meetingId: string): Promise<MeetingPre
   return api<MeetingPrep>(`/ai/meeting-prep/${meetingId}`, { method: "POST" });
 }
 
+// ---- Optimization ----
+export async function recommendSendTime(leadId: string, agentId?: string): Promise<SendTimeRecord> {
+  return api<SendTimeRecord>(`/optimization/send-time/${leadId}`, { method: "POST", body: JSON.stringify({ agentId: agentId || null }) });
+}
+
+export async function getSendTimeRecommendations(leadId: string): Promise<SendTimeRecord[]> {
+  return api<SendTimeRecord[]>(`/optimization/send-time/${leadId}`);
+}
+
+export async function generateCoachingInsights(): Promise<CoachingInsight[]> {
+  return api<CoachingInsight[]>("/optimization/coaching/generate", { method: "POST" });
+}
+
+export async function getMyCoachingInsights(): Promise<CoachingInsight[]> {
+  return api<CoachingInsight[]>("/optimization/coaching/me");
+}
+
+export async function markCoachingRead(id: string): Promise<CoachingInsight> {
+  return api<CoachingInsight>(`/optimization/coaching/${id}/read`, { method: "PATCH" });
+}
+
+export async function resolveCoaching(id: string): Promise<CoachingInsight> {
+  return api<CoachingInsight>(`/optimization/coaching/${id}/resolve`, { method: "PATCH" });
+}
+
+export async function checkLeadMonitoring(leadId: string): Promise<MonitoringAlert[]> {
+  return api<MonitoringAlert[]>(`/monitoring/lead/${leadId}/check`, { method: "POST" });
+}
+
+export async function getLeadMonitoring(leadId: string): Promise<MonitoringAlert[]> {
+  return api<MonitoringAlert[]>(`/monitoring/lead/${leadId}`);
+}
+
 // ---- Stats ----
 export interface CrmStats {
   totalLeads: number;

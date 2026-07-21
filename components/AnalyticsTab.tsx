@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, BarChart3, Users, Target, DollarSign, Activity, Brain, Zap } from 'lucide-react';
+import { TrendingUp, BarChart3, Users, Target, DollarSign, Activity, Brain, Zap, Lightbulb, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface ForecastData {
   current: {
@@ -53,11 +53,23 @@ interface AiForecast {
   assumptions: string[];
 }
 
+interface CoachingInsight {
+  id: string;
+  insightType: string;
+  title: string;
+  description: string;
+  priority: string;
+  isRead: boolean;
+  isResolved: boolean;
+  createdAt: string;
+}
+
 const AnalyticsTab: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [conversion, setConversion] = useState<ConversionData[]>([]);
   const [agentPerformance, setAgentPerformance] = useState<AgentPerformance[]>([]);
   const [aiForecast, setAiForecast] = useState<AiForecast | null>(null);
+  const [coachingInsights, setCoachingInsights] = useState<CoachingInsight[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,22 +78,25 @@ const AnalyticsTab: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [forecastRes, conversionRes, agentRes, aiForecastRes] = await Promise.all([
+      const [forecastRes, conversionRes, agentRes, aiForecastRes, coachingRes] = await Promise.all([
         fetch('/api/stats/forecast'),
         fetch('/api/stats/conversion'),
         fetch('/api/stats/agent-performance'),
         fetch('/api/stats/forecast/ai'),
+        fetch('/api/optimization/coaching/me'),
       ]);
-      const [forecastData, conversionData, agentData, aiForecastData] = await Promise.all([
+      const [forecastData, conversionData, agentData, aiForecastData, coachingData] = await Promise.all([
         forecastRes.json(),
         conversionRes.json(),
         agentRes.json(),
         aiForecastRes.json(),
+        coachingRes.json(),
       ]);
       setForecast(forecastData);
       setConversion(conversionData);
       setAgentPerformance(agentData);
       setAiForecast(aiForecastData);
+      setCoachingInsights(coachingData);
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
@@ -305,6 +320,60 @@ const AnalyticsTab: React.FC = () => {
             <div className="text-center py-6 text-slate-500 text-xs">
               No agent data available.
             </div>
+          )}
+        </div>
+      </section>
+
+      {/* Agent Coaching Insights */}
+      <section className="bg-slate-950/40 border border-purple-500/20 rounded-2xl p-6 shadow-xl">
+        <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4">
+          <Lightbulb className="w-4 h-4 text-purple-400" />
+          AI Coaching Insights
+        </h3>
+        <div className="space-y-3">
+          {coachingInsights.length === 0 ? (
+            <div className="text-center py-6 text-slate-500 text-xs">
+              No coaching insights available yet. Insights are generated based on your recent performance.
+            </div>
+          ) : (
+            coachingInsights.map((insight) => (
+              <div key={insight.id} className={`bg-slate-900/50 border rounded-xl p-4 ${
+                insight.priority === 'HIGH' ? 'border-rose-500/30' :
+                insight.priority === 'MEDIUM' ? 'border-amber-500/30' :
+                'border-slate-800'
+              }`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {insight.priority === 'HIGH' ? (
+                      <AlertTriangle className="w-4 h-4 text-rose-400" />
+                    ) : insight.priority === 'MEDIUM' ? (
+                      <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    )}
+                    <span className="text-sm font-semibold text-white">{insight.title}</span>
+                  </div>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                    insight.priority === 'HIGH' ? 'bg-rose-500/10 text-rose-400' :
+                    insight.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400' :
+                    'bg-emerald-500/10 text-emerald-400'
+                  }`}>
+                    {insight.priority}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-2 leading-relaxed">{insight.description}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                    {insight.insightType.replace(/_/g, ' ')}
+                  </span>
+                  {insight.isResolved && (
+                    <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">
+                      Resolved
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))
           )}
         </div>
       </section>
