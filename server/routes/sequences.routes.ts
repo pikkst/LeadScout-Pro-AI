@@ -4,14 +4,14 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { notFound } from "../utils/httpError";
-import { requireAuth } from "../middleware/auth";
-import { requireRole } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { param } from "../utils/param";
 
 export const sequencesRouter = Router();
 sequencesRouter.use(requireAuth);
-sequencesRouter.use(requireRole("ADMIN", "MANAGER"));
+
+const canWrite = requireRole("ADMIN", "MANAGER");
 
 const stepSchema = z.object({
   order: z.number().int().nonnegative(),
@@ -47,7 +47,7 @@ sequencesRouter.get("/", asyncHandler(async (_req, res) => {
   res.json(sequences);
 }));
 
-sequencesRouter.post("/", validate({ body: sequenceSchema }), asyncHandler(async (req, res) => {
+sequencesRouter.post("/", canWrite, validate({ body: sequenceSchema }), asyncHandler(async (req, res) => {
   const body = req.body as SequenceInput;
   const sequence = await prisma.followUpSequence.create({
     data: {
@@ -75,7 +75,7 @@ sequencesRouter.post("/", validate({ body: sequenceSchema }), asyncHandler(async
   res.status(201).json(sequence);
 }));
 
-sequencesRouter.patch("/:id", validate({ body: sequenceSchema.partial() }), asyncHandler(async (req, res) => {
+sequencesRouter.patch("/:id", canWrite, validate({ body: sequenceSchema.partial() }), asyncHandler(async (req, res) => {
   const body = req.body as SequencePatchInput;
   const existing = await prisma.followUpSequence.findUnique({ where: { id: param(req, "id") } });
   if (!existing) throw notFound("Sequence not found");
@@ -111,7 +111,7 @@ sequencesRouter.patch("/:id", validate({ body: sequenceSchema.partial() }), asyn
   res.json(sequence);
 }));
 
-sequencesRouter.delete("/:id", asyncHandler(async (req, res) => {
+sequencesRouter.delete("/:id", canWrite, asyncHandler(async (req, res) => {
   await prisma.followUpSequence.delete({ where: { id: param(req, "id") } });
   res.json({ ok: true });
 }));

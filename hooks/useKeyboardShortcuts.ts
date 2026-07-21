@@ -19,7 +19,7 @@ export function useKeyboardShortcuts(callbacks: Record<string, ShortcutCallback>
           (ctrl ? modKey : !modKey) &&
           (shift ? e.shiftKey : !e.shiftKey) &&
           (alt ? e.altKey : !e.altKey) &&
-          e.key.toLowerCase() === key;
+          e.key && e.key.toLowerCase() === key;
 
         if (match) {
           e.preventDefault();

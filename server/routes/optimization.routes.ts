@@ -13,7 +13,8 @@ import { logActivity } from "../utils/activity";
 
 export const optimizationRouter = Router();
 optimizationRouter.use(requireAuth);
-optimizationRouter.use(requireRole("ADMIN", "MANAGER"));
+
+const canWrite = requireRole("ADMIN", "MANAGER");
 
 // ---- Send-time optimization ----
 optimizationRouter.post("/send-time/:leadId", validate({

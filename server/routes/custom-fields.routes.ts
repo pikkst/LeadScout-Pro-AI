@@ -4,14 +4,14 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { notFound } from "../utils/httpError";
-import { requireAuth } from "../middleware/auth";
-import { requireRole } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { param } from "../utils/param";
 
 export const customFieldsRouter = Router();
 customFieldsRouter.use(requireAuth);
-customFieldsRouter.use(requireRole("ADMIN", "MANAGER"));
+
+const canWrite = requireRole("ADMIN", "MANAGER");
 
 const fieldSchema = z.object({
   name: z.string().min(1).max(120),
@@ -32,7 +32,7 @@ customFieldsRouter.get("/", asyncHandler(async (_req, res) => {
   res.json(fields);
 }));
 
-customFieldsRouter.post("/", validate({ body: fieldSchema }), asyncHandler(async (req, res) => {
+customFieldsRouter.post("/", canWrite, validate({ body: fieldSchema }), asyncHandler(async (req, res) => {
   const body = req.body as FieldInput;
   const field = await prisma.customFieldDefinition.create({
     data: {
@@ -47,7 +47,7 @@ customFieldsRouter.post("/", validate({ body: fieldSchema }), asyncHandler(async
   res.status(201).json(field);
 }));
 
-customFieldsRouter.patch("/:id", validate({ body: fieldSchema.partial() }), asyncHandler(async (req, res) => {
+customFieldsRouter.patch("/:id", canWrite, validate({ body: fieldSchema.partial() }), asyncHandler(async (req, res) => {
   const body = req.body as FieldPatchInput;
   const existing = await prisma.customFieldDefinition.findUnique({ where: { id: param(req, "id") } });
   if (!existing) throw notFound("Field not found");
@@ -64,14 +64,13 @@ customFieldsRouter.patch("/:id", validate({ body: fieldSchema.partial() }), asyn
   res.json(field);
 }));
 
-customFieldsRouter.delete("/:id", asyncHandler(async (req, res) => {
+customFieldsRouter.delete("/:id", canWrite, asyncHandler(async (req, res) => {
   await prisma.customFieldDefinition.delete({ where: { id: param(req, "id") } });
   res.json({ ok: true });
 }));
 
 export const dealStagesRouter = Router();
 dealStagesRouter.use(requireAuth);
-dealStagesRouter.use(requireRole("ADMIN", "MANAGER"));
 
 const stageSchema = z.object({
   name: z.string().min(1).max(120),
@@ -91,7 +90,7 @@ dealStagesRouter.get("/", asyncHandler(async (_req, res) => {
   res.json(stages);
 }));
 
-dealStagesRouter.post("/", validate({ body: stageSchema }), asyncHandler(async (req, res) => {
+dealStagesRouter.post("/", canWrite, validate({ body: stageSchema }), asyncHandler(async (req, res) => {
   const body = req.body as StageInput;
   const stage = await prisma.dealStage.create({
     data: {
@@ -105,7 +104,7 @@ dealStagesRouter.post("/", validate({ body: stageSchema }), asyncHandler(async (
   res.status(201).json(stage);
 }));
 
-dealStagesRouter.patch("/:id", validate({ body: stageSchema.partial() }), asyncHandler(async (req, res) => {
+dealStagesRouter.patch("/:id", canWrite, validate({ body: stageSchema.partial() }), asyncHandler(async (req, res) => {
   const body = req.body as StagePatchInput;
   const existing = await prisma.dealStage.findUnique({ where: { id: param(req, "id") } });
   if (!existing) throw notFound("Stage not found");
@@ -122,7 +121,7 @@ dealStagesRouter.patch("/:id", validate({ body: stageSchema.partial() }), asyncH
   res.json(stage);
 }));
 
-dealStagesRouter.delete("/:id", asyncHandler(async (req, res) => {
+dealStagesRouter.delete("/:id", canWrite, asyncHandler(async (req, res) => {
   await prisma.dealStage.delete({ where: { id: param(req, "id") } });
   res.json({ ok: true });
 }));

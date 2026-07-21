@@ -766,7 +766,7 @@ export async function generateCompetitorInsights(lead: {
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
-    config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json", temperature: 0.3 },
+    config: { tools: [{ googleSearch: {} }], temperature: 0.3 },
   });
   const result = extractJson<Partial<CompetitorInsight>[]>(response.text || "[]", []);
   return result.map(r => ({

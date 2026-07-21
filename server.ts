@@ -25,10 +25,10 @@ async function startServer() {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com"],
-        styleSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'"],
+        styleSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: config.isProduction ? ["'self'"] : ["'self'", `ws://localhost:${config.port}`],
-        fontSrc: ["'self'"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
         formAction: ["'self'"],
@@ -87,23 +87,7 @@ async function startServer() {
   app.use("/api/settings", uploadRouter);
   app.use("/api", notFoundHandler);
 
-  // --- Frontend (Vite dev middleware or static build) ---
   let isProduction = config.isProduction;
-
-  if (!isProduction) {
-    try {
-      const { createServer: createViteServer } = await import("vite");
-      const vite = await createViteServer({
-        server: { middlewareMode: true, host: "0.0.0.0" },
-        appType: "spa",
-      });
-      app.use(vite.middlewares);
-      console.log("[server] Vite development middleware loaded.");
-    } catch (err) {
-      console.warn("[server] Vite dev middleware unavailable; falling back to static mode.", err);
-      isProduction = true;
-    }
-  }
 
   if (isProduction) {
     const distPath = path.join(process.cwd(), "dist");
@@ -123,18 +107,6 @@ async function startServer() {
     console.log("[server] Serving production build from " + path.basename(distPath) + " (" + distPath + ")");
   }
 
-  // Error handler must be last.
-  app.use(errorHandler);
-
-  // --- DB connectivity check ---
-  try {
-    await prisma.$connect();
-    console.log("[server] Database connected.");
-  } catch (err) {
-    console.error("[server] FATAL: could not connect to the database. Check DATABASE_URL.", err);
-    process.exit(1);
-  }
-
   const server = app.listen(config.port, "0.0.0.0", () => {
     console.log(
       `[server] Unitel Global CarrierScout AI running on http://0.0.0.0:${config.port} (${
@@ -144,8 +116,38 @@ async function startServer() {
     console.log("[server] Runtime settings (AI, Email) are managed in Settings → Admin.");
   });
 
+  // --- Frontend (Vite dev middleware or static build) ---
+  if (!isProduction) {
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true, host: "0.0.0.0", hmr: { server: server } },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      console.log("[server] Vite development middleware loaded.");
+    } catch (err) {
+      console.warn("[server] Vite dev middleware unavailable; falling back to static mode.", err);
+      isProduction = true;
+    }
+  }
+
+  // Error handler must be last.
+  app.use(errorHandler);
+
+  // --- DB connectivity check ---
+  let dbConnected = false;
+  try {
+    await prisma.$connect();
+    console.log("[server] Database connected.");
+    dbConnected = true;
+  } catch (err) {
+    console.warn("[server] WARNING: could not connect to the database. Check DATABASE_URL. API routes will fail until the database is available.", err);
+  }
+
   // --- Sequence execution engine (simple in-memory scheduler) ---
   const runSequenceEngine = async () => {
+    if (!dbConnected) return;
     try {
       const now = new Date();
       const dueExecutions = await prisma.sequenceExecution.findMany({
@@ -268,8 +270,10 @@ async function startServer() {
   };
 
   // Run immediately on start, then every 5 minutes
-  runSequenceEngine();
-  setInterval(runSequenceEngine, 5 * 60 * 1000);
+  if (dbConnected) {
+    runSequenceEngine();
+    setInterval(runSequenceEngine, 5 * 60 * 1000);
+  }
 
   // --- Graceful shutdown ---
   const shutdown = async (signal: string) => {

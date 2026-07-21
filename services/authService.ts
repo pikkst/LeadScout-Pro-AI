@@ -53,3 +53,48 @@ export async function logout(): Promise<void> {
 export async function fetchTeam(): Promise<AuthUser[]> {
   return api<AuthUser[]>("/auth/team");
 }
+
+export async function createUser(input: {
+  email: string;
+  name: string;
+  password: string;
+  role?: AuthUser["role"];
+  isActive?: boolean;
+}): Promise<AuthUser> {
+  return api<AuthUser>("/admin/users", {
+    method: "POST",
+    body: JSON.stringify({
+      email: input.email,
+      name: input.name,
+      password: input.password,
+      role: input.role ?? "AGENT",
+      isActive: input.isActive ?? true,
+    }),
+  });
+}
+
+export async function updateUser(
+  id: string,
+  input: Partial<{
+    name: string;
+    email: string;
+    role: AuthUser["role"];
+    isActive: boolean;
+    password: string;
+  }>,
+): Promise<AuthUser> {
+  return api<AuthUser>(`/admin/users/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await api(`/admin/users/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchAllUsers(): Promise<AuthUser[]> {
+  return api<AuthUser[]>("/admin/users");
+}
