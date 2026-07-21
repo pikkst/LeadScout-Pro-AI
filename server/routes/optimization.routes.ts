@@ -18,7 +18,7 @@ const canWrite = requireRole("ADMIN", "MANAGER");
 
 // ---- Send-time optimization ----
 optimizationRouter.post("/send-time/:leadId", validate({
-  body: z.object({ leadId: z.string().min(1), agentId: z.string().optional().nullable() }),
+  body: z.object({ leadId: z.string().min(1).optional(), agentId: z.string().optional().nullable() }),
 }), asyncHandler(async (req, res) => {
   const leadId = param(req, "leadId");
   const agentId = req.body.agentId || req.user!.id;

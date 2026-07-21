@@ -6,6 +6,7 @@ import {
   Brain, Sparkles, Bell, Send, AlertTriangle, CheckCircle2, Zap
 } from 'lucide-react';
 import { SequenceSection } from './SequenceSection';
+import { api } from '../services/apiClient';
 
 interface LeadCRMModalProps {
   isOpen: boolean;
@@ -56,23 +57,18 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
       return;
     }
     try {
-      const res = await fetch('/api/leads/check-duplicate', {
+      const data = await api<{ duplicate: boolean; matches: any[] }>('/leads/check-duplicate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ website: website || 'https://example.com', email: email || 'test@example.com', name }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.duplicate) {
-          setDuplicateWarning({
-            show: true,
-            message: `Potential duplicate(s) found: ${data.matches.map((m: any) => m.name).join(', ')}`,
-            matches: data.matches,
-          });
-        } else {
-          setDuplicateWarning({ show: false, message: '', matches: [] });
-        }
+      if (data.duplicate) {
+        setDuplicateWarning({
+          show: true,
+          message: `Potential duplicate(s) found: ${data.matches.map((m: any) => m.name).join(', ')}`,
+          matches: data.matches,
+        });
+      } else {
+        setDuplicateWarning({ show: false, message: '', matches: [] });
       }
     } catch {
       // ignore
@@ -153,13 +149,10 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch(`/api/monitoring/lead/${lead.id}`, { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          if (mounted) {
-            setMonitoringAlerts(data);
-            setSendTimeRec(null);
-          }
+        const data = await api<any[]>(`/monitoring/lead/${lead.id}`);
+        if (mounted) {
+          setMonitoringAlerts(data);
+          setSendTimeRec(null);
         }
       } catch { /* ignore */ }
     })();
@@ -227,16 +220,11 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     if (!lead?.id) return;
     setIsCheckingMonitoring(true);
     try {
-      const res = await fetch(`/api/monitoring/lead/${lead.id}/check`, {
+      const data = await api<any[]>(`/monitoring/lead/${lead.id}/check`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ leadId: lead.id }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setMonitoringAlerts(data);
-      }
+      setMonitoringAlerts(data);
     } catch (err) {
       console.error('Failed to check monitoring:', err);
     } finally {
@@ -248,16 +236,11 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     if (!lead?.id) return;
     setIsOptimizingSendTime(true);
     try {
-      const res = await fetch(`/api/optimization/send-time/${lead.id}`, {
+      const data = await api<any>(`/optimization/send-time/${lead.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ leadId: lead.id }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setSendTimeRec(data);
-      }
+      setSendTimeRec(data);
     } catch (err) {
       console.error('Failed to optimize send time:', err);
     } finally {
