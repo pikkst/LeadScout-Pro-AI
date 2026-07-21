@@ -24,10 +24,10 @@ async function startServer() {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: config.isProduction ? ["'self'", "https://cdn.tailwindcss.com"] : ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com"],
+        scriptSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com"],
         styleSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: config.isProduction ? ["'self'"] : ["'self'", "ws://localhost:24678", "ws://localhost:3000"],
+        connectSrc: config.isProduction ? ["'self'"] : ["'self'", `ws://localhost:${config.port}`],
         fontSrc: ["'self'"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
