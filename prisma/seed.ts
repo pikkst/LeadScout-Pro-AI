@@ -24,7 +24,6 @@ async function main() {
 
   console.log("[seed] Created admin user:");
   console.log(`  email:    ${user.email}`);
-  console.log(`  password: ${password}`);
   console.log("[seed] IMPORTANT: change this password after first login.");
 }
 

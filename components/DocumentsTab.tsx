@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Download, Eye, Trash2, Edit2, Settings } from 'lucide-react';
 
+const stripHtml = (html: string): string => {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || '').trim();
+};
+
 interface Template {
   id: string;
   name: string;
@@ -238,7 +244,7 @@ const DocumentsTab: React.FC = () => {
                 </div>
               </div>
               <p className="text-xs text-slate-500 line-clamp-2">
-                {template.content.replace(/<[^>]*>/g, '').slice(0, 100)}...
+                {stripHtml(template.content).slice(0, 100)}...
               </p>
             </div>
           ))}

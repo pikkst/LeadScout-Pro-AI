@@ -9,6 +9,11 @@ export function setToken(token: string | null) {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|; )x-csrf-token=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -25,12 +30,20 @@ export async function api<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const method = (options.method || "GET").toUpperCase();
+  const isStateChanging = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> | undefined),
   };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+
+  if (isStateChanging) {
+    const csrf = getCsrfToken();
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+  }
 
   const response = await fetch(`/api${path}`, {
     ...options,

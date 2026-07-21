@@ -10,11 +10,6 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 4. **English only** — all code, docs, UI strings, commit messages, and comments must be in English.
 5. **Rules evolve** — when a bug is found, update these rules to prevent recurrence.
 
-## Stage Plan
-
-### Stage 1 — AI Lead Intelligence (Completed)
-### Stage 2 — Predictive Analytics (Completed)
-### Stage 3 — Autonomous Optimization (Completed)
 
 ## Lessons Learned
 - Prisma schema changes require migration + regenerate cycle on Windows (file locking may block generate; stop node processes first)

@@ -13,22 +13,33 @@ import { settingsRouter } from "./server/routes/settings.routes";
 import { uploadRouter } from "./server/routes/upload.routes";
 import { webhookRouter } from "./server/routes/webhook.routes";
 import { errorHandler, notFoundHandler } from "./server/middleware/error";
+import { csrfProtection } from "./server/middleware/csrf";
 
 async function startServer() {
   const app = express();
   app.set("trust proxy", 1);
 
   // --- Security & parsing middleware ---
-  app.use(
-    helmet({
-      // The SPA uses the Tailwind CDN + esm.sh import maps, so relax CSP in dev.
-      contentSecurityPolicy: false,
-      crossOriginEmbedderPolicy: false,
-    }),
-  );
+  const helmetConfig: Parameters<typeof helmet>[0] = {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  };
+  app.use(helmet(helmetConfig));
   app.use(
     cors({
-      origin: config.isProduction ? config.corsOrigin || false : true,
+      origin: config.corsOrigin,
       credentials: true,
     }),
   );
@@ -54,6 +65,7 @@ async function startServer() {
 
   app.use(express.json({ limit: "2mb" }));
   app.use(cookieParser());
+  app.use(csrfProtection);
 
   // Global light rate limit as a safety net.
   app.use(
@@ -96,9 +108,18 @@ async function startServer() {
   if (isProduction) {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    app.get(
+      "*",
+      rateLimit({
+        windowMs: 60 * 1000,
+        max: 200,
+        standardHeaders: true,
+        legacyHeaders: false,
+      }),
+      (_req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      },
+    );
     console.log("[server] Serving production build from " + path.basename(distPath) + " (" + distPath + ")");
   }
 

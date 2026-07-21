@@ -38,7 +38,7 @@
   function extractLeadFromPage() {
     const result: any = {};
 
-    if (window.location.hostname.includes('linkedin.com')) {
+    if (window.location.hostname === 'www.linkedin.com' || window.location.hostname.endsWith('.linkedin.com')) {
       // LinkedIn company page
       const companyName = document.querySelector('.org-top-card-summary__title')?.textContent?.trim();
       const companyWebsite = document.querySelector('.org-top-card-summary__website')?.textContent?.trim();
@@ -49,7 +49,7 @@
       result.website = companyWebsite || '';
       result.description = companyDesc || '';
       result.category = mapIndustryToCategory(industry);
-    } else if (window.location.hostname.includes('google.com/maps')) {
+    } else if (window.location.hostname === 'www.google.com' || window.location.hostname === 'maps.google.com') {
       // Google Maps
       const placeName = document.querySelector('[role="heading"]')?.textContent?.trim() || 
                         document.querySelector('h1')?.textContent?.trim() || '';

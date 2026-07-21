@@ -39,7 +39,9 @@ export const config = {
   cookieName: optional(process.env.AUTH_COOKIE_NAME, "unitel_token"),
 
   // CORS
-  corsOrigin: process.env.CORS_ORIGIN || "",
+  corsOrigin: isProduction
+    ? required("CORS_ORIGIN", process.env.CORS_ORIGIN)
+    : process.env.CORS_ORIGIN || "http://localhost:3000",
 
   // AI
   geminiApiKey: process.env.GEMINI_API_KEY || "",

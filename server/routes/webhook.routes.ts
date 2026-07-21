@@ -3,10 +3,20 @@
 // Set RESEND_WEBHOOK_SECRET (the Signing Secret from Resend) to verify signatures.
 import { Router, Request } from "express";
 import crypto from "crypto";
+import rateLimit from "express-rate-limit";
 import { prisma } from "../db";
 import { pitchStatusToDb } from "../utils/serializers";
 
 export const webhookRouter = Router();
+
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many webhook requests.", code: "RATE_LIMITED" },
+});
+webhookRouter.use(webhookLimiter);
 
 function verifyResendSignature(req: Request, secret: string): boolean {
   const signature = req.header("svix-signature") || req.header("resend-signature");
