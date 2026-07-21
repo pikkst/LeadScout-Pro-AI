@@ -18,6 +18,10 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Duplicated include objects across route files are acceptable when imports would create circular deps
 - AI service functions should always have safe fallbacks for malformed responses
 - New AI endpoints should reuse existing lead/meeting includes to avoid extra DB queries
+- Tailwind CDN must be bundled in production builds; do not whitelist external CDNs in production CSP script-src
+- Dev CSP connect-src must derive WebSocket origins from configuration (e.g. config.port) rather than hardcoding arbitrary port numbers
+- Always provide a favicon.ico in public/ to prevent avoidable 404 noise in browser console
+- After every PR review (human or bot), update AGENTS.md Lessons Learned and checklist with any new findings so future sessions avoid repeating the same mistake
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility
@@ -57,3 +61,11 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Conventional commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 - One logical change per commit
 - Never commit secrets, `.env`, or `dist/`
+
+## Branch & Pull Request Rules
+- Every update, change, or git push must be made on a new branch, not directly on `main`
+- After pushing, open a Pull Request for review before merging
+- Branch naming: `<type>/<short-description>` (e.g. `feat/lead-search-filter`, `fix/auth-timeout`)
+- Do not merge your own PR without at least one review or CI approval
+- PR description must reference the related issue or task, include a changelog summary, and pass all checks
+- After every PR review (human or bot), update AGENTS.md `Lessons Learned` and review checklist with any new findings or anti-patterns surfaced, so future agents/tasks avoid the same mistakes
