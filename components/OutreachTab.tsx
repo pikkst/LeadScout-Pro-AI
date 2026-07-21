@@ -1,17 +1,19 @@
 import React from 'react';
 import { OutreachPitch, PitchEvent } from '../types';
 import * as crm from '../services/crmService';
-import { SendHorizontal, Sparkles, Edit2, Trash2, Send, Inbox, RefreshCw } from 'lucide-react';
+import { SendHorizontal, Sparkles, Edit2, Trash2, Send, Inbox, RefreshCw, Clock } from 'lucide-react';
 
 export interface OutreachTabProps {
   pitches: OutreachPitch[];
   sendingPitchIds: Set<string>;
+  schedulingPitchIds: Set<string>;
   isGeneratingPitches: boolean;
   pitchProgress: { current: number; total: number; activeName: string };
   onBulkSend: () => void;
   onOpenPreview: (pitch: OutreachPitch) => void;
   onDeletePitch: (id: string) => void;
   onSendPitch: (id: string) => void;
+  onSchedulePitch: (id: string) => void;
   onMarkReplied: (pitchId: string, leadId: string, leadName: string) => void;
   onNavigateToScout: () => void;
 }
@@ -19,12 +21,14 @@ export interface OutreachTabProps {
 export const OutreachTab: React.FC<OutreachTabProps> = ({
   pitches,
   sendingPitchIds,
+  schedulingPitchIds,
   isGeneratingPitches,
   pitchProgress,
   onBulkSend,
   onOpenPreview,
   onDeletePitch,
   onSendPitch,
+  onSchedulePitch,
   onMarkReplied,
   onNavigateToScout,
 }) => {
@@ -214,17 +218,28 @@ export const OutreachTab: React.FC<OutreachTabProps> = ({
                     </div>
 
                   {pitch.status === 'Draft' || pitch.status === 'Failed' ? (
-                    <button
-                      onClick={() => onSendPitch(pitch.id)}
-                      disabled={sendingPitchIds.has(pitch.id)}
-                      className="flex items-center gap-1.5 text-[10px] bg-sky-600/10 hover:bg-sky-600/25 disabled:opacity-50 text-sky-400 border border-sky-500/20 px-3 py-2 rounded-lg font-bold uppercase transition-all"
-                    >
-                      <Send className="w-3 h-3" />
-                      {sendingPitchIds.has(pitch.id) ? 'Sending…' : pitch.status === 'Failed' ? 'Retry Send' : 'Send Email'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => onSchedulePitch(pitch.id)}
+                        disabled={schedulingPitchIds.has(pitch.id)}
+                        className="flex items-center gap-1.5 text-[10px] bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-slate-300 border border-slate-700 px-3 py-2 rounded-lg font-bold uppercase transition-all"
+                      >
+                        <Clock className="w-3 h-3" />
+                        {schedulingPitchIds.has(pitch.id) ? 'Scheduling…' : 'Schedule'}
+                      </button>
+                      <button
+                        onClick={() => onSendPitch(pitch.id)}
+                        disabled={sendingPitchIds.has(pitch.id)}
+                        className="flex items-center gap-1.5 text-[10px] bg-sky-600/10 hover:bg-sky-600/25 disabled:opacity-50 text-sky-400 border border-sky-500/20 px-3 py-2 rounded-lg font-bold uppercase transition-all"
+                      >
+                        <Send className="w-3 h-3" />
+                        {sendingPitchIds.has(pitch.id) ? 'Sending…' : pitch.status === 'Failed' ? 'Retry Send' : 'Send Email'}
+                      </button>
+                    </div>
                   ) : (
                     <span className="text-[10px] text-slate-500 font-mono">
                       Sent {pitch.sentAt ? new Date(pitch.sentAt).toLocaleString() : 'N/A'}
+                      {pitch.scheduledSendAt ? ` (scheduled: ${new Date(pitch.scheduledSendAt).toLocaleString()})` : ''}
                     </span>
                   )}
                 </div>

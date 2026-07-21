@@ -96,6 +96,22 @@ POST /api/pitches
 POST /api/pitches/:id/send
 ```
 
+### Schedule pitch
+```
+POST /api/pitches/:id/schedule
+```
+
+Response: updated pitch with `scheduledSendAt` set to the AI-recommended delivery time.
+
+```json
+{
+  "id": "pitch-id",
+  "status": "DRAFT",
+  "scheduledSendAt": "2026-07-22T10:00:00.000Z",
+  ...
+}
+```
+
 ### Generate pitches for leads
 ```
 POST /api/pitches/generate
@@ -488,6 +504,34 @@ POST /api/webhooks/resend
 Headers:
 - `svix-signature` - Resend signature for verification
 - `svix-timestamp` - Timestamp for signature verification
+
+## Inbound
+
+### Resend inbound webhook
+```
+POST /api/inbound/resend
+```
+
+Accepts Resend `email.received` events. The server fetches the full email via Resend API, parses `In-Reply-To`/`References`, and if it matches a sent pitch’s `Message-ID`, updates the pitch status to `REPLIED` and advances the lead to `NEGOTIATION`.
+
+Request body shape:
+```json
+{
+  "type": "email.received",
+  "data": {
+    "email_id": "resend-email-id"
+  }
+}
+```
+
+Response:
+```json
+{
+  "ok": true,
+  "matched": true,
+  "pitchId": "pitch-id"
+}
+```
 
 ## Events
 

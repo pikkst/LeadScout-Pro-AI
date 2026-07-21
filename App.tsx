@@ -109,6 +109,7 @@ const App: React.FC = () => {
   const [isGeneratingPitches, setIsGeneratingPitches] = useState(false);
   const [pitchProgress, setPitchProgress] = useState({ current: 0, total: 0, activeName: '' });
   const [sendingPitchIds, setSendingPitchIds] = useState<Set<string>>(new Set());
+  const [schedulingPitchIds, setSchedulingPitchIds] = useState<Set<string>>(new Set());
 
   // Preview / Editor States
   const [activePitch, setActivePitch] = useState<OutreachPitch | null>(null);
@@ -474,6 +475,29 @@ reconnaissance.`,
       await handleSendPitch(pitch.id);
     }
     addLog(`[Outreach-SMTP] Bulk transmission complete.`);
+  };
+
+  const handleSchedulePitch = async (pitchId: string) => {
+    const pitch = pitches.find(p => p.id === pitchId);
+    if (!pitch || schedulingPitchIds.has(pitchId)) return;
+
+    setSchedulingPitchIds(prev => new Set(prev).add(pitchId));
+    addLog(`[Outreach-Scheduler] AI optimizing send time for ${pitch.leadName}...`);
+
+    try {
+      const updated = await crm.schedulePitch(pitchId);
+      setPitches(prev => prev.map(p => (p.id === pitchId ? updated : p)));
+      addLog(`[Outreach-Scheduler] Scheduled send for ${pitch.leadName}: ${updated.scheduledSendAt ? new Date(updated.scheduledSendAt).toLocaleString() : 'optimizing...'}`);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Schedule failed';
+      addLog(`[Error] Failed to schedule ${pitch.leadEmail}: ${msg}`);
+    } finally {
+      setSchedulingPitchIds(prev => {
+        const next = new Set(prev);
+        next.delete(pitchId);
+        return next;
+      });
+    }
   };
 
   // CRM Lead Database Management actions (persisted server-side)
@@ -1048,12 +1072,14 @@ Date().toISOString().split('T')[0]}.json`);
             <OutreachTab
               pitches={pitches}
               sendingPitchIds={sendingPitchIds}
+              schedulingPitchIds={schedulingPitchIds}
               isGeneratingPitches={isGeneratingPitches}
               pitchProgress={pitchProgress}
               onBulkSend={handleBulkSend}
               onOpenPreview={openPitchPreview}
               onDeletePitch={handleDeletePitch}
               onSendPitch={handleSendPitch}
+              onSchedulePitch={handleSchedulePitch}
               onMarkReplied={handleMarkReplied}
               onNavigateToScout={() => setActiveTab('scout')}
             />

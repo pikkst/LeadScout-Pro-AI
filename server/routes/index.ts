@@ -18,6 +18,7 @@ import { apiKeysRouter } from "./api-keys.routes";
 import { monitoringRouter } from "./monitoring.routes";
 import { optimizationRouter } from "./optimization.routes";
 import { usersRouter } from "./users.routes";
+import { inboundRouter } from "./inbound.routes";
 import { getAiSettings, getEmailSettings } from "../services/settings.service";
 
 export const apiRouter = Router();
@@ -51,3 +52,4 @@ apiRouter.use("/api-keys", apiKeysRouter);
 apiRouter.use("/monitoring", monitoringRouter);
 apiRouter.use("/optimization", optimizationRouter);
 apiRouter.use("/admin/users", usersRouter);
+apiRouter.use("/inbound", inboundRouter);

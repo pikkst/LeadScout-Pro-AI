@@ -125,6 +125,7 @@ export function serializePitch(p: any) {
     language: p.language,
     status: pitchStatusFromDb(p.status),
     sentAt: p.sentAt?.toISOString?.() ?? p.sentAt ?? undefined,
+    scheduledSendAt: p.scheduledSendAt?.toISOString?.() ?? p.scheduledSendAt ?? undefined,
     opened: p.opened,
     sentFromName: p.sentFromName ?? undefined,
     sentFromEmail: p.sentFromEmail ?? undefined,

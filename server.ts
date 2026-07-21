@@ -12,8 +12,11 @@ import { apiRouter } from "./server/routes";
 import { settingsRouter } from "./server/routes/settings.routes";
 import { uploadRouter } from "./server/routes/upload.routes";
 import { webhookRouter } from "./server/routes/webhook.routes";
+import { inboundRouter } from "./server/routes/inbound.routes";
 import { errorHandler, notFoundHandler } from "./server/middleware/error";
 import { csrfProtection } from "./server/middleware/csrf";
+import { sendPitchEmail } from "./server/services/email.service";
+import { logActivity } from "./server/utils/activity";
 
 async function startServer() {
   const app = express();
@@ -62,6 +65,23 @@ async function startServer() {
     },
   );
   app.use("/api/webhooks", webhookRouter);
+
+  app.use(
+    "/api/inbound",
+    express.text({ type: "*/*", limit: "1mb" }),
+    (req, _res, next) => {
+      (req as express.Request & { rawBody?: string }).rawBody = typeof req.body === "string" ? req.body : "";
+      if (req.body) {
+        try {
+          req.body = JSON.parse(req.body);
+        } catch {
+          /* leave as-is; route will validate */
+        }
+      }
+      next();
+    },
+  );
+  app.use("/api/inbound", inboundRouter);
 
   app.use(express.json({ limit: "2mb" }));
   app.use(cookieParser());
@@ -145,8 +165,85 @@ async function startServer() {
     console.warn("[server] WARNING: could not connect to the database. Check DATABASE_URL. API routes will fail until the database is available.", err);
   }
 
-  // --- Sequence execution engine (simple in-memory scheduler) ---
-  const runSequenceEngine = async () => {
+  // --- Pitch scheduler (send scheduled pitches at their optimized time) ---
+  const pitchSendLocks = new Set<string>();
+
+  async function runPitchScheduler() {
+    if (!dbConnected) return;
+    try {
+      const now = new Date();
+      const due = await prisma.pitch.findMany({
+        where: {
+          status: "DRAFT",
+          scheduledSendAt: { lte: now, not: null },
+        },
+        include: { createdBy: true },
+      });
+
+      for (const pitch of due) {
+        if (pitchSendLocks.has(pitch.id)) continue;
+
+        const refreshed = await prisma.pitch.findUnique({ where: { id: pitch.id } });
+        if (!refreshed || refreshed.status !== "DRAFT" || !refreshed.scheduledSendAt || refreshed.scheduledSendAt > now) continue;
+
+        pitchSendLocks.add(pitch.id);
+        try {
+          const sender = pitch.createdBy;
+          if (!sender) continue;
+
+          const result = await sendPitchEmail({
+            to: pitch.leadEmail,
+            subject: pitch.subject,
+            html: pitch.htmlContent,
+            text: pitch.textContent,
+            replyTo: undefined,
+            pitchId: pitch.id,
+          });
+
+          await prisma.pitch.update({
+            where: { id: pitch.id },
+            data: {
+              status: "SENT",
+              sentAt: now,
+              sentFromName: sender.name,
+              sentFromEmail: sender.email,
+              replyToEmail: config.inboundEmailAddress,
+              sentMessageId: result.messageId,
+              scheduledSendAt: null,
+            } as any,
+          });
+
+          await prisma.pitchEvent.create({
+            data: { pitchId: pitch.id, type: "SENT" },
+          });
+
+          await prisma.lead.updateMany({
+            where: { id: pitch.leadId, stage: "DISCOVERED" },
+            data: { stage: "CONTACTED", lastContactedAt: new Date() },
+          });
+
+          await logActivity({
+            action: "PITCH_SENT",
+            detail: `Scheduled send: From: ${sender.name} <${sender.email}> → To: ${pitch.leadName} <${pitch.leadEmail}>`,
+            userId: sender.id,
+            leadId: pitch.leadId,
+          });
+        } finally {
+          pitchSendLocks.delete(pitch.id);
+        }
+      }
+    } catch (err) {
+      console.error("[PitchScheduler] Error:", err);
+    }
+  }
+
+  if (dbConnected) {
+    runPitchScheduler();
+    setInterval(runPitchScheduler, 30 * 1000);
+  }
+
+// --- Sequence execution engine (simple in-memory scheduler) ---
+const runSequenceEngine = async () => {
     if (!dbConnected) return;
     try {
       const now = new Date();

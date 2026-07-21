@@ -174,6 +174,7 @@ export interface OutreachPitch {
   language: string;
   status: 'Draft' | 'Sent' | 'Delivered' | 'Replied' | 'Failed';
   sentAt?: string;
+  scheduledSendAt?: string;
   opened?: boolean;
   events?: PitchEvent[];
 }

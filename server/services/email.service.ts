@@ -3,6 +3,7 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { HttpError } from "../utils/httpError";
 import { getEmailSettings } from "./settings.service";
+import { config } from "../config";
 
 let transporter: Transporter | null = null;
 let transporterSignature = "";
@@ -50,7 +51,7 @@ export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId
       subject: input.subject,
       html: input.html,
       text: input.text,
-      replyTo: input.replyTo || fromEmail,
+      replyTo: input.replyTo || config.inboundEmailAddress || fromEmail,
       inReplyTo: input.inReplyToMessageId,
       references: input.references,
       // Resend tags let the delivery webhook map events back to this pitch.

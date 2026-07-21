@@ -5,6 +5,14 @@ import { prisma } from "../db";
 import { config } from "../config";
 import { encryptSecret, decryptSecret } from "../utils/crypto";
 
+function toAbsoluteUrl(input: string): string {
+  if (!input) return "";
+  if (/^https?:\/\//i.test(input)) return input;
+  const base = config.baseUrl.replace(/\/$/, "");
+  const path = input.startsWith("/") ? input : `/${input}`;
+  return `${base}${path}`;
+}
+
 export type SettingType = "string" | "number" | "boolean" | "secret";
 
 export interface SettingDef {
@@ -94,6 +102,14 @@ export const SETTING_DEFS: SettingDef[] = [
     type: "string",
     envDefault: () => process.env.SMTP_FROM_EMAIL || "info@unitelglobal.com",
     placeholder: "info@unitelglobal.com",
+  },
+  {
+    key: "RESEND_API_KEY",
+    label: "Resend API Key",
+    group: "email",
+    type: "secret",
+    envDefault: () => process.env.RESEND_API_KEY || "",
+    help: "Used for inbound webhook fetches and Resend native APIs.",
   },
 
   // --- Security ---
@@ -232,6 +248,7 @@ export async function getEmailSettings() {
     fromName: s.SMTP_FROM_NAME || "Unitel Global — Carrier Relations",
     fromEmail: s.SMTP_FROM_EMAIL || "info@unitelglobal.com",
     configured: Boolean(s.SMTP_HOST && s.SMTP_USER && s.SMTP_PASS),
+    providerApiKey: s.RESEND_API_KEY || "",
   };
 }
 
@@ -255,7 +272,7 @@ export async function getCompanyProfile(): Promise<CompanyProfile> {
   const s = await loadAll();
   return {
     name: s.COMPANY_NAME || "Your Company",
-    logoUrl: s.COMPANY_LOGO_URL || "",
+    logoUrl: toAbsoluteUrl(s.COMPANY_LOGO_URL || ""),
     website: s.COMPANY_WEBSITE || "",
     description: s.COMPANY_DESCRIPTION || "",
     offerings: s.COMPANY_OFFERINGS || "",
