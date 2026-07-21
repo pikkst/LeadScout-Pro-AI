@@ -64,3 +64,4 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Branch naming: `<type>/<short-description>` (e.g. `feat/lead-search-filter`, `fix/auth-timeout`)
 - Do not merge your own PR without at least one review or CI approval
 - PR description must reference the related issue or task, include a changelog summary, and pass all checks
+- After every PR review (human or bot), update AGENTS.md `Lessons Learned` and review checklist with any new findings or anti-patterns surfaced, so future agents/tasks avoid the same mistakes
