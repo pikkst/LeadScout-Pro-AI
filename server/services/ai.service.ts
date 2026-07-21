@@ -285,17 +285,23 @@ export async function generatePitch(
     .join("\n");
 
   const offeringsInstruction = company.offerings
-    ? `IMPORTANT: Use ONLY the company's actual offerings and value proposition provided below. Do NOT use generic or hardcoded industry descriptions. Be specific about THEIR real value.\nConfigured offerings: "${company.offerings}"\nValue proposition: "${company.valueProp}"`
-    : `Offerings/value proposition not yet configured in Settings. Use the industry context below cautiously, but prefer the specific lead's context and focus angle.\nPitch focus area (for angle/relevance guidance): ${FOCUS_PITCH_DESCRIPTIONS[focus] || focus}`;
+    ? `You are writing on behalf of ${company.name}, whose actual business is described above. Use ONLY the sender's real offerings and value proposition described above. Do NOT replace them with generic telecom or industry templates. The sender sells what is written in their profile, nothing else.`
+    : `Offerings/value proposition not yet configured in Settings. In that case, position the sender as a general business-services partner relevant to the lead's industry. Do NOT invent specific services.`;
+
+  const targetIndustryLabel = FOCUS_LEAD_PROMPTS[focus]
+    ? `The target lead operates in the following general industry area (use this only to personalize the hook and show you understand their context): ${FOCUS_LEAD_PROMPTS[focus]}`
+    : `The target lead's industry focus is: ${focus}`;
 
   const templateInstruction = template
     ? `\nUse this saved email template as the structural base. Keep its tone, sections, and CTA style, but personalize it for the specific client:\nSubject: ${template.subject}\nHTML: ${template.htmlContent}\nText: ${template.textContent}\n`
     : "";
 
   const prompt = `
-    You are ${displayName}, Partnership / Carrier Relations Director for ${company.name}.
+    You are ${displayName}, Partnership Director for ${company.name}.
     ${companyContext ? `\nContext about ${company.name} (use ONLY this information when describing the sender):\n${companyContext}\n` : ""}
     ${offeringsInstruction}
+    ${targetIndustryLabel}
+
     ${templateInstruction}
     Create a highly professional, bespoke, and visually clean B2B sales pitch and partnership invitation for this target client:
     - Client Name: "${lead.name}"
@@ -306,15 +312,18 @@ export async function generatePitch(
     Language Policy:
     - If preferred language is "Auto-Detect", analyze the client details (e.g. if Estonia/Baltics, use Estonian/English; if Germany/Austria, use German; if France, use French; if Spanish/LATAM, use Spanish, etc., defaulting to English if unclear or multi-regional). The default company language is "${company.language}".
     - Otherwise, write the email specifically in "${preferredLanguage}".
-    - The pitch must feel natural, friendly, and highly professional. Never sound like spam. Respect their business model and align how ${company.name} can help them.
+    - The pitch must feel natural, friendly, and highly professional. Never sound like spam. Respect their business model and explain how ${company.name} can genuinely help them based on the sender's ACTUAL offerings listed above.
 
     We require a valid JSON object in response containing:
     1. "subject": An elegant, click-worthy email subject line.
-    2. "htmlContent": A modern, responsive HTML email body with embedded CSS styles. ${headerInstruction} Use a personalized hook, bullet-point benefits that are CUSTOM to THIS company's offerings, a clear call-to-action, and the signature "${signature}".
+    2. "htmlContent": A modern, responsive HTML email body with embedded CSS styles. ${headerInstruction} Use a personalized hook, bullet-point benefits grounded in the sender's REAL offerings (from Settings), a clear call-to-action, and the signature "${signature}".
     3. "textContent": Plain-text version of the email (ending with the same signature).
     4. "detectedLanguage": The language name used to write the pitch.
 
-    IMPORTANT: NEVER use placeholder text like "[Your Name]" or "[Company Name]". Use the real values provided above.
+    IMPORTANT RULES:
+    - NEVER use placeholder text like "[Your Name]" or "[Company Name]". Use the real values provided above.
+    - NEVER invent services the sender does not offer. Stick to the company's real description, offerings, and value proposition from Settings.
+    - The sender is NOT a telecom/voice provider unless Settings explicitly say so.
 
     Format strictly as JSON:
     { "subject": "...", "htmlContent": "...", "textContent": "...", "detectedLanguage": "..." }
