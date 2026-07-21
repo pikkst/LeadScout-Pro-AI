@@ -13,7 +13,8 @@ import { logActivity } from "../utils/activity";
 
 export const monitoringRouter = Router();
 monitoringRouter.use(requireAuth);
-monitoringRouter.use(requireRole("ADMIN", "MANAGER"));
+
+const canWrite = requireRole("ADMIN", "MANAGER");
 
 monitoringRouter.get("/lead/:leadId", asyncHandler(async (req, res) => {
   const alerts = await prisma.leadMonitoring.findMany({
@@ -23,7 +24,7 @@ monitoringRouter.get("/lead/:leadId", asyncHandler(async (req, res) => {
   res.json(alerts);
 }));
 
-monitoringRouter.post("/lead/:leadId/check", validate({
+monitoringRouter.post("/lead/:leadId/check", canWrite, validate({
   body: z.object({ leadId: z.string().min(1) }),
 }), asyncHandler(async (req, res) => {
   const leadId = param(req, "leadId");

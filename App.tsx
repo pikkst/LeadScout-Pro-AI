@@ -21,6 +21,7 @@ import RevenueTab from './components/RevenueTab';
 import CalendarTab from './components/CalendarTab';
 import DocumentsTab from './components/DocumentsTab';
 import AnalyticsTab from './components/AnalyticsTab';
+import { TeamManagement } from './components/TeamManagement';
 import { 
   Globe, 
   Search, 
@@ -60,7 +61,7 @@ const App: React.FC = () => {
   const { user, logout } = useAuth();
 
   // Navigation: scout, outreach, crm, dashboard, revenue, calendar, documents, analytics
-  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings'>('scout');
+  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings' | 'team'>('scout');
   const isAdmin = user?.role === 'ADMIN';
 
   // Lead Finder States
@@ -133,7 +134,7 @@ const App: React.FC = () => {
       const [serverLeads, serverPitches, serverUsers] = await Promise.all([
         crm.listLeads(),
         crm.listPitches(),
-        fetch('/api/auth/team', { credentials: 'include' }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/auth/users', { credentials: 'include' }).then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
       setLeads(serverLeads);
       setPitches(serverPitches);
@@ -188,6 +189,7 @@ const App: React.FC = () => {
     'ctrl+6': () => setActiveTab('calendar'),
     'ctrl+7': () => setActiveTab('documents'),
     'ctrl+8': () => setActiveTab('analytics'),
+    'ctrl+9': () => setActiveTab('team'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1262,6 +1264,11 @@ Date().toISOString().split('T')[0]}.json`);
           {/* TAB 8: ADVANCED ANALYTICS */}
           {activeTab === 'analytics' && (
             <AnalyticsTab />
+          )}
+
+          {/* TAB 9: TEAM MANAGEMENT */}
+          {activeTab === 'team' && (
+            <TeamManagement />
           )}
 
         </div>

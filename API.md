@@ -541,6 +541,51 @@ POST /api/auth/logout
 GET /api/auth/me
 ```
 
+## Admin — User Management
+All admin endpoints require the `ADMIN` role.
+
+### List all users
+```
+GET /api/admin/users
+```
+
+### Create user
+```
+POST /api/admin/users
+```
+
+Body:
+```json
+{
+  "name": "Jane Agent",
+  "email": "jane@unitelglobal.com",
+  "password": "securePassword123",
+  "role": "AGENT",
+  "isActive": true
+}
+```
+
+### Update user
+```
+PATCH /api/admin/users/:id
+```
+
+Body (all fields optional):
+```json
+{
+  "name": "Jane Agent",
+  "email": "jane@unitelglobal.com",
+  "role": "MANAGER",
+  "isActive": false,
+  "password": "newSecurePassword123"
+}
+```
+
+### Delete user
+```
+DELETE /api/admin/users/:id
+```
+
 ## Settings
 
 ### Get settings
