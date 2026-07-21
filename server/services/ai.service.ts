@@ -261,42 +261,47 @@ export async function generatePitch(
   focus: string,
   preferredLanguage: string,
   template?: { subject: string; htmlContent: string; textContent: string } | null,
+  userName?: string,
 ): Promise<GeneratedPitch> {
   const { ai, model } = await getAI();
-  const focusDesc = FOCUS_PITCH_DESCRIPTIONS[focus] || focus;
   const company = await getCompanyProfile();
+  const displayName = userName || "Us";
 
   const headerInstruction = company.logoUrl
     ? `Use this company logo image at the top of the email: <img src="${company.logoUrl}" alt="${company.name}" style="max-height:48px;margin-bottom:16px;" />. Only use this exact URL — do NOT invent or guess any other image/logo URLs.`
     : `Use a clean styled text header with the company name "${company.name}" — do NOT include any <img> image tags or external image URLs (they will appear broken).`;
 
   const signature = company.contactEmail
-    ? `${company.name} Team | ${company.website ? company.website + " | " : ""}${company.contactEmail}`
-    : `${company.name} Team`;
+    ? `${displayName} | ${company.name}${company.website ? ` | ${company.website}` : ""}${company.contactEmail ? ` | ${company.contactEmail}` : ""}`
+    : `${displayName} | ${company.name}`;
 
   const companyContext = [
     company.description && `Company overview: ${company.description}`,
-    company.offerings && `We sell / offer: ${company.offerings}`,
+    company.offerings && `We offer: ${company.offerings}`,
     company.valueProp && `Our value proposition: ${company.valueProp}`,
     company.website && `Our website: ${company.website}`,
   ]
     .filter(Boolean)
     .join("\n");
 
+  const offeringsInstruction = company.offerings
+    ? `IMPORTANT: Use ONLY the company's actual offerings and value proposition provided below. Do NOT use generic or hardcoded industry descriptions. Be specific about THEIR real value.\nConfigured offerings: "${company.offerings}"\nValue proposition: "${company.valueProp}"`
+    : `Offerings/value proposition not yet configured in Settings. Use the industry context below cautiously, but prefer the specific lead's context and focus angle.\nPitch focus area (for angle/relevance guidance): ${FOCUS_PITCH_DESCRIPTIONS[focus] || focus}`;
+
   const templateInstruction = template
     ? `\nUse this saved email template as the structural base. Keep its tone, sections, and CTA style, but personalize it for the specific client:\nSubject: ${template.subject}\nHTML: ${template.htmlContent}\nText: ${template.textContent}\n`
     : "";
 
   const prompt = `
-    You are the lead Partnership / Carrier Relations Director for ${company.name}.
-    ${companyContext ? `\nContext about ${company.name} (use this to tailor the pitch):\n${companyContext}\n` : ""}
+    You are ${displayName}, Partnership / Carrier Relations Director for ${company.name}.
+    ${companyContext ? `\nContext about ${company.name} (use ONLY this information when describing the sender):\n${companyContext}\n` : ""}
+    ${offeringsInstruction}
     ${templateInstruction}
     Create a highly professional, bespoke, and visually clean B2B sales pitch and partnership invitation for this target client:
     - Client Name: "${lead.name}"
     - Focus Industry/Segment: "${lead.category}"
     - Client Website: "${lead.website}"
     - Description: "${lead.description}"
-    - Our Partnership Angle: "${focusDesc}"
 
     Language Policy:
     - If preferred language is "Auto-Detect", analyze the client details (e.g. if Estonia/Baltics, use Estonian/English; if Germany/Austria, use German; if France, use French; if Spanish/LATAM, use Spanish, etc., defaulting to English if unclear or multi-regional). The default company language is "${company.language}".
@@ -305,9 +310,11 @@ export async function generatePitch(
 
     We require a valid JSON object in response containing:
     1. "subject": An elegant, click-worthy email subject line.
-    2. "htmlContent": A modern, responsive HTML email body with embedded CSS styles. ${headerInstruction} Use a personalized hook, bullet-point benefits, a clear call-to-action, and the signature "${signature}".
+    2. "htmlContent": A modern, responsive HTML email body with embedded CSS styles. ${headerInstruction} Use a personalized hook, bullet-point benefits that are CUSTOM to THIS company's offerings, a clear call-to-action, and the signature "${signature}".
     3. "textContent": Plain-text version of the email (ending with the same signature).
     4. "detectedLanguage": The language name used to write the pitch.
+
+    IMPORTANT: NEVER use placeholder text like "[Your Name]" or "[Company Name]". Use the real values provided above.
 
     Format strictly as JSON:
     { "subject": "...", "htmlContent": "...", "textContent": "...", "detectedLanguage": "..." }

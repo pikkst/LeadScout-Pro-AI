@@ -56,6 +56,7 @@ pitchesRouter.post(
       focus,
       preferredLanguage,
       template,
+      req.user!.name,
     );
 
     const pitch = await prisma.pitch.create({
