@@ -107,6 +107,9 @@ export function serializeMeeting(m: any) {
     type: meetingTypeFromDb(m.type),
     agenda: m.agenda ?? undefined,
     link: m.link ?? undefined,
+    agentId: m.agentId ?? undefined,
+    agentName: m.agent?.name ?? undefined,
+    pitchId: m.pitchId ?? undefined,
   };
 }
 
@@ -123,6 +126,10 @@ export function serializePitch(p: any) {
     status: pitchStatusFromDb(p.status),
     sentAt: p.sentAt?.toISOString?.() ?? p.sentAt ?? undefined,
     opened: p.opened,
+    sentFromName: p.sentFromName ?? undefined,
+    sentFromEmail: p.sentFromEmail ?? undefined,
+    replyToEmail: p.replyToEmail ?? undefined,
+    inReplyToId: p.inReplyToId ?? undefined,
     events: Array.isArray(p.events)
       ? p.events.map((e: any) => ({
           id: e.id,

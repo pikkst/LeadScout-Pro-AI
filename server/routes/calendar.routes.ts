@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { notFound } from "../utils/httpError";
 import { requireAuth } from "../middleware/auth";
 import { param } from "../utils/param";
+import { logActivity } from "../utils/activity";
 
 export const calendarRouter = Router();
 calendarRouter.use(requireAuth);
@@ -24,8 +25,8 @@ const meetingSchema = z.object({
   time: z.string(),
   duration: z.coerce.number().min(15).max(120).default(30),
   type: z.enum(["CALL", "MEETING", "DEMO", "FOLLOW_UP"]).default("CALL"),
-  agenda: z.string().default(""),
-  agentId: z.string(),
+  agenda: z.string().optional().default(""),
+  pitchId: z.string().optional().nullable(),
 });
 
 // ---- List available slots for booking ----
@@ -117,11 +118,12 @@ calendarRouter.post("/slots/bulk", asyncHandler(async (req, res) => {
 
 // ---- Book a slot and create meeting ----
 calendarRouter.post("/book", asyncHandler(async (req, res) => {
-  const { slotId, leadId, title, agenda } = req.body as {
+  const { slotId, leadId, title, agenda, pitchId } = req.body as {
     slotId: string;
     leadId: string;
     title: string;
     agenda?: string;
+    pitchId?: string | null;
   };
 
   const slot = await prisma.meetingSlot.findUnique({ where: { id: slotId } });
@@ -138,6 +140,12 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
       time: slot.startTime,
       agenda: agenda || "",
       type: "MEETING",
+      agentId: slot.agentId,
+      pitchId: pitchId || null,
+    },
+    include: {
+      agent: { select: { name: true } },
+      lead: { select: { name: true, email: true } },
     },
   });
 
@@ -146,7 +154,28 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
     data: { isBooked: true, meetingId: meeting.id },
   });
 
-  res.json(meeting);
+  const response = {
+    ...meeting,
+    agentName: meeting.agent?.name ?? null,
+    lead: { name: meeting.lead.name, email: meeting.lead.email },
+  };
+
+  const nextStage = lead.stage === "DISCOVERED" ? "CONTACTED" : lead.stage === "CONTACTED" ? "NEGOTIATION" : null;
+  if (nextStage) {
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { stage: nextStage as any, lastContactedAt: new Date() },
+    });
+  }
+
+  await logActivity({
+    action: "MEETING_BOOKED",
+    detail: `${title || `Meeting with ${lead.name}`} on ${slot.date} ${slot.startTime} (agent: ${slot.agentId})`,
+    userId: req.user!.id,
+    leadId,
+  });
+
+  res.status(201).json(response);
 }));
 
 // ---- List meetings ----

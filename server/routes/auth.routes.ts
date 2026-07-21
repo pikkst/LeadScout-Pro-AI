@@ -184,3 +184,33 @@ authRouter.get(
     res.json(users);
   }),
 );
+
+// Notifications: recent activity log entries for the current user
+authRouter.get(
+  "/notifications",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const activities = await prisma.activityLog.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        action: true,
+        detail: true,
+        createdAt: true,
+        leadId: true,
+      },
+    });
+
+    const notifications = activities.map((activity) => ({
+      id: activity.id,
+      message: `${activity.action}${activity.detail ? `: ${activity.detail}` : ""}`,
+      timestamp: activity.createdAt.toISOString(),
+      read: false,
+      leadId: activity.leadId,
+    }));
+
+    res.json(notifications);
+  }),
+);

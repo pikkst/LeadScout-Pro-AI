@@ -36,6 +36,8 @@ export interface SendPitchInput {
   text: string;
   replyTo?: string;
   pitchId?: string;
+  inReplyToMessageId?: string;
+  references?: string[];
 }
 
 export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId: string }> {
@@ -49,6 +51,8 @@ export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId
       html: input.html,
       text: input.text,
       replyTo: input.replyTo || fromEmail,
+      inReplyTo: input.inReplyToMessageId,
+      references: input.references,
       // Resend tags let the delivery webhook map events back to this pitch.
       ...(input.pitchId
         ? { tags: [{ name: "pitchId", value: input.pitchId }] }

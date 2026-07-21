@@ -114,37 +114,48 @@ pitchesRouter.post(
     const pitch = await prisma.pitch.findUnique({ where: { id: param(req, "id") } });
     if (!pitch) throw notFound("Pitch not found");
 
-    try {
-      await sendPitchEmail({
-        to: pitch.leadEmail,
-        subject: pitch.subject,
-        html: pitch.htmlContent,
-        text: pitch.textContent,
-        replyTo: req.user!.email,
-        pitchId: pitch.id,
-      });
-    } catch (err) {
-      await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });
-      throw err;
-    }
+    const senderName = req.user!.name;
+    const senderEmail = req.user!.email;
+
+    const previous = pitch.inReplyToId
+      ? ((await prisma.pitch.findUnique({ where: { id: pitch.inReplyToId } })) as any)
+      : null;
+
+    const sendResult = await sendPitchEmail({
+      to: pitch.leadEmail,
+      subject: pitch.subject,
+      html: pitch.htmlContent,
+      text: pitch.textContent,
+      replyTo: senderEmail,
+      pitchId: pitch.id,
+      inReplyToMessageId: previous?.sentMessageId || undefined,
+      references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
+    });
 
     const updated = await prisma.pitch.update({
       where: { id: pitch.id },
-      data: { status: "SENT", sentAt: new Date() },
+      data: {
+        status: "SENT",
+        sentAt: new Date(),
+        sentFromName: senderName,
+        sentFromEmail: senderEmail,
+        replyToEmail: senderEmail,
+        sentMessageId: sendResult.messageId,
+      } as any,
     });
-    
+
     await prisma.pitchEvent.create({
       data: { pitchId: pitch.id, type: "SENT" },
     });
-    
-    // Advance the lead to "Contacted" when it is still early-stage.
+
     await prisma.lead.updateMany({
       where: { id: pitch.leadId, stage: "DISCOVERED" },
       data: { stage: "CONTACTED", lastContactedAt: new Date() },
     });
+
     await logActivity({
       action: "PITCH_SENT",
-      detail: `${pitch.leadName} <${pitch.leadEmail}>`,
+      detail: `From: ${senderName} <${senderEmail}> → To: ${pitch.leadName} <${pitch.leadEmail}>`,
       userId: req.user!.id,
       leadId: pitch.leadId,
     });
