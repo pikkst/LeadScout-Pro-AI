@@ -11,6 +11,7 @@ import { generatePitch } from "../services/ai.service";
 import { sendPitchEmail } from "../services/email.service";
 import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
+import { getEmailSettings } from "../services/settings.service";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -51,12 +52,15 @@ pitchesRouter.post(
       }
     }
 
+    const emailSettings = await getEmailSettings();
     const generated = await generatePitch(
       { name: lead.name, category: lead.category, website: lead.website, description: lead.description },
       focus,
       preferredLanguage,
       template,
       req.user!.name,
+      emailSettings.fromName,
+      emailSettings.fromEmail,
     );
 
     const pitch = await prisma.pitch.create({

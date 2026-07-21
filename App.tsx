@@ -720,6 +720,11 @@ Date().toISOString().split('T')[0]}.json`);
     setIsPreviewMode(true);
   };
 
+  const handleTogglePreviewMode = () => setIsPreviewMode(true);
+  const handleToggleEditorMode = () => setIsPreviewMode(false);
+  const handleSubjectChange = (value: string) => setEditedSubject(value);
+  const handleBodyChange = (value: string) => setEditedBody(value);
+
   // Compute overdue follow-up scheduler alerts (> 3 days in Contacted stage)
   const overdueLeadsCount = useMemo(() => {
     return leads.filter(l => {
@@ -1296,6 +1301,10 @@ Date().toISOString().split('T')[0]}.json`);
         onCloseCRMModal={() => { setIsCRMModalOpen(false); setSelectedCRMLead(null); }}
         onSavePitchChanges={handleSaveChanges}
         onSaveCRMLead={handleSaveCRMLead}
+        onTogglePreviewMode={handleTogglePreviewMode}
+        onToggleEditorMode={handleToggleEditorMode}
+        onSubjectChange={handleSubjectChange}
+        onBodyChange={handleBodyChange}
       />
 
     </div>

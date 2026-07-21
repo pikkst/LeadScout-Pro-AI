@@ -262,17 +262,20 @@ export async function generatePitch(
   preferredLanguage: string,
   template?: { subject: string; htmlContent: string; textContent: string } | null,
   userName?: string,
+  fromName?: string,
+  fromEmail?: string,
 ): Promise<GeneratedPitch> {
   const { ai, model } = await getAI();
   const company = await getCompanyProfile();
-  const displayName = userName || "Us";
+  const displayName = fromName || userName || "Us";
+  const contactEmail = fromEmail || company.contactEmail || "";
 
   const headerInstruction = company.logoUrl
     ? `Use this company logo image at the top of the email: <img src="${company.logoUrl}" alt="${company.name}" style="max-height:48px;margin-bottom:16px;" />. Only use this exact URL — do NOT invent or guess any other image/logo URLs.`
     : `Use a clean styled text header with the company name "${company.name}" — do NOT include any <img> image tags or external image URLs (they will appear broken).`;
 
-  const signature = company.contactEmail
-    ? `${displayName} | ${company.name}${company.website ? ` | ${company.website}` : ""}${company.contactEmail ? ` | ${company.contactEmail}` : ""}`
+  const signature = contactEmail
+    ? `${displayName} | ${company.name}${company.website ? ` | ${company.website}` : ""}${contactEmail ? ` | ${contactEmail}` : ""}`
     : `${displayName} | ${company.name}`;
 
   const companyContext = [
