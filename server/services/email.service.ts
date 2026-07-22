@@ -39,18 +39,42 @@ export interface SendPitchInput {
   pitchId?: string;
   inReplyToMessageId?: string;
   references?: string[];
+  bookingUrl?: string;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  })[character] || character);
+}
+
+export function appendBookingCallToAction(html: string, text: string, bookingUrl?: string) {
+  if (!bookingUrl) return { html, text };
+  const safeUrl = escapeHtml(bookingUrl);
+  const cta = `
+    <div style="margin:28px 0;padding:20px;border-radius:12px;background:#f0f9ff;text-align:center">
+      <p style="margin:0 0 14px;color:#0f172a;font-weight:600">Would you like to discuss this?</p>
+      <a href="${safeUrl}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:#0284c7;color:#ffffff;text-decoration:none;font-weight:700">Book a meeting</a>
+    </div>`;
+  const nextHtml = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${cta}</body>`) : `${html}${cta}`;
+  return { html: nextHtml, text: `${text}\n\nBook a meeting: ${bookingUrl}` };
 }
 
 export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId: string }> {
   const { tx, fromName, fromEmail } = await getTransporter();
   const from = `"${fromName}" <${fromEmail}>`;
+  const content = appendBookingCallToAction(input.html, input.text, input.bookingUrl);
   try {
     const info = await tx.sendMail({
       from,
       to: input.to,
       subject: input.subject,
-      html: input.html,
-      text: input.text,
+      html: content.html,
+      text: content.text,
       replyTo: input.replyTo || config.inboundEmailAddress || fromEmail,
       inReplyTo: input.inReplyToMessageId,
       references: input.references,
@@ -63,6 +87,52 @@ export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId
   } catch (err) {
     throw new HttpError(502, `Failed to send email: ${(err as Error).message}`, "SMTP_SEND_FAILED");
   }
+}
+
+function escapeIcs(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+
+function compactDateTime(date: string, time: string): string {
+  return `${date.replace(/-/g, "")}T${time.replace(":", "")}00`;
+}
+
+function addMinutesToTime(time: string, minutesToAdd: number): string {
+  const [hours, minutes] = time.split(":").map(Number);
+  const total = hours * 60 + minutes + minutesToAdd;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+export function buildIcsEvent(params: {
+  meetingId: string;
+  title: string;
+  date: string;
+  time: string;
+  duration: number;
+  description: string;
+  timezone?: string;
+}): string {
+  const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const timezone = params.timezone || "Europe/Tallinn";
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//LeadScout PRO AI//Booking//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:REQUEST",
+    `X-WR-TIMEZONE:${escapeIcs(timezone)}`,
+    "BEGIN:VEVENT",
+    `UID:${escapeIcs(params.meetingId)}@leadscout`,
+    `DTSTAMP:${now}`,
+    `DTSTART;TZID=${escapeIcs(timezone)}:${compactDateTime(params.date, params.time)}`,
+    `DTEND;TZID=${escapeIcs(timezone)}:${compactDateTime(params.date, addMinutesToTime(params.time, params.duration))}`,
+    `SUMMARY:${escapeIcs(params.title)}`,
+    `DESCRIPTION:${escapeIcs(params.description)}`,
+    "STATUS:CONFIRMED",
+    "END:VEVENT",
+    "END:VCALENDAR",
+    "",
+  ].join("\r\n");
 }
 
 /** Verify SMTP connectivity. Returns a clear result for the admin "Test Connection" button. */
@@ -113,6 +183,9 @@ export async function sendMeetingNotificationEmail(params: {
   date: string;
   time: string;
   title: string;
+  meetingId?: string;
+  duration?: number;
+  timezone?: string;
 }): Promise<{ messageId?: string; error?: string }> {
   try {
     const { tx, fromName, fromEmail } = await getTransporter();
@@ -134,6 +207,70 @@ export async function sendMeetingNotificationEmail(params: {
       subject,
       html,
       text,
+      ...(params.meetingId ? {
+        icalEvent: {
+          method: "REQUEST",
+          filename: "meeting.ics",
+          content: buildIcsEvent({
+            meetingId: params.meetingId,
+            title: params.title,
+            date: params.date,
+            time: params.time,
+            duration: params.duration ?? 30,
+            description: `Meeting with ${params.leadName} (${params.leadEmail})`,
+            timezone: params.timezone,
+          }),
+        },
+      } : {}),
+    });
+    return { messageId: info.messageId };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+export async function sendBookingConfirmationEmail(params: {
+  to: string;
+  attendeeName: string;
+  agentName: string;
+  meetingId: string;
+  title: string;
+  date: string;
+  time: string;
+  duration: number;
+  timezone?: string;
+}): Promise<{ messageId?: string; error?: string }> {
+  try {
+    const { tx, fromName, fromEmail } = await getTransporter();
+    const description = `Meeting with ${params.agentName}`;
+    const html = `
+      <p>Hi ${escapeHtml(params.attendeeName)},</p>
+      <p>Your meeting with <strong>${escapeHtml(params.agentName)}</strong> is confirmed.</p>
+      <ul>
+        <li><strong>Date:</strong> ${escapeHtml(params.date)}</li>
+        <li><strong>Time:</strong> ${escapeHtml(params.time)}</li>
+        <li><strong>Duration:</strong> ${params.duration} minutes</li>
+      </ul>
+      <p>The attached calendar invitation works with Google Calendar, Outlook, Apple Calendar and other calendar apps.</p>`;
+    const info = await tx.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: params.to,
+      subject: `Meeting confirmed: ${params.title}`,
+      html,
+      text: `Meeting confirmed with ${params.agentName} on ${params.date} at ${params.time} for ${params.duration} minutes.`,
+      icalEvent: {
+        method: "REQUEST",
+        filename: "meeting.ics",
+        content: buildIcsEvent({
+          meetingId: params.meetingId,
+          title: params.title,
+          date: params.date,
+          time: params.time,
+          duration: params.duration,
+          description,
+          timezone: params.timezone,
+        }),
+      },
     });
     return { messageId: info.messageId };
   } catch (err) {

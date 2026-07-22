@@ -13,6 +13,7 @@ import { recommendSendTime } from "../services/ai.service";
 import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
 import { getEmailSettings } from "../services/settings.service";
+import { getOrCreateBookingLink } from "../services/calendar.service";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -121,6 +122,11 @@ pitchesRouter.post(
     const previous = pitch.inReplyToId
       ? ((await prisma.pitch.findUnique({ where: { id: pitch.inReplyToId } })) as any)
       : null;
+    const bookingLink = await getOrCreateBookingLink({
+      pitchId: pitch.id,
+      leadId: pitch.leadId,
+      agentId: req.user!.id,
+    });
 
     const sendResult = await sendPitchEmail({
       to: pitch.leadEmail,
@@ -131,6 +137,7 @@ pitchesRouter.post(
       pitchId: pitch.id,
       inReplyToMessageId: previous?.sentMessageId || undefined,
       references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
+      bookingUrl: bookingLink.url,
     });
 
     const updated = await prisma.pitch.update({

@@ -401,6 +401,31 @@ GET /api/revenue/leaderboard
 
 ## Calendar
 
+### Weekly availability
+
+```text
+GET /api/calendar/availability?agentId=<id>
+POST /api/calendar/availability
+```
+
+The POST route stores recurring weekly work hours and materializes conflict-safe slots for up to 26 weeks. Agents may update themselves; admins and managers may update another user.
+
+```json
+{
+  "startDate": "2026-07-27",
+  "weeks": 12,
+  "slotDuration": 30,
+  "timezone": "Europe/Tallinn",
+  "days": [
+    { "weekday": 1, "startTime": "08:00", "endTime": "17:00" },
+    { "weekday": 2, "startTime": "08:00", "endTime": "17:00" },
+    { "weekday": 3, "startTime": "08:00", "endTime": "17:00" },
+    { "weekday": 4, "startTime": "08:00", "endTime": "17:00" },
+    { "weekday": 5, "startTime": "08:00", "endTime": "17:00" }
+  ]
+}
+```
+
 ### List available slots
 ```
 GET /api/calendar/slots?agentId=<id>&date=<YYYY-MM-DD>
@@ -442,6 +467,22 @@ Body:
 ### List meetings
 ```
 GET /api/calendar/meetings?agentId=<id>&leadId=<id>
+```
+
+### Public booking page
+
+```text
+GET /api/public/booking/:token
+POST /api/public/booking/:token
+```
+
+Each sent pitch receives a 256-bit, expiring, single-use capability token and a `/book/:token` call-to-action. The public GET returns only future unbooked slots and masked attendee details. The POST atomically claims both the link and one slot, creates the meeting, notifies the agent, sends both parties a timezone-aware ICS calendar invitation, and advances the lead from `DISCOVERED` to `CONTACTED` or `CONTACTED` to `NEGOTIATION`.
+
+```json
+{
+  "slotId": "slot-id",
+  "agenda": "Topics to discuss"
+}
 ```
 
 ## Documents

@@ -19,6 +19,7 @@ import { monitoringRouter } from "./monitoring.routes";
 import { optimizationRouter } from "./optimization.routes";
 import { usersRouter } from "./users.routes";
 import { inboundRouter } from "./inbound.routes";
+import { publicBookingRouter } from "./public-booking.routes";
 import { getAiSettings, getEmailSettings } from "../services/settings.service";
 
 export const apiRouter = Router();
@@ -34,6 +35,7 @@ apiRouter.get("/health", async (_req, res) => {
 });
 
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/public/booking", publicBookingRouter);
 apiRouter.use("/leads", leadsRouter);
 apiRouter.use("/pitches", pitchesRouter);
 apiRouter.use("/templates", templatesRouter);

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Plus, Trash2, Users, CheckCircle, XCircle, Brain, Loader2, Bell } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, Users, Brain, Loader2, Bell, ChevronLeft, ChevronRight, CalendarDays, Link2 } from 'lucide-react';
 import { api } from '../services/apiClient';
 import { CompanyLead } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface Slot {
   id: string;
@@ -10,6 +11,7 @@ interface Slot {
   endTime: string;
   isAvailable: boolean;
   isBooked: boolean;
+  timezone?: string;
   agent: { id: string; name: string };
 }
 
@@ -25,6 +27,9 @@ interface Meeting {
   lead: { name: string; email: string };
   agentId?: string;
   agentName?: string;
+  previousStage?: string;
+  nextStage?: string | null;
+  timezone?: string;
 }
 
 interface MeetingPrepState {
@@ -41,14 +46,46 @@ interface Notification {
   read: boolean;
 }
 
+interface AvailabilityRule {
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  slotDuration: number;
+  timezone: string;
+}
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addCalendarDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function startOfWeek(date: Date): Date {
+  const monday = new Date(date);
+  const day = monday.getDay();
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - (day === 0 ? 6 : day - 1));
+  return monday;
+}
+
 const CalendarTab: React.FC = () => {
+  const { user } = useAuth();
   const [slots, setSlots] = useState<Slot[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+  const [agents, setAgents] = useState<{ id: string; name: string; role?: string }[]>([]);
   const [leads, setLeads] = useState<CompanyLead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAgent, setSelectedAgent] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedAgent, setSelectedAgent] = useState(user?.id || '');
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [showSlotForm, setShowSlotForm] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
@@ -56,12 +93,16 @@ const CalendarTab: React.FC = () => {
   const [prepLoading, setPrepLoading] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [availability, setAvailability] = useState<AvailabilityRule[]>([]);
+  const [savingAvailability, setSavingAvailability] = useState(false);
 
   const [slotForm, setSlotForm] = useState({
-    date: '',
-    startTime: '09:00',
+    startDate: toDateKey(new Date()),
+    startTime: '08:00',
     endTime: '17:00',
-    agentId: '',
+    weeks: 12,
+    slotDuration: 30,
+    weekdays: [1, 2, 3, 4, 5],
   });
 
   const [meetingForm, setMeetingForm] = useState({
@@ -76,6 +117,13 @@ const CalendarTab: React.FC = () => {
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!selectedAgent) return;
+    api<AvailabilityRule[]>(`/calendar/availability?agentId=${encodeURIComponent(selectedAgent)}`)
+      .then(setAvailability)
+      .catch((error) => console.error('Failed to load availability:', error));
+  }, [selectedAgent]);
 
   const loadNotifications = async () => {
     try {
@@ -96,7 +144,12 @@ const CalendarTab: React.FC = () => {
       ]);
       setSlots(slotsData);
       setMeetings(meetingsData);
-      setAgents(usersData.filter(u => u.role !== 'ADMIN'));
+      const visibleAgents = usersData.filter(u => u.role !== 'ADMIN' && (user?.role !== 'AGENT' || u.id === user.id));
+      if (user && !visibleAgents.some(agent => agent.id === user.id)) {
+        visibleAgents.unshift({ id: user.id, name: user.name, role: user.role });
+      }
+      setAgents(visibleAgents);
+      if (!selectedAgent && user) setSelectedAgent(user.id);
       setLeads(leadsData);
     } catch (error) {
       console.error('Failed to load calendar data:', error);
@@ -107,20 +160,29 @@ const CalendarTab: React.FC = () => {
 
   const handleCreateSlots = async (e: React.FormEvent) => {
     e.preventDefault();
+    const agentId = selectedAgent || user?.id;
+    if (!agentId) return;
+    setSavingAvailability(true);
     try {
-      await api('/calendar/slots/bulk', {
+      const result = await api<{ rules: AvailabilityRule[]; slotsCreated: number }>('/calendar/availability', {
         method: 'POST',
         body: JSON.stringify({
-          ...slotForm,
-          interval: 30,
+          agentId,
+          startDate: slotForm.startDate,
+          weeks: slotForm.weeks,
+          slotDuration: slotForm.slotDuration,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Tallinn',
+          days: slotForm.weekdays.map(weekday => ({ weekday, startTime: slotForm.startTime, endTime: slotForm.endTime })),
         }),
       });
+      setAvailability(result.rules);
       await loadData();
       setShowSlotForm(false);
-      setSlotForm({ date: '', startTime: '09:00', endTime: '17:00', agentId: '' });
-      addNotification('Time slots created successfully');
+      addNotification(`${result.slotsCreated} available time slots created successfully`);
     } catch (error) {
       console.error('Failed to create slots:', error);
+    } finally {
+      setSavingAvailability(false);
     }
   };
 
@@ -128,7 +190,6 @@ const CalendarTab: React.FC = () => {
     e.preventDefault();
     if (!selectedSlot) return;
     const previousLead = leads.find(l => l.id === meetingForm.leadId);
-    const previousStage = previousLead?.stage;
     try {
       const meeting = await api<Meeting>('/calendar/book', {
         method: 'POST',
@@ -147,11 +208,8 @@ const CalendarTab: React.FC = () => {
 
       const leadName = meeting.lead?.name || previousLead?.name;
       if (leadName) {
-        if (previousStage === 'Discovered') {
-          addNotification(`Lead "${leadName}" automatically moved to Contacted after booking.`);
-        } else if (previousStage === 'Contacted') {
-          addNotification(`Lead "${leadName}" automatically moved to Negotiation after booking.`);
-        }
+        if (meeting.nextStage === 'CONTACTED') addNotification(`Lead "${leadName}" automatically moved to Contacted after booking.`);
+        if (meeting.nextStage === 'NEGOTIATION') addNotification(`Lead "${leadName}" automatically moved to Negotiation after booking.`);
       }
     } catch (error) {
       console.error('Failed to book slot:', error);
@@ -209,10 +267,15 @@ const CalendarTab: React.FC = () => {
     return colors[type] || 'bg-slate-500/10 text-slate-400 border-slate-500/30';
   };
 
+  const weekDates = Array.from({ length: 7 }, (_, index) => toDateKey(addCalendarDays(weekStart, index)));
+  const weekEnd = weekDates[6];
   const filteredSlots = slots.filter(slot => {
-    if (selectedAgent && slot.agent?.name !== selectedAgent) return false;
-    if (selectedDate && slot.date !== selectedDate) return false;
-    return true;
+    if (selectedAgent && slot.agent?.id !== selectedAgent) return false;
+    return slot.date >= weekDates[0] && slot.date <= weekEnd;
+  });
+  const filteredMeetings = meetings.filter(meeting => {
+    if (selectedAgent && meeting.agentId !== selectedAgent) return false;
+    return meeting.date >= weekDates[0] && meeting.date <= weekEnd;
   });
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -242,17 +305,17 @@ const CalendarTab: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h3 className="text-base font-bold text-white flex items-center gap-2">
             <Calendar className="w-4 h-4 text-sky-400" />
             Calendar & Scheduling
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            Book meetings and manage availability
+            Set recurring work hours, share booking links and manage confirmed meetings
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <button
               onClick={toggleNotifications}
@@ -290,59 +353,89 @@ const CalendarTab: React.FC = () => {
             onChange={(e) => setSelectedAgent(e.target.value)}
             className="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
           >
-            <option value="">All Agents</option>
             {agents.map((agent) => (
-              <option key={agent.id} value={agent.name}>{agent.name}</option>
+              <option key={agent.id} value={agent.id}>{agent.name}{agent.id === user?.id ? ' (me)' : ''}</option>
             ))}
           </select>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          />
           <button
             onClick={() => setShowSlotForm(true)}
             className="flex items-center gap-1 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
           >
-            <Plus className="w-3 h-3" />
-            Add Slots
+            <Clock className="w-3 h-3" />
+            Set Work Hours
           </button>
         </div>
       </div>
 
-      {/* Available Slots */}
-      <section className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-emerald-400" />
-          Available Time Slots
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-          {filteredSlots.map((slot) => (
-            <button
-              key={slot.id}
-              onClick={() => {
-                setSelectedSlot(slot);
-                setShowBookingForm(true);
-              }}
-              disabled={!slot.isAvailable || slot.isBooked}
-              className={`p-3 rounded-lg text-xs font-medium transition-colors ${
-                slot.isBooked
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed line-through'
-                  : slot.isAvailable
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-              }`}
-            >
-              <div className="font-bold">{slot.startTime}</div>
-              <div className="text-[10px] opacity-70">{slot.agent?.name}</div>
-            </button>
-          ))}
-          {filteredSlots.length === 0 && (
-            <div className="col-span-full text-center py-6 text-slate-500 text-xs">
-              No available slots. Add slots for agents to see them here.
+      <div className="grid md:grid-cols-2 gap-3">
+        <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl p-4 flex items-start gap-3">
+          <Clock className="w-4 h-4 text-sky-400 mt-0.5" />
+          <div>
+            <div className="text-xs font-bold text-slate-200">Weekly availability</div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {availability.length > 0
+                ? availability.map(rule => `${DAY_NAMES[rule.weekday - 1].slice(0, 3)} ${rule.startTime}–${rule.endTime}`).join(' · ')
+                : 'No recurring work hours configured for this user.'}
             </div>
-          )}
+          </div>
+        </div>
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 flex items-start gap-3">
+          <Link2 className="w-4 h-4 text-emerald-400 mt-0.5" />
+          <div>
+            <div className="text-xs font-bold text-slate-200">Booking links are automatic</div>
+            <div className="text-[11px] text-slate-500 mt-1">Every sent outreach email includes a secure booking link. Confirmations include an ICS invite for Google, Outlook and local calendars.</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Week calendar */}
+      <section className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-emerald-400" />
+            {formatDate(weekDates[0])} – {formatDate(weekEnd)}
+          </h3>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setWeekStart(startOfWeek(new Date()))} className="text-[10px] font-bold px-3 py-2 rounded-lg border border-slate-800 text-slate-300 hover:bg-slate-900">Today</button>
+            <button type="button" aria-label="Previous week" onClick={() => setWeekStart(current => addCalendarDays(current, -7))} className="p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white"><ChevronLeft className="w-4 h-4" /></button>
+            <button type="button" aria-label="Next week" onClick={() => setWeekStart(current => addCalendarDays(current, 7))} className="p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
+          {weekDates.map((date, dayIndex) => {
+            const daySlots = filteredSlots.filter(slot => slot.date === date);
+            const dayMeetings = filteredMeetings.filter(meeting => meeting.date === date);
+            const isToday = date === toDateKey(new Date());
+            return (
+              <div key={date} className={`min-h-44 rounded-xl border p-2 ${isToday ? 'border-sky-500/50 bg-sky-500/5' : 'border-slate-800 bg-slate-900/30'}`}>
+                <div className="px-1 pb-2 mb-2 border-b border-slate-800">
+                  <div className={`text-[10px] font-bold uppercase ${isToday ? 'text-sky-400' : 'text-slate-500'}`}>{DAY_NAMES[dayIndex]}</div>
+                  <div className="text-sm font-bold text-slate-200">{new Date(`${date}T12:00:00`).getDate()}</div>
+                </div>
+                <div className="space-y-1.5">
+                  {dayMeetings.map(meeting => (
+                    <div key={meeting.id} className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-2 py-1.5">
+                      <div className="text-[10px] font-bold text-purple-300">{meeting.time} · Booked</div>
+                      <div className="text-[9px] text-slate-400 truncate">{meeting.lead.name}</div>
+                    </div>
+                  ))}
+                  {daySlots.slice(0, 12).map(slot => (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => { setSelectedSlot(slot); setShowBookingForm(true); }}
+                      className="w-full rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/15 px-2 py-1.5 text-left transition-colors"
+                    >
+                      <div className="text-[10px] font-bold text-emerald-400">{slot.startTime}–{slot.endTime}</div>
+                      <div className="text-[9px] text-slate-600">Available</div>
+                    </button>
+                  ))}
+                  {daySlots.length > 12 && <div className="text-[9px] text-center text-slate-600">+{daySlots.length - 12} more</div>}
+                  {daySlots.length === 0 && dayMeetings.length === 0 && <div className="text-[10px] text-slate-700 px-1 py-2">No availability</div>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -364,7 +457,7 @@ const CalendarTab: React.FC = () => {
                     <span className="text-sm font-semibold text-white">{meeting.title}</span>
                   </div>
                   <div className="text-xs text-slate-400">
-                    {formatDate(meeting.date)} at {meeting.time} • {meeting.duration} min
+                    {formatDate(meeting.date)} at {meeting.time} • {meeting.duration} min • {meeting.timezone || 'Europe/Tallinn'}
                   </div>
                   <div className="text-xs text-slate-500">
                     With: {meeting.lead.name} ({meeting.lead.email})
@@ -455,40 +548,71 @@ const CalendarTab: React.FC = () => {
         </div>
       </section>
 
-      {/* Add Slots Modal */}
+      {/* Recurring availability modal */}
       {showSlotForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-sm font-bold text-white mb-4">Add Time Slots</h3>
+            <h3 className="text-sm font-bold text-white mb-1">Set Weekly Work Hours</h3>
+            <p className="text-xs text-slate-500 mb-5">Create bookable slots for {agents.find(agent => agent.id === selectedAgent)?.name || 'this user'}.</p>
             <form onSubmit={handleCreateSlots} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-                  Agent
+                  Working days
                 </label>
-                <select
-                  value={slotForm.agentId}
-                  onChange={(e) => setSlotForm({ ...slotForm, agentId: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                  required
-                >
-                  <option value="">Select agent</option>
-                  {agents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>{agent.name}</option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-7 gap-1">
+                  {DAY_NAMES.map((day, index) => {
+                    const weekday = index + 1;
+                    const enabled = slotForm.weekdays.includes(weekday);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setSlotForm(current => ({
+                          ...current,
+                          weekdays: enabled ? current.weekdays.filter(value => value !== weekday) : [...current.weekdays, weekday].sort(),
+                        }))}
+                        className={`rounded-lg py-2 text-[10px] font-bold ${enabled ? 'bg-sky-600 text-white' : 'bg-slate-950 border border-slate-800 text-slate-500'}`}
+                      >
+                        {day.slice(0, 2)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-                  Date
+                  Generate from
                 </label>
                 <input
                   type="date"
-                  value={slotForm.date}
-                  onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })}
+                  value={slotForm.startDate}
+                  min={toDateKey(new Date())}
+                  onChange={(e) => setSlotForm({ ...slotForm, startDate: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Weeks ahead</label>
+                  <select value={slotForm.weeks} onChange={(e) => setSlotForm({ ...slotForm, weeks: Number(e.target.value) })} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-200 text-xs">
+                    <option value={4}>4 weeks</option>
+                    <option value={8}>8 weeks</option>
+                    <option value={12}>12 weeks</option>
+                    <option value={26}>26 weeks</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Slot length</label>
+                  <select value={slotForm.slotDuration} onChange={(e) => setSlotForm({ ...slotForm, slotDuration: Number(e.target.value) })} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-200 text-xs">
+                    <option value={15}>15 minutes</option>
+                    <option value={30}>30 minutes</option>
+                    <option value={45}>45 minutes</option>
+                    <option value={60}>60 minutes</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -521,9 +645,11 @@ const CalendarTab: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="flex-1 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold py-2 rounded-lg transition-colors"
+                  disabled={savingAvailability || slotForm.weekdays.length === 0}
+                  className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  Create Slots
+                  {savingAvailability && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Save & Generate Slots
                 </button>
                 <button
                   type="button"

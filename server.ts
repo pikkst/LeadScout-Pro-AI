@@ -2,6 +2,7 @@
 // Serves the REST API and the React app (Vite dev middleware or static production build).
 import express from "express";
 import path from "path";
+import { readFile } from "fs/promises";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -15,6 +16,7 @@ import { inboundRouter } from "./server/routes/inbound.routes";
 import { errorHandler, notFoundHandler } from "./server/middleware/error";
 import { sendPitchEmail } from "./server/services/email.service";
 import { logActivity } from "./server/utils/activity";
+import { getOrCreateBookingLink } from "./server/services/calendar.service";
 
 async function startServer() {
   const app = express();
@@ -107,15 +109,15 @@ async function startServer() {
   if (isProduction) {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get(
-      "*",
+    app.use(
       rateLimit({
         windowMs: 60 * 1000,
         max: 200,
         standardHeaders: true,
         legacyHeaders: false,
       }),
-      (_req, res) => {
+      (req, res, next) => {
+        if (req.method !== "GET") return next();
         res.sendFile(path.join(distPath, "index.html"));
       },
     );
@@ -140,6 +142,18 @@ async function startServer() {
         appType: "spa",
       });
       app.use(vite.middlewares);
+      app.use(async (req, res, next) => {
+        if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+        try {
+          const templatePath = path.join(process.cwd(), "index.html");
+          const template = await readFile(templatePath, "utf-8");
+          const html = await vite.transformIndexHtml(req.originalUrl, template);
+          res.status(200).type("html").send(html);
+        } catch (error) {
+          vite.ssrFixStacktrace(error as Error);
+          next(error);
+        }
+      });
       console.log("[server] Vite development middleware loaded.");
     } catch (err) {
       console.warn("[server] Vite dev middleware unavailable; falling back to static mode.", err);
@@ -199,6 +213,11 @@ async function startServer() {
           }
 
           try {
+            const bookingLink = await getOrCreateBookingLink({
+              pitchId: pitch.id,
+              leadId: pitch.leadId,
+              agentId: sender.id,
+            });
             const result = await sendPitchEmail({
               to: pitch.leadEmail,
               subject: pitch.subject,
@@ -206,6 +225,7 @@ async function startServer() {
               text: pitch.textContent,
               replyTo: undefined,
               pitchId: pitch.id,
+              bookingUrl: bookingLink.url,
             });
 
             await prisma.pitch.update({
