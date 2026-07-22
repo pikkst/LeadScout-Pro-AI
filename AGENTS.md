@@ -34,6 +34,7 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Public booking links must be unguessable, expiring capability tokens and must expose only masked attendee data
 - Slot booking must claim availability atomically inside the same transaction that creates the meeting
 - Calendar confirmations should use provider-neutral ICS invitations before adding vendor-specific OAuth integrations
+- Creation form visibility must use explicit UI state; never infer whether a form is open from initially blank required fields
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility
