@@ -21,22 +21,30 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assignedLeads Lead[]        @relation("AssignedAgent")
-  createdLeads  Lead[]        @relation("LeadCreator")
-  pitches       Pitch[]
-  activities    ActivityLog[]
-  createdTemplates PitchTemplate[] @relation("TemplateCreator")
-  deals         Deal[]        @relation("AgentDeals")
-  commissions   Commission[]  @relation("AgentCommissions")
-  routingRules  LeadRoutingRule[] @relation("RoutingAgent")
-  meetingSlots  MeetingSlot[] @relation("MeetingSlots")
-  availabilityRules AvailabilityRule[] @relation("AvailabilityRules")
-  bookingLinks BookingLink[] @relation("BookingAgents")
-  createdDocuments GeneratedDocument[] @relation("DocumentCreator")
-  apiKeys ApiKey[] @relation("ApiKeys")
-  sendTimeOptimizations SendTimeOptimization[] @relation("SendTimeOptimizations")
-  coachingInsights AgentCoaching[] @relation("AgentCoaching")
-  scheduledMeetings Meeting[] @relation("AgentMeetings")
+  assignedLeads          Lead[]                  @relation("AssignedAgent")
+  createdLeads           Lead[]                  @relation("LeadCreator")
+  pitches                Pitch[]
+  activities             ActivityLog[]
+  createdTemplates       PitchTemplate[]         @relation("TemplateCreator")
+  deals                  Deal[]                  @relation("AgentDeals")
+  commissions            Commission[]            @relation("AgentCommissions")
+  routingRules           LeadRoutingRule[]       @relation("RoutingAgent")
+  meetingSlots           MeetingSlot[]           @relation("MeetingSlots")
+  availabilityRules      AvailabilityRule[]      @relation("AvailabilityRules")
+  bookingLinks           BookingLink[]           @relation("BookingAgents")
+  createdDocuments       GeneratedDocument[]     @relation("DocumentCreator")
+  apiKeys                ApiKey[]                @relation("ApiKeys")
+  sendTimeOptimizations  SendTimeOptimization[]  @relation("SendTimeOptimizations")
+  coachingInsights       AgentCoaching[]         @relation("AgentCoaching")
+  scheduledMeetings      Meeting[]               @relation("AgentMeetings")
+  ownedAccounts          Account[]               @relation("AccountOwner")
+  ownedContacts          Contact[]               @relation("ContactOwner")
+  ownedOpportunities     Opportunity[]           @relation("OpportunityOwner")
+  ownedRelationships     Relationship[]          @relation("RelationshipOwner")
+  integrationConnections IntegrationConnection[]
+  ownedConversations     Conversation[]          @relation("ConversationOwner")
+  timelineEntries        TimelineEntry[]         @relation("TimelineActor")
+  teamBookingMemberships TeamBookingMember[]
 
   @@index([role])
   @@map("users")
@@ -62,26 +70,26 @@ model AppSetting {
 
 /// A B2B company lead in the shared team pipeline.
 model Lead {
-  id             String     @id @default(cuid())
-  name           String
-  website        String
-  domain         String // normalized website host (lowercase, no protocol/www) for dedupe
-  category       String
-  email          String
-  description    String     @default("")
-  phone          String?
-  sourceUrl      String?
-  focus          String? // LeadFocus segment (voip_carriers, sms_aggregators, ...)
-  source         LeadSource @default(AI_SCOUT)
-  isVerified     Boolean    @default(false)
-  stage          String     @default("DISCOVERED")
-  notes          String     @default("")
-  estimatedValue Int        @default(0) // Potential monthly value in EUR
-  aiScore        Int?       // AI-calculated conversion probability 0-100
-  aiScoreReason  String?    // Explanation for the AI score
-  enrichmentData String?    // JSON: company size, tech stack, news, decision makers
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  name            String
+  website         String
+  domain          String // normalized website host (lowercase, no protocol/www) for dedupe
+  category        String
+  email           String
+  description     String     @default("")
+  phone           String?
+  sourceUrl       String?
+  focus           String? // LeadFocus segment (voip_carriers, sms_aggregators, ...)
+  source          LeadSource @default(AI_SCOUT)
+  isVerified      Boolean    @default(false)
+  stage           String     @default("DISCOVERED")
+  notes           String     @default("")
+  estimatedValue  Int        @default(0) // Potential monthly value in EUR
+  aiScore         Int? // AI-calculated conversion probability 0-100
+  aiScoreReason   String? // Explanation for the AI score
+  enrichmentData  String? // JSON: company size, tech stack, news, decision makers
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
   lastContactedAt DateTime?
 
   assignedAgentId String?
@@ -90,17 +98,25 @@ model Lead {
   createdById String?
   createdBy   User?   @relation("LeadCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
-  followUpTask FollowUpTask?
-  meetings     Meeting[]
-  pitches      Pitch[]
-  activities   ActivityLog[]
-  customFieldValues CustomFieldValue[]
-  sequenceExecutions SequenceExecution[]
-  deals Deal[]
-  documents GeneratedDocument[]
-  monitoringAlerts LeadMonitoring[]
-  sendTimeOptimizations SendTimeOptimization[]
-  bookingLinks BookingLink[]
+  followUpTask           FollowUpTask?
+  meetings               Meeting[]
+  pitches                Pitch[]
+  activities             ActivityLog[]
+  customFieldValues      CustomFieldValue[]
+  sequenceExecutions     SequenceExecution[]
+  deals                  Deal[]
+  documents              GeneratedDocument[]
+  monitoringAlerts       LeadMonitoring[]
+  sendTimeOptimizations  SendTimeOptimization[]
+  bookingLinks           BookingLink[]
+  accountId              String?
+  account                Account?                @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  primaryContact         Contact?
+  opportunities          Opportunity[]
+  relationships          Relationship[]
+  conversations          Conversation[]
+  timelineEntries        TimelineEntry[]
+  externalCalendarEvents ExternalCalendarEvent[]
 
   @@unique([website, email])
   @@index([domain])
@@ -108,7 +124,150 @@ model Lead {
   @@index([stage])
   @@index([assignedAgentId])
   @@index([focus])
+  @@index([accountId])
   @@map("leads")
+}
+
+/// Company-level record. Existing leads are linked to an account by migration.
+model Account {
+  id          String   @id @default(cuid())
+  name        String
+  domain      String?
+  website     String?
+  industry    String?
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerId String?
+  owner   User?   @relation("AccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  legacyLeads            Lead[]
+  contacts               Contact[]
+  opportunities          Opportunity[]
+  relationships          Relationship[]
+  conversations          Conversation[]
+  timelineEntries        TimelineEntry[]
+  externalCalendarEvents ExternalCalendarEvent[]
+
+  @@unique([domain])
+  @@index([ownerId])
+  @@index([updatedAt])
+  @@map("accounts")
+}
+
+/// Person-level record attached to an account and optionally backed by a legacy lead.
+model Contact {
+  id            String   @id @default(cuid())
+  fullName      String
+  firstName     String?
+  lastName      String?
+  email         String
+  phone         String?
+  title         String?
+  consentStatus String   @default("UNKNOWN")
+  consentSource String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  accountId    String
+  account      Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ownerId      String?
+  owner        User?   @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  legacyLeadId String? @unique
+  legacyLead   Lead?   @relation(fields: [legacyLeadId], references: [id], onDelete: SetNull)
+
+  primaryOpportunities   Opportunity[]           @relation("PrimaryOpportunityContact")
+  relationships          Relationship[]
+  conversations          Conversation[]
+  timelineEntries        TimelineEntry[]
+  externalCalendarEvents ExternalCalendarEvent[]
+
+  @@index([accountId, email])
+  @@index([email])
+  @@index([ownerId])
+  @@map("contacts")
+}
+
+model Opportunity {
+  id              String            @id @default(cuid())
+  name            String
+  stage           String            @default("DISCOVERY")
+  status          OpportunityStatus @default(OPEN)
+  value           Int               @default(0)
+  currency        String            @default("EUR")
+  probability     Int               @default(10)
+  expectedCloseAt DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  accountId        String
+  account          Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  primaryContactId String?
+  primaryContact   Contact? @relation("PrimaryOpportunityContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  legacyLeadId     String?
+  legacyLead       Lead?    @relation(fields: [legacyLeadId], references: [id], onDelete: SetNull)
+  ownerId          String?
+  owner            User?    @relation("OpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  relationships   Relationship[]
+  timelineEntries TimelineEntry[]
+
+  @@index([accountId, status])
+  @@index([ownerId, updatedAt])
+  @@index([legacyLeadId])
+  @@map("opportunities")
+}
+
+enum OpportunityStatus {
+  OPEN
+  WON
+  LOST
+}
+
+model Relationship {
+  id                String             @id @default(cuid())
+  type              RelationshipType   @default(PROSPECT)
+  status            RelationshipStatus @default(ACTIVE)
+  strength          Int                @default(0)
+  lastInteractionAt DateTime?
+  nextActionAt      DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  accountId     String
+  account       Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  legacyLeadId  String?
+  legacyLead    Lead?        @relation(fields: [legacyLeadId], references: [id], onDelete: SetNull)
+  ownerId       String?
+  owner         User?        @relation("RelationshipOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  timelineEntries TimelineEntry[]
+
+  @@index([accountId, status])
+  @@index([contactId])
+  @@index([ownerId, nextActionAt])
+  @@index([legacyLeadId])
+  @@map("relationships")
+}
+
+enum RelationshipType {
+  PROSPECT
+  CUSTOMER
+  PARTNER
+  RECRUITING
+  CHANNEL
+  OTHER
+}
+
+enum RelationshipStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
 }
 
 enum LeadSource {
@@ -157,7 +316,7 @@ model Meeting {
   agentId String?
   agent   User?   @relation("AgentMeetings", fields: [agentId], references: [id], onDelete: SetNull)
 
-  slots MeetingSlot[]
+  slots       MeetingSlot[]
   bookingLink BookingLink?
 
   @@index([leadId])
@@ -168,21 +327,21 @@ model Meeting {
 /// Available time slots for booking (Calendly-like)
 model MeetingSlot {
   id          String   @id @default(cuid())
-  date        String   // YYYY-MM-DD
-  startTime   String   // HH:MM
-  endTime     String   // HH:MM
+  date        String // YYYY-MM-DD
+  startTime   String // HH:MM
+  endTime     String // HH:MM
   timezone    String   @default("Europe/Tallinn")
   isAvailable Boolean  @default(true)
   isBooked    Boolean  @default(false)
   agentId     String
   agent       User     @relation("MeetingSlots", fields: [agentId], references: [id])
-  meetingId   String?  // linked meeting if booked
+  meetingId   String? // linked meeting if booked
   meeting     Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
+  @@unique([agentId, date, startTime])
   @@index([agentId])
   @@index([date])
   @@index([agentId, date, isAvailable, isBooked])
-  @@unique([agentId, date, startTime])
   @@map("meeting_slots")
 }
 
@@ -210,7 +369,7 @@ model AvailabilityRule {
   updatedAt    DateTime @updatedAt
 
   agentId String
-  agent   User @relation("AvailabilityRules", fields: [agentId], references: [id], onDelete: Cascade)
+  agent   User   @relation("AvailabilityRules", fields: [agentId], references: [id], onDelete: Cascade)
 
   @@unique([agentId, weekday])
   @@index([agentId, isActive])
@@ -219,21 +378,21 @@ model AvailabilityRule {
 
 /// Capability link included in outreach emails for public meeting booking.
 model BookingLink {
-  id        String   @id @default(cuid())
-  token     String   @unique
+  id        String    @id @default(cuid())
+  token     String    @unique
   expiresAt DateTime
   bookedAt  DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   pitchId String @unique
   pitch   Pitch  @relation(fields: [pitchId], references: [id], onDelete: Cascade)
 
   leadId String
-  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   agentId String
-  agent   User @relation("BookingAgents", fields: [agentId], references: [id], onDelete: Cascade)
+  agent   User   @relation("BookingAgents", fields: [agentId], references: [id], onDelete: Cascade)
 
   meetingId String?  @unique
   meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
@@ -278,11 +437,11 @@ model Pitch {
   replyToEmail  String? // where replies should go (agent email or SMTP from)
   sentMessageId String? // SMTP Message-ID for reply threading
 
-  inReplyTo Pitch?   @relation("ReplyChain", fields: [inReplyToId], references: [id], onDelete: SetNull)
-  inReplyToId String? @unique
-  replies Pitch[] @relation("ReplyChain")
-  meetings Meeting[] @relation("MeetingPitches")
-  bookingLink BookingLink?
+  inReplyTo       Pitch?           @relation("ReplyChain", fields: [inReplyToId], references: [id], onDelete: SetNull)
+  inReplyToId     String?          @unique
+  replies         Pitch[]          @relation("ReplyChain")
+  meetings        Meeting[]        @relation("MeetingPitches")
+  bookingLink     BookingLink?
   unsubscribeLink UnsubscribeLink?
 
   events PitchEvent[]
@@ -304,10 +463,10 @@ enum PitchStatus {
 
 /// Audit trail of actions across the team pipeline.
 model ActivityLog {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   action    String
-  detail    String   @default("")
-  createdAt DateTime @default(now())
+  detail    String    @default("")
+  createdAt DateTime  @default(now())
   readAt    DateTime?
 
   userId String?
@@ -322,13 +481,281 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
+/// OAuth connection for Gmail/Google Calendar or Outlook/Microsoft Calendar.
+model IntegrationConnection {
+  id                 String              @id @default(cuid())
+  provider           IntegrationProvider
+  status             IntegrationStatus   @default(ACTIVE)
+  accountEmail       String?
+  scopes             String[]            @default([])
+  accessToken        String
+  refreshToken       String?
+  expiresAt          DateTime?
+  mailCursor         String?
+  calendarCursor     String?
+  lastMailSyncAt     DateTime?
+  lastCalendarSyncAt DateTime?
+  lastError          String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  userId         String
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations  Conversation[]
+  calendarEvents ExternalCalendarEvent[]
+
+  @@unique([userId, provider])
+  @@index([provider, status])
+  @@map("integration_connections")
+}
+
+model OAuthSession {
+  id           String              @id @default(cuid())
+  stateHash    String              @unique
+  provider     IntegrationProvider
+  codeVerifier String
+  returnTo     String?
+  expiresAt    DateTime
+  createdAt    DateTime            @default(now())
+
+  userId String
+
+  @@index([userId, provider])
+  @@index([expiresAt])
+  @@map("oauth_sessions")
+}
+
+enum IntegrationProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  NEEDS_REAUTH
+  DISCONNECTED
+  ERROR
+}
+
+model Conversation {
+  id               String                @id @default(cuid())
+  externalThreadId String
+  subject          String                @default("")
+  participants     Json?
+  status           ConversationStatus    @default(OPEN)
+  unreadCount      Int                   @default(0)
+  summary          String?
+  sentiment        RelationshipSentiment @default(NEUTRAL)
+  intent           RelationshipIntent    @default(OTHER)
+  suggestedReply   String?
+  slaDueAt         DateTime?
+  snoozedUntil     DateTime?
+  lastMessageAt    DateTime
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  connectionId String
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  accountId    String?
+  account      Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contactId    String?
+  contact      Contact?              @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  legacyLeadId String?
+  legacyLead   Lead?                 @relation(fields: [legacyLeadId], references: [id], onDelete: SetNull)
+  ownerId      String?
+  owner        User?                 @relation("ConversationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  messages        ConversationMessage[]
+  timelineEntries TimelineEntry[]
+
+  @@unique([connectionId, externalThreadId])
+  @@index([ownerId, status, lastMessageAt])
+  @@index([contactId])
+  @@index([legacyLeadId])
+  @@map("conversations")
+}
+
+enum ConversationStatus {
+  OPEN
+  WAITING
+  SNOOZED
+  DONE
+}
+
+model ConversationMessage {
+  id                String                @id @default(cuid())
+  externalMessageId String
+  internetMessageId String?
+  direction         MessageDirection
+  senderEmail       String
+  recipientEmails   Json
+  ccEmails          Json?
+  subject           String                @default("")
+  textBody          String                @default("")
+  occurredAt        DateTime
+  isRead            Boolean               @default(false)
+  intent            RelationshipIntent    @default(OTHER)
+  sentiment         RelationshipSentiment @default(NEUTRAL)
+  createdAt         DateTime              @default(now())
+
+  conversationId String
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  timelineEntry  TimelineEntry?
+
+  @@unique([conversationId, externalMessageId])
+  @@index([internetMessageId])
+  @@index([occurredAt])
+  @@map("conversation_messages")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum RelationshipSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum RelationshipIntent {
+  INTERESTED
+  MEETING_REQUEST
+  QUESTION
+  OBJECTION
+  UNSUBSCRIBE
+  OTHER
+}
+
+model TimelineEntry {
+  id         String            @id @default(cuid())
+  type       TimelineEntryType
+  title      String
+  body       String            @default("")
+  metadata   Json?
+  sourceType String?
+  sourceId   String?
+  dedupeKey  String?           @unique
+  occurredAt DateTime
+  createdAt  DateTime          @default(now())
+
+  accountId      String?
+  account        Account?             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contactId      String?
+  contact        Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  opportunityId  String?
+  opportunity    Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  relationshipId String?
+  relationship   Relationship?        @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  legacyLeadId   String?
+  legacyLead     Lead?                @relation(fields: [legacyLeadId], references: [id], onDelete: SetNull)
+  conversationId String?
+  conversation   Conversation?        @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  messageId      String?              @unique
+  message        ConversationMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  actorId        String?
+  actor          User?                @relation("TimelineActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, occurredAt])
+  @@index([legacyLeadId, occurredAt])
+  @@index([contactId, occurredAt])
+  @@map("timeline_entries")
+}
+
+enum TimelineEntryType {
+  EMAIL
+  REPLY
+  MEETING
+  TASK
+  NOTE
+  DOCUMENT
+  STAGE_CHANGE
+  OPPORTUNITY
+  UNSUBSCRIBE
+  BOUNCE
+}
+
+model ExternalCalendarEvent {
+  id              String                      @id @default(cuid())
+  externalEventId String
+  calendarId      String                      @default("primary")
+  title           String
+  description     String                      @default("")
+  startAt         DateTime
+  endAt           DateTime
+  timezone        String                      @default("UTC")
+  status          ExternalCalendarEventStatus @default(CONFIRMED)
+  isBusy          Boolean                     @default(true)
+  organizerEmail  String?
+  attendeeEmails  Json?
+  etag            String?
+  reminderMinutes Int?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  connectionId String
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  accountId    String?
+  account      Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contactId    String?
+  contact      Contact?              @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  legacyLeadId String?
+  legacyLead   Lead?                 @relation(fields: [legacyLeadId], references: [id], onDelete: SetNull)
+  meetingId    String?               @unique
+
+  @@unique([connectionId, externalEventId])
+  @@index([connectionId, startAt, endAt])
+  @@index([legacyLeadId])
+  @@map("external_calendar_events")
+}
+
+enum ExternalCalendarEventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+model TeamBookingPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String   @default("")
+  duration    Int      @default(30)
+  timezone    String   @default("Europe/Tallinn")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members TeamBookingMember[]
+
+  @@index([isActive])
+  @@map("team_booking_pages")
+}
+
+model TeamBookingMember {
+  id             String    @id @default(cuid())
+  priority       Int       @default(100)
+  isActive       Boolean   @default(true)
+  lastAssignedAt DateTime?
+
+  pageId String
+  page   TeamBookingPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  userId String
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, userId])
+  @@index([pageId, isActive, priority])
+  @@map("team_booking_members")
+}
+
 /// Individual pitch delivery/open event from Resend webhook or manual tracking.
 model PitchEvent {
-  id        String      @id @default(cuid())
+  id        String         @id @default(cuid())
   pitchId   String
-  pitch     Pitch       @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  pitch     Pitch          @relation(fields: [pitchId], references: [id], onDelete: Cascade)
   type      PitchEventType
-  createdAt DateTime    @default(now())
+  createdAt DateTime       @default(now())
 
   @@index([pitchId])
   @@map("pitch_events")
@@ -409,17 +836,17 @@ model PitchTemplate {
 
 /// Custom field definition for leads (admin-configurable).
 model CustomFieldDefinition {
-  id          String   @id @default(cuid())
-  name        String
-  key         String   // machine-readable key, e.g. "contract_value"
-  type        CustomFieldType @default(TEXT)
-  options     String? // JSON array for SELECT/MULTISELECT types
-  isRequired  Boolean  @default(false)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String          @id @default(cuid())
+  name       String
+  key        String // machine-readable key, e.g. "contract_value"
+  type       CustomFieldType @default(TEXT)
+  options    String? // JSON array for SELECT/MULTISELECT types
+  isRequired Boolean         @default(false)
+  sortOrder  Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
-  values      CustomFieldValue[]
+  values CustomFieldValue[]
 
   @@unique([key])
   @@map("custom_field_definitions")
@@ -436,10 +863,10 @@ enum CustomFieldType {
 
 /// Value of a custom field for a specific lead.
 model CustomFieldValue {
-  id          String   @id @default(cuid())
-  value       String   // stored as string, cast based on field type
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  value     String // stored as string, cast based on field type
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -455,49 +882,50 @@ model CustomFieldValue {
 
 /// Custom pipeline stage (admin-configurable, replaces default LeadStage when active).
 model DealStage {
-  id          String   @id @default(cuid())
-  name        String
-  key         String   @unique // machine-readable key, e.g. "demo_scheduled"
-  color       String   @default("#64748b") // hex color for UI
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  key       String   @unique // machine-readable key, e.g. "demo_scheduled"
+  color     String   @default("#64748b") // hex color for UI
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("deal_stages")
 }
 
 /// Automated follow-up sequence (e.g. "Cold Outreach", "Demo Follow-up").
 model FollowUpSequence {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @default("")
+  id           String              @id @default(cuid())
+  name         String
+  description  String              @default("")
   triggerStage String // LeadStage key that triggers this sequence
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive     Boolean             @default(true)
+  stopEvents   SequenceStopEvent[] @default([REPLY, UNSUBSCRIBE, BOUNCE, MEETING])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
-  steps       SequenceStep[]
-  executions  SequenceExecution[]
+  steps      SequenceStep[]
+  executions SequenceExecution[]
 
   @@map("follow_up_sequences")
 }
 
 /// Single step in a follow-up sequence.
 model SequenceStep {
-  id          String   @id @default(cuid())
-  order       Int
-  delayDays   Int      @default(0) // days after previous step
-  actionType  SequenceActionType @default(TASK)
-  subject     String?
-  body        String?
-  taskName    String?
-  isActive    Boolean  @default(true)
-  triggerEvent PitchEventType? // pitch event that triggers this step
-  eventDelayDays Int?    // delay in days when trigger event fires (null = use delayDays)
-  stopOnEvent   Boolean @default(false) // complete sequence when trigger event fires
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String             @id @default(cuid())
+  order          Int
+  delayDays      Int                @default(0) // days after previous step
+  actionType     SequenceActionType @default(TASK)
+  subject        String?
+  body           String?
+  taskName       String?
+  isActive       Boolean            @default(true)
+  triggerEvent   PitchEventType? // pitch event that triggers this step
+  eventDelayDays Int? // delay in days when trigger event fires (null = use delayDays)
+  stopOnEvent    Boolean            @default(false) // complete sequence when trigger event fires
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   sequenceId String
   sequence   FollowUpSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
@@ -514,16 +942,17 @@ enum SequenceActionType {
 
 /// Execution of a sequence for a specific lead.
 model SequenceExecution {
-  id          String   @id @default(cuid())
-  status      SequenceExecutionStatus @default(ACTIVE)
-  currentStep Int      @default(0)
-  startedAt   DateTime @default(now())
-  completedAt DateTime?
-  nextRunAt   DateTime?
-  lastEventCheckedAt DateTime? // last time pitch events were checked for trigger events
-  triggeredStep Int?
-  processingStep Int?
+  id                  String                  @id @default(cuid())
+  status              SequenceExecutionStatus @default(ACTIVE)
+  currentStep         Int                     @default(0)
+  startedAt           DateTime                @default(now())
+  completedAt         DateTime?
+  nextRunAt           DateTime?
+  lastEventCheckedAt  DateTime? // last time pitch events were checked for trigger events
+  triggeredStep       Int?
+  processingStep      Int?
   processingStartedAt DateTime?
+  stoppedByEvent      SequenceStopEvent?
 
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -544,18 +973,26 @@ enum SequenceExecutionStatus {
   STOPPED
 }
 
+enum SequenceStopEvent {
+  REPLY
+  UNSUBSCRIBE
+  BOUNCE
+  MEETING
+  SUCCESS
+}
+
 /// A closed-won deal with value and commission tracking.
 model Deal {
-  id             String        @id @default(cuid())
+  id             String       @id @default(cuid())
   leadId         String
-  lead           Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  value          Int           // Total deal value in EUR
-  commissionRate Float         @default(10.0) // Agent commission percentage
-  commission     Int           // Commission amount in EUR
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  value          Int // Total deal value in EUR
+  commissionRate Float        @default(10.0) // Agent commission percentage
+  commission     Int // Commission amount in EUR
   agentId        String
-  agent          User          @relation("AgentDeals", fields: [agentId], references: [id])
-  closedAt       DateTime      @default(now())
-  notes          String        @default("")
+  agent          User         @relation("AgentDeals", fields: [agentId], references: [id])
+  closedAt       DateTime     @default(now())
+  notes          String       @default("")
   commissions    Commission[]
 
   @@index([agentId])
@@ -565,15 +1002,15 @@ model Deal {
 
 /// Commission record for an agent on a specific deal.
 model Commission {
-  id         String   @id @default(cuid())
-  dealId     String
-  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  agentId    String
-  agent      User     @relation("AgentCommissions", fields: [agentId], references: [id])
-  amount     Int      // Commission in EUR
-  status     CommissionStatus @default(PENDING)
-  paidAt     DateTime?
-  createdAt  DateTime @default(now())
+  id        String           @id @default(cuid())
+  dealId    String
+  deal      Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     User             @relation("AgentCommissions", fields: [agentId], references: [id])
+  amount    Int // Commission in EUR
+  status    CommissionStatus @default(PENDING)
+  paidAt    DateTime?
+  createdAt DateTime         @default(now())
 
   @@index([agentId])
   @@index([status])
@@ -588,16 +1025,16 @@ enum CommissionStatus {
 
 /// Automated lead routing rules for assigning leads to agents.
 model LeadRoutingRule {
-  id          String   @id @default(cuid())
-  name        String
-  isActive    Boolean  @default(true)
-  priority    Int      @default(0)
-  ruleType    RoutingRuleType
-  criteria    String   // JSON: { territory: "...", focus: "...", maxLeads: 5 }
+  id              String          @id @default(cuid())
+  name            String
+  isActive        Boolean         @default(true)
+  priority        Int             @default(0)
+  ruleType        RoutingRuleType
+  criteria        String // JSON: { territory: "...", focus: "...", maxLeads: 5 }
   assignedAgentId String
-  assignedAgent   User   @relation("RoutingAgent", fields: [assignedAgentId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  assignedAgent   User            @relation("RoutingAgent", fields: [assignedAgentId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([assignedAgentId])
   @@index([isActive])
@@ -614,14 +1051,14 @@ enum RoutingRuleType {
 
 /// Document template for proposals, contracts, etc.
 model DocumentTemplate {
-  id          String   @id @default(cuid())
-  name        String
-  type        DocumentType
-  content     String   // HTML or markdown template
-  variables   String   @default("[]") // JSON array of available variables
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String       @id @default(cuid())
+  name      String
+  type      DocumentType
+  content   String // HTML or markdown template
+  variables String       @default("[]") // JSON array of available variables
+  isDefault Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@index([type])
   @@map("document_templates")
@@ -629,16 +1066,16 @@ model DocumentTemplate {
 
 /// Generated document for a lead/deal
 model GeneratedDocument {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   title       String
   type        DocumentType
-  content     String   // Final rendered HTML
-  pdfUrl      String?  // Path to generated PDF
+  content     String // Final rendered HTML
+  pdfUrl      String? // Path to generated PDF
   leadId      String?
-  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
   createdById String
-  createdBy   User     @relation("DocumentCreator", fields: [createdById], references: [id])
-  createdAt   DateTime @default(now())
+  createdBy   User         @relation("DocumentCreator", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
 
   @@index([leadId])
   @@index([type])
@@ -656,14 +1093,14 @@ enum DocumentType {
 
 /// API keys for external integrations (Zapier, Make, custom scripts).
 model ApiKey {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   name       String
-  keyHash    String   @unique @map("key")
+  keyHash    String    @unique @map("key")
   keyPrefix  String
-  scopes     String   @default("[]")
-  isRevoked  Boolean  @default(false)
+  scopes     String    @default("[]")
+  isRevoked  Boolean   @default(false)
   lastUsedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   userId String
   user   User   @relation("ApiKeys", fields: [userId], references: [id], onDelete: Cascade)
@@ -675,15 +1112,15 @@ model ApiKey {
 
 /// Monitoring alert for a lead (news, events, changes).
 model LeadMonitoring {
-  id           String        @id @default(cuid())
-  leadId       String
-  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  type         MonitoringType @default(NEWS)
-  title        String
-  description  String        @default("")
-  source       String?       // URL or source name
-  isRead       Boolean       @default(false)
-  createdAt    DateTime      @default(now())
+  id          String         @id @default(cuid())
+  leadId      String
+  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type        MonitoringType @default(NEWS)
+  title       String
+  description String         @default("")
+  source      String? // URL or source name
+  isRead      Boolean        @default(false)
+  createdAt   DateTime       @default(now())
 
   @@index([leadId])
   @@index([createdAt])
@@ -701,17 +1138,17 @@ enum MonitoringType {
 
 /// Send-time optimization record for a lead/agent combination.
 model SendTimeOptimization {
-  id           String   @id @default(cuid())
-  leadId       String
-  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  agentId      String?
-  agent        User?    @relation("SendTimeOptimizations", fields: [agentId], references: [id], onDelete: SetNull)
-  recommendedHour Int    // 0-23
+  id              String    @id @default(cuid())
+  leadId          String
+  lead            Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agentId         String?
+  agent           User?     @relation("SendTimeOptimizations", fields: [agentId], references: [id], onDelete: SetNull)
+  recommendedHour Int // 0-23
   recommendedDay  String // "Monday", "Tuesday", etc.
-  confidence   Int      // 0-100
-  reason       String   @default("")
-  createdAt    DateTime @default(now())
-  lastUsedAt   DateTime?
+  confidence      Int // 0-100
+  reason          String    @default("")
+  createdAt       DateTime  @default(now())
+  lastUsedAt      DateTime?
 
   @@index([leadId])
   @@index([agentId])
@@ -720,16 +1157,16 @@ model SendTimeOptimization {
 
 /// Agent coaching insight based on performance analysis.
 model AgentCoaching {
-  id           String   @id @default(cuid())
-  agentId      String
-  agent        User     @relation("AgentCoaching", fields: [agentId], references: [id], onDelete: Cascade)
-  insightType  String   // "STAGE_TRANSITION", "RESPONSE_RATE", "PITCH_QUALITY", "FOLLOW_UP", "GENERAL"
-  title        String
-  description  String
-  priority     String   @default("MEDIUM") // LOW, MEDIUM, HIGH
-  isRead       Boolean  @default(false)
-  isResolved   Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       User     @relation("AgentCoaching", fields: [agentId], references: [id], onDelete: Cascade)
+  insightType String // "STAGE_TRANSITION", "RESPONSE_RATE", "PITCH_QUALITY", "FOLLOW_UP", "GENERAL"
+  title       String
+  description String
+  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  isRead      Boolean  @default(false)
+  isResolved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@index([agentId])
   @@index([createdAt])

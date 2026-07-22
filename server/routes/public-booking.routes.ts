@@ -8,6 +8,7 @@ import { bookMeetingSlot, currentDateTimeInZone } from "../services/calendar.ser
 import { logActivity } from "../utils/activity";
 import { sendBookingConfirmationEmail, sendMeetingNotificationEmail } from "../services/email.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { stopSequencesForLead } from "../services/sequenceStop.service";
 
 export const publicBookingRouter = Router();
 
@@ -121,6 +122,7 @@ publicBookingRouter.post("/:token", asyncHandler(async (req, res) => {
 
   const { meeting, lead, slot } = booked;
   await recordActivationEvent({ type: "BOOKING_COMPLETED", userId: link.agentId, leadId: link.leadId, pitchId: link.pitchId, metadata: { source: "PUBLIC_LINK" } });
+  void stopSequencesForLead(link.leadId, "MEETING").catch((err) => console.error("[public-booking] stopSequencesForLead failed", err));
   await logActivity({
     action: "PUBLIC_MEETING_BOOKED",
     detail: `${meeting.title} on ${meeting.date} ${meeting.time} with ${lead.email}`,

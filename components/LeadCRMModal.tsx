@@ -3,10 +3,24 @@ import { CompanyLead, DealStage, LeadFocus, ScheduledMeeting } from '../types';
 import { 
   X, Save, Building, Mail, Globe, Phone, DollarSign, User, FileText, 
   Calendar, Clock, Video, Plus, Trash2, Edit3, ExternalLink, CalendarDays,
-  Brain, Sparkles, Bell, Send, AlertTriangle, CheckCircle2, Zap
+  Brain, Sparkles, Bell, Send, AlertTriangle, CheckCircle2, Zap,
+  Activity, MessageSquare, FileBarChart, CheckSquare
 } from 'lucide-react';
 import { SequenceSection } from './SequenceSection';
 import { api } from '../services/apiClient';
+import type { UnifiedTimelineItem } from '../services/crmService';
+
+const iconMap: Record<string, any> = {
+  Mail: MessageSquare,
+  MessageSquare: MessageSquare,
+  Calendar: Calendar,
+  CheckSquare: CheckSquare,
+  FileText: FileText,
+  FileBarChart: FileBarChart,
+  Activity: Activity,
+  X: X,
+  AlertTriangle: AlertTriangle,
+};
 
 interface LeadCRMModalProps {
   isOpen: boolean;
@@ -264,6 +278,52 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     }
   };
 
+  const [timeline, setTimeline] = useState<UnifiedTimelineItem[]>([]);
+  const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'timeline'>('details');
+
+  // Load unified timeline for existing leads
+  useEffect(() => {
+    if (!isOpen || !lead?.id || activeTab !== 'timeline') return;
+    let mounted = true;
+    setIsLoadingTimeline(true);
+    api<UnifiedTimelineItem[]>(`/relationships/lead/${encodeURIComponent(lead.id)}/timeline`)
+      .then((items) => { if (mounted) setTimeline(items); })
+      .catch(() => { if (mounted) setTimeline([]); })
+      .finally(() => { if (mounted) setIsLoadingTimeline(false); });
+    return () => { mounted = false; };
+  }, [isOpen, lead?.id, activeTab]);
+
+  const timelineTypeStyles: Record<string, { color: string; bg: string; icon: keyof typeof import('lucide-react') } > = {
+    EMAIL: { color: 'text-sky-400', bg: 'bg-sky-500/10', icon: 'Mail' },
+    REPLY: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', icon: 'MessageSquare' },
+    MEETING: { color: 'text-purple-400', bg: 'bg-purple-500/10', icon: 'Calendar' },
+    TASK: { color: 'text-amber-400', bg: 'bg-amber-500/10', icon: 'CheckSquare' },
+    NOTE: { color: 'text-slate-400', bg: 'bg-slate-500/10', icon: 'FileText' },
+    DOCUMENT: { color: 'text-rose-400', bg: 'bg-rose-500/10', icon: 'FileBarChart' },
+    STAGE_CHANGE: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', icon: 'Activity' },
+    UNSUBSCRIBE: { color: 'text-red-400', bg: 'bg-red-500/10', icon: 'X' },
+    BOUNCE: { color: 'text-orange-400', bg: 'bg-orange-500/10', icon: 'AlertTriangle' },
+  };
+
+  const iconMap: Record<string, any> = {
+    Mail: Mail,
+    MessageSquare: MessageSquare,
+    Calendar: Calendar,
+    CheckSquare: CheckSquare,
+    FileText: FileText,
+    FileBarChart: FileBarChart,
+    Activity: Activity,
+    X: X,
+    AlertTriangle: AlertTriangle,
+  };
+
+  const getTimelineIcon = (type: string) => {
+    const style = timelineTypeStyles[type] || { color: 'text-slate-400', bg: 'bg-slate-500/10', icon: 'Activity' };
+    const Icon = iconMap[style.icon] || Activity;
+    return <Icon className={`w-4 h-4 ${style.color}`} />;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
       <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -281,8 +341,31 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
           </button>
         </div>
 
-        {/* Content Form */}
-        <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-5">
+        {lead && (
+          <div className="flex border-b border-slate-800 bg-slate-950/50">
+            <button
+              type="button"
+              onClick={() => setActiveTab('details')}
+              className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === 'details' ? 'text-sky-400 border-b-2 border-sky-500' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('timeline')}
+              className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === 'timeline' ? 'text-sky-400 border-b-2 border-sky-500' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Relationship Timeline
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'details' ? (
+          <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Company Name */}
             <div>
@@ -967,6 +1050,68 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
             </div>
           )}
         </form>
+      ) : (
+        <div className="flex-grow overflow-y-auto p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">Unified Relationship Timeline</h3>
+          </div>
+
+          {isLoadingTimeline ? (
+            <div className="text-center py-8 text-slate-500 text-xs">Loading timeline...</div>
+          ) : timeline.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 text-xs">No interactions recorded yet for this relationship.</div>
+          ) : (
+            <div className="space-y-3">
+              {timeline.map((entry) => {
+                const style = timelineTypeStyles[entry.type] || { color: 'text-slate-400', bg: 'bg-slate-500/10' };
+                const formattedTime = new Date(entry.occurredAt).toLocaleString([], {
+                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                return (
+                  <div key={entry.id} className={`flex gap-3 p-3 rounded-xl border ${style.bg} border-slate-800`}>
+                    <div className="mt-0.5">{getTimelineIcon(entry.type)}</div>
+                    <div className="flex-grow min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${style.color}`}>{entry.type.replace('_', ' ')}</span>
+                        <span className="text-[9px] text-slate-500 font-mono">{formattedTime}</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-200 mb-0.5">{entry.title}</h4>
+                      {entry.body && <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">{entry.body}</p>}
+                      {entry.metadata && typeof entry.metadata === 'object' && (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {(entry.metadata as any).status && (
+                            <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-900/50 text-slate-400 border border-slate-800">
+                              {(entry.metadata as any).status}
+                            </span>
+                          )}
+                          {(entry.metadata as any).direction && (
+                            <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-900/50 text-slate-400 border border-slate-800">
+                              {(entry.metadata as any).direction}
+                            </span>
+                          )}
+                          {(entry.metadata as any).duration && (
+                            <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-900/50 text-slate-400 border border-slate-800">
+                              {(entry.metadata as any).duration} min
+                            </span>
+                          )}
+                          {(entry.metadata as any).completed !== undefined && (
+                            <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                              (entry.metadata as any).completed ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-900/50 text-slate-400 border border-slate-800'
+                            }`}>
+                              {(entry.metadata as any).completed ? 'Completed' : 'Pending'}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
         {/* Footer Actions */}
         <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex justify-end gap-3">

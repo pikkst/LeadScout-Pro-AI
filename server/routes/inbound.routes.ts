@@ -7,6 +7,7 @@ import { getEmailSettings } from "../services/settings.service";
 import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook";
 import { claimWebhookEvent } from "../services/webhookReceipt.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { stopSequencesForLead } from "../services/sequenceStop.service";
 
 export function extractHeaders(raw: string): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -113,6 +114,8 @@ inboundRouter.post("/resend", async (req: RawBodyRequest, res) => {
       data: { stage: "NEGOTIATION", lastContactedAt: new Date() },
     });
 
+    await prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "REPLIED" } });
+
     await logActivity({
       action: "PITCH_REPLIED",
       detail: `Inbound reply detected: ${pitch.leadName}`,
@@ -125,6 +128,8 @@ inboundRouter.post("/resend", async (req: RawBodyRequest, res) => {
       leadId: pitch.leadId,
       pitchId: pitch.id,
     });
+
+    void stopSequencesForLead(pitch.leadId, "REPLY").catch((err) => console.error("[inbound] stopSequencesForLead failed", err));
   }
 
   res.status(200).json({ ok: true, matched: !!pitch, pitchId: pitch?.id ?? null });

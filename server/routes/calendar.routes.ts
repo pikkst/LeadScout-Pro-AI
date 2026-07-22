@@ -11,6 +11,7 @@ import { canBookAgentSlot, canCancelMeeting } from "../utils/calendarBooking";
 import { bookMeetingSlot, cancelMeeting, saveAgentAvailability, timeToMinutes } from "../services/calendar.service";
 import { sendBookingConfirmationEmail, sendMeetingNotificationEmail } from "../services/email.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { stopSequencesForLead } from "../services/sequenceStop.service";
 
 export const calendarRouter = Router();
 calendarRouter.use(requireAuth);
@@ -228,6 +229,7 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
   const booked = await bookMeetingSlot({ slotId, leadId, title, agenda, pitchId, expectedAgentId: slot.agentId });
   const { meeting, lead } = booked;
   await recordActivationEvent({ type: "BOOKING_COMPLETED", userId: slot.agentId, leadId, pitchId: pitchId ?? undefined, metadata: { source: "WORKSPACE" } });
+  void stopSequencesForLead(leadId, "MEETING").catch((err) => console.error("[calendar] stopSequencesForLead failed", err));
 
   await logActivity({
     action: "MEETING_BOOKED",

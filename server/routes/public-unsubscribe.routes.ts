@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { badRequest, notFound } from "../utils/httpError";
 import { suppressEmail } from "../services/compliance.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { stopSequencesForLead } from "../services/sequenceStop.service";
 
 export const publicUnsubscribeRouter = Router();
 publicUnsubscribeRouter.use(rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false }));
