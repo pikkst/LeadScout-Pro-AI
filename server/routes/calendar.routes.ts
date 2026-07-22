@@ -183,7 +183,7 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
   });
 
   const agent = meeting.agent;
-  if (agent?.email) {
+  if (agent?.email && slot.agentId !== req.user!.id) {
     const { sendMeetingNotificationEmail } = await import("../services/email.service");
     void sendMeetingNotificationEmail({
       to: agent.email,
