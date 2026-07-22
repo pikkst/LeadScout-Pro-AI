@@ -113,9 +113,9 @@ async function startServer() {
   app.use("/api/settings", uploadRouter);
   app.use("/api", notFoundHandler);
 
-  let isProduction = config.isProduction;
+  let servesStaticFrontend = config.isProduction || process.argv.includes("--serve-static");
 
-  if (isProduction) {
+  const mountStaticFrontend = () => {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.use(
@@ -131,19 +131,21 @@ async function startServer() {
       },
     );
     console.log("[server] Serving production build from " + path.basename(distPath) + " (" + distPath + ")");
-  }
+  };
+
+  if (servesStaticFrontend) mountStaticFrontend();
 
   const server = app.listen(config.port, "0.0.0.0", () => {
     console.log(
       `[server] Unitel Global CarrierScout AI running on http://localhost:${config.port} (${
-        isProduction ? "production" : "development"
+        config.isProduction ? "production" : servesStaticFrontend ? "static development" : "development"
       })`,
     );
     console.log("[server] Runtime settings (AI, Email) are managed in Settings → Admin.");
   });
 
   // --- Frontend (Vite dev middleware or static build) ---
-  if (!isProduction) {
+  if (!servesStaticFrontend) {
     try {
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
@@ -166,7 +168,8 @@ async function startServer() {
       console.log("[server] Vite development middleware loaded.");
     } catch (err) {
       console.warn("[server] Vite dev middleware unavailable; falling back to static mode.", err);
-      isProduction = true;
+      servesStaticFrontend = true;
+      mountStaticFrontend();
     }
   }
 
