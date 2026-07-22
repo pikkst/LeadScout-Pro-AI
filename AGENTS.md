@@ -27,6 +27,10 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Pitch scheduler idempotency requires both in-memory locks and DB-level recheck, because job loops can run across multiple server restarts
 - New inbound/webhook routes need raw-body middleware mounted before the global JSON parser
 - When adding settings-backed secrets, extend both `SETTING_DEFS` and the returned settings object, otherwise callers will get type errors
+- Verify every external webhook against the exact raw body with the provider-supported library; fail closed when the signing secret is missing
+- Scheduled external side effects need an atomic database claim before the provider call and a terminal failure state for permanent errors
+- Authorization must be checked against the target resource owner, not only at router level
+- Persist notification read state and expose a mutation endpoint before displaying unread counts
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility
@@ -36,6 +40,8 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 
 ## Code Review Checklist (After Every Stage)
 - [ ] Security: input validation, auth checks, SQL injection, XSS, secrets exposure
+- [ ] Webhooks: raw-body signature verification, replay protection, and fail-closed secret configuration
+- [ ] Background jobs: atomic claim, crash behavior, and terminal failure handling
 - [ ] DB: migrations safe, indexes present, no N+1 queries, cascade rules correct
 - [ ] Nesting: no deep callback hell, async/await used correctly
 - [ ] Duplicates: no repeated logic, shared utilities extracted

@@ -363,8 +363,8 @@ All runtime configuration is managed from the **Settings** tab — **no `.env` e
 > **Inbound replies:** To automatically detect when a lead replies to an outreach email:
 > 1. In Resend, go to **Webhooks** and add a new webhook with event type `email.received`
 > 2. Set the URL to your server: `https://eventnexus.eu/api/inbound/resend`
-> 3. Ensure `RESEND_API_KEY` and `INBOUND_EMAIL_ADDRESS` are set in `.env`
-> 4. The server will fetch the full email via Resend API, match it to the original pitch using `Message-ID`, and update the pitch/lead status automatically
+> 3. Copy the webhook Signing Secret into `RESEND_WEBHOOK_SECRET` and set `RESEND_API_KEY` and `INBOUND_EMAIL_ADDRESS`
+> 4. The server verifies the Svix signature against the raw request body, fetches the full email via Resend API, matches all `In-Reply-To`/`References` message IDs, and updates the pitch/lead status automatically
 
 ### Company Profile
 - Company name, logo, website
@@ -435,7 +435,7 @@ Place screenshots in the `docs/screenshots/` folder (create it if needed) and re
 
 ## API Overview
 
-All non-auth routes require a Bearer token (or the `unitel_token` auth cookie).
+All non-auth routes require a Bearer token in the `Authorization` header.
 
 ### Authentication
 
@@ -653,7 +653,7 @@ PORT=3001
 - Verify webhook URL is `https://your-domain/api/webhooks/resend`
 - Check `RESEND_WEBHOOK_SECRET` matches the Resend signing secret
 - Check server logs for incoming webhook requests
-- Without the secret, the endpoint accepts all events (useful for local testing)
+- A missing signing secret disables the endpoint with `503 WEBHOOK_NOT_CONFIGURED`; invalid or replayed signatures return `401 BAD_SIGNATURE`
 
 ### Prisma migration issues
 
@@ -723,9 +723,9 @@ All API requests require the header: `Authorization: Bearer <your-api-key>`
 - **Scheduled Send**: queue pitches for automatic delivery at AI-recommended times via `POST /api/pitches/:id/schedule`
 - **Pitch Scheduler**: server-side job loop sends due pitches and advances leads to `Contacted` automatically
 - **Inbound Reply Tracking**: Resend `email.received` webhook matches replies to original pitches by `Message-ID` and updates pitch/lead status to `Replied`/`Negotiation`
-- **Duplicate-send protection**: scheduler uses in-memory locks plus DB recheck to prevent double sends across restarts
+- **Duplicate-send protection**: scheduler atomically clears the schedule before SMTP delivery and marks permanent send errors as `FAILED`, preventing restart retries from sending a delivered pitch twice
 - **Absolute image URLs**: company logos in outreach emails now use absolute URLs on the sending domain to improve deliverability
-- Added `RESEND_API_KEY`, `INBOUND_EMAIL_ADDRESS`, and `BASE_URL` configuration options
+- Added `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `INBOUND_EMAIL_ADDRESS`, and `BASE_URL` configuration options
 
 ---
 

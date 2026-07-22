@@ -31,10 +31,7 @@ export function signToken(user: { id: string }): string {
 function extractToken(req: Request): string | null {
   const header = req.headers.authorization;
   if (header && header.startsWith("Bearer ")) return header.slice(7);
-  const cookieToken = (req as Request & { cookies?: Record<string, string> }).cookies?.[
-    config.cookieName
-  ];
-  return cookieToken ?? null;
+  return null;
 }
 
 /** Requires a valid token and an active user. Attaches req.user. */

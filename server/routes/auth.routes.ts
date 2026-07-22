@@ -1,5 +1,5 @@
 // Authentication routes: register, login, logout, current user.
-import { Router, type Response } from "express";
+import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { config } from "../config";
@@ -24,15 +24,6 @@ const registerSchema = credentialsSchema.extend({
   role: z.enum(["ADMIN", "MANAGER", "AGENT"]).optional(),
 });
 
-function setAuthCookie(res: Response, token: string) {
-  res.cookie(config.cookieName, token, {
-    httpOnly: true,
-    secure: config.isProduction,
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-}
-
 /**
  * Register a new user.
  * - The very first user in the system automatically becomes ADMIN.
@@ -51,11 +42,10 @@ authRouter.post(
       // Determine whether the caller is an authenticated admin.
       let callerIsAdmin = false;
       const header = req.headers.authorization;
-      const cookieToken = (req as any).cookies?.[config.cookieName];
-      if (header?.startsWith("Bearer ") || cookieToken) {
+      if (header?.startsWith("Bearer ")) {
         try {
           const jwt = (await import("jsonwebtoken")).default;
-          const token = header?.startsWith("Bearer ") ? header.slice(7) : cookieToken;
+          const token = header.slice(7);
           const payload = jwt.verify(token, config.jwtSecret) as { sub?: string };
           if (payload.sub) {
             const caller = await prisma.user.findUnique({ where: { id: payload.sub } });
@@ -85,7 +75,6 @@ authRouter.post(
     // Auto-login the first admin for a smooth setup experience.
     if (isFirstUser) {
       const token = signToken(user);
-      setAuthCookie(res, token);
       return res.status(201).json({ user: serializeUser(user), token });
     }
 
@@ -105,7 +94,6 @@ authRouter.post(
     if (!ok) throw unauthorized("Invalid email or password.");
 
     const token = signToken(user);
-    setAuthCookie(res, token);
     await logActivity({ action: "USER_LOGIN", detail: email, userId: user.id });
 
     res.json({ user: serializeUser(user), token });
@@ -115,7 +103,6 @@ authRouter.post(
 authRouter.post(
   "/logout",
   asyncHandler(async (_req, res) => {
-    res.clearCookie(config.cookieName);
     res.json({ ok: true });
   }),
 );
@@ -200,6 +187,7 @@ authRouter.get(
         detail: true,
         createdAt: true,
         leadId: true,
+        readAt: true,
       },
     });
 
@@ -207,10 +195,22 @@ authRouter.get(
       id: activity.id,
       message: `${activity.action}${activity.detail ? `: ${activity.detail}` : ""}`,
       timestamp: activity.createdAt.toISOString(),
-      read: false,
+      read: activity.readAt !== null,
       leadId: activity.leadId,
     }));
 
     res.json(notifications);
+  }),
+);
+
+authRouter.patch(
+  "/notifications/read-all",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const result = await prisma.activityLog.updateMany({
+      where: { userId: req.user!.id, readAt: null },
+      data: { readAt: new Date() },
+    });
+    res.json({ updated: result.count });
   }),
 );

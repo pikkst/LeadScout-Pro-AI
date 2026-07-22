@@ -1,12 +1,14 @@
 // Calendar & Meeting scheduling routes
 import { Router } from "express";
 import { z } from "zod";
+import { LeadStage } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { notFound } from "../utils/httpError";
+import { forbidden, notFound } from "../utils/httpError";
 import { requireAuth } from "../middleware/auth";
 import { param } from "../utils/param";
 import { logActivity } from "../utils/activity";
+import { canBookAgentSlot } from "../utils/calendarBooking";
 
 export const calendarRouter = Router();
 calendarRouter.use(requireAuth);
@@ -26,7 +28,15 @@ const meetingSchema = z.object({
   duration: z.coerce.number().min(15).max(120).default(30),
   type: z.enum(["CALL", "MEETING", "DEMO", "FOLLOW_UP"]).default("CALL"),
   agenda: z.string().optional().default(""),
-  pitchId: z.string().optional().nullable(),
+  pitchId: z.string().min(1).optional().nullable(),
+});
+
+const bookSlotSchema = z.object({
+  slotId: z.string().min(1),
+  leadId: z.string().min(1),
+  title: z.string().max(200).optional().default(""),
+  agenda: z.string().optional().default(""),
+  pitchId: z.string().min(1).optional().nullable(),
 });
 
 // ---- List available slots for booking ----
@@ -118,16 +128,13 @@ calendarRouter.post("/slots/bulk", asyncHandler(async (req, res) => {
 
 // ---- Book a slot and create meeting ----
 calendarRouter.post("/book", asyncHandler(async (req, res) => {
-  const { slotId, leadId, title, agenda, pitchId } = req.body as {
-    slotId: string;
-    leadId: string;
-    title: string;
-    agenda?: string;
-    pitchId?: string | null;
-  };
+  const { slotId, leadId, title, agenda, pitchId } = bookSlotSchema.parse(req.body);
 
   const slot = await prisma.meetingSlot.findUnique({ where: { id: slotId } });
   if (!slot || !slot.isAvailable || slot.isBooked) throw notFound("Slot not available");
+  if (!canBookAgentSlot(req.user!, slot.agentId)) {
+    throw forbidden("Only the slot owner or a manager can book this slot.");
+  }
 
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) throw notFound("Lead not found");
@@ -141,7 +148,7 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
       agenda: agenda || "",
       type: "MEETING",
       agentId: slot.agentId,
-      pitchId: pitchId || null,
+      pitchId: pitchId ?? null,
     },
     include: {
       agent: { select: { name: true, email: true } },
@@ -160,11 +167,15 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
     lead: { name: meeting.lead.name, email: meeting.lead.email },
   };
 
-  const nextStage = lead.stage === "DISCOVERED" ? "CONTACTED" : lead.stage === "CONTACTED" ? "NEGOTIATION" : null;
+  const nextStage: LeadStage | null = lead.stage === LeadStage.DISCOVERED
+    ? LeadStage.CONTACTED
+    : lead.stage === LeadStage.CONTACTED
+      ? LeadStage.NEGOTIATION
+      : null;
   if (nextStage) {
     await prisma.lead.update({
       where: { id: leadId },
-      data: { stage: nextStage as any, lastContactedAt: new Date() },
+      data: { stage: nextStage, lastContactedAt: new Date() },
     });
   }
 

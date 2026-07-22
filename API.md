@@ -2,7 +2,16 @@
 
 Base URL: `/api`
 
-All endpoints require authentication via session cookie or `Authorization: Bearer <token>` header.
+All endpoints require authentication via an `Authorization: Bearer <token>` header.
+
+## Notifications
+
+```text
+GET /api/auth/notifications
+PATCH /api/auth/notifications/read-all
+```
+
+The list includes a persisted `read` flag. The mutation marks all notifications belonging to the authenticated user as read.
 
 ## Leads
 
@@ -95,6 +104,8 @@ POST /api/pitches
 ```
 POST /api/pitches/:id/send
 ```
+
+Manual sends use the authenticated sender's email as `Reply-To`. Scheduled sends use the configured inbound mailbox so replies can be matched automatically.
 
 ### Schedule pitch
 ```
@@ -421,9 +432,12 @@ Body:
   "slotId": "slot-id",
   "leadId": "lead-id",
   "title": "Demo Meeting",
-  "agenda": "Product demo"
+  "agenda": "Product demo",
+  "pitchId": "optional-pitch-id"
 }
 ```
+
+`pitchId`, when supplied, must be a non-empty string. Agents may book only their own slots; admins and managers may book any agent's slot.
 
 ### List meetings
 ```
@@ -502,8 +516,11 @@ POST /api/webhooks/resend
 ```
 
 Headers:
+- `svix-id` - unique webhook delivery ID (also used for replay protection)
 - `svix-signature` - Resend signature for verification
 - `svix-timestamp` - Timestamp for signature verification
+
+`RESEND_WEBHOOK_SECRET` is required. Missing configuration returns `503`; invalid or replayed signatures return `401`.
 
 ## Inbound
 
@@ -523,6 +540,8 @@ Request body shape:
   }
 }
 ```
+
+The `svix-id`, `svix-timestamp`, and `svix-signature` headers are required and are verified against the unmodified raw request body before the inbound event is processed.
 
 Response:
 ```json

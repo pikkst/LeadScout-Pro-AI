@@ -36,8 +36,6 @@ export const config = {
     return secret;
   })(),
   jwtExpiresIn: optional(process.env.JWT_EXPIRES_IN, "7d"),
-  cookieName: optional(process.env.AUTH_COOKIE_NAME, "unitel_token"),
-
   // CORS
   corsOrigin: isProduction
     ? required("CORS_ORIGIN", process.env.CORS_ORIGIN)

@@ -217,6 +217,20 @@ const CalendarTab: React.FC = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  const toggleNotifications = async () => {
+    const opening = !showNotifications;
+    setShowNotifications(opening);
+    if (opening && unreadCount > 0) {
+      setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+      try {
+        await api('/auth/notifications/read-all', { method: 'PATCH' });
+      } catch (error) {
+        console.error('Failed to mark notifications as read:', error);
+        void loadNotifications();
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -241,7 +255,7 @@ const CalendarTab: React.FC = () => {
         <div className="flex items-center gap-2">
           <div className="relative">
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={toggleNotifications}
               className="p-2 text-slate-400 hover:text-white transition-colors relative"
             >
               <Bell className="w-4 h-4" />

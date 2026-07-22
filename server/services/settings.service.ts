@@ -111,6 +111,15 @@ export const SETTING_DEFS: SettingDef[] = [
     envDefault: () => process.env.RESEND_API_KEY || "",
     help: "Used for inbound webhook fetches and Resend native APIs.",
   },
+  {
+    key: "RESEND_WEBHOOK_SECRET",
+    label: "Resend Webhook Signing Secret",
+    group: "email",
+    type: "secret",
+    envDefault: () => process.env.RESEND_WEBHOOK_SECRET || "",
+    placeholder: "whsec_...",
+    help: "Required to verify Resend delivery and inbound webhook signatures.",
+  },
 
   // --- Security ---
   {
@@ -249,6 +258,7 @@ export async function getEmailSettings() {
     fromEmail: s.SMTP_FROM_EMAIL || "info@unitelglobal.com",
     configured: Boolean(s.SMTP_HOST && s.SMTP_USER && s.SMTP_PASS),
     providerApiKey: s.RESEND_API_KEY || "",
+    webhookSecret: s.RESEND_WEBHOOK_SECRET || "",
   };
 }
 

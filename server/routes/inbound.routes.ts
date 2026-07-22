@@ -4,11 +4,13 @@ import { Router } from "express";
 import { prisma } from "../db";
 import { logActivity } from "../utils/activity";
 import { getEmailSettings } from "../services/settings.service";
+import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook";
 
-function extractHeaders(raw: string): Record<string, string> {
+export function extractHeaders(raw: string): Record<string, string> {
   const headers: Record<string, string> = {};
   const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const lines = normalized.split("\n");
+  const headerBlock = normalized.split("\n\n", 1)[0] ?? "";
+  const lines = headerBlock.replace(/\n[ \t]+/g, " ").split("\n");
   for (const line of lines) {
     const idx = line.indexOf(":");
     if (idx === -1) continue;
@@ -19,11 +21,18 @@ function extractHeaders(raw: string): Record<string, string> {
   return headers;
 }
 
-function extractHeaderValue(headers: Record<string, string>, name: string): string | undefined {
-  const value = headers[name.toLowerCase()];
-  if (!value) return undefined;
-  const first = value.split(/\s+/)[0];
-  return first.replace(/[<>]/g, "").trim() || undefined;
+export function extractMessageIds(headers: Record<string, string>, ...names: string[]): string[] {
+  const ids: string[] = [];
+  for (const name of names) {
+    const value = headers[name.toLowerCase()];
+    if (!value) continue;
+    const bracketed = [...value.matchAll(/<([^<>]+)>/g)].map((match) => match[1].trim());
+    const candidates = bracketed.length > 0 ? bracketed : value.split(/\s+/).map((item) => item.replace(/[<>]/g, "").trim());
+    for (const candidate of candidates) {
+      if (candidate && !ids.includes(candidate)) ids.push(candidate);
+    }
+  }
+  return ids;
 }
 
 async function fetchFullEmail(emailId: string): Promise<string | null> {
@@ -53,28 +62,37 @@ async function fetchFullEmail(emailId: string): Promise<string | null> {
   }
 }
 
-async function findPitchByMessageId(messageId: string | undefined) {
-  if (!messageId) return null;
-  const trimmed = messageId.replace(/[<>]/g, "").trim();
-  if (!trimmed) return null;
+async function findPitchByMessageIds(messageIds: string[]) {
+  if (messageIds.length === 0) return null;
   return prisma.pitch.findFirst({
-    where: { sentMessageId: trimmed },
+    where: { sentMessageId: { in: messageIds } },
     include: { lead: true },
   });
 }
 
 export const inboundRouter = Router();
 
-inboundRouter.post("/resend", async (req, res) => {
-  const event = req.body as { type?: string; data?: { email_id?: string; message_id?: string; to?: string[] } } | null;
+inboundRouter.post("/resend", async (req: RawBodyRequest, res) => {
+  const settings = await getEmailSettings();
+  if (!settings.webhookSecret) {
+    return res.status(503).json({ error: "Resend webhook signing secret is not configured", code: "WEBHOOK_NOT_CONFIGURED" });
+  }
+
+  let event: { type?: string; data?: { email_id?: string; message_id?: string; to?: string[] } } | null;
+  try {
+    event = verifyResendWebhook(req, settings.webhookSecret) as typeof event;
+  } catch {
+    return res.status(401).json({ error: "Invalid signature", code: "BAD_SIGNATURE" });
+  }
+
   if (!event || event.type !== "email.received" || !event.data?.email_id) {
     return res.status(200).json({ ok: true, matched: false, reason: "ignored" });
   }
 
   const rawEmail = await fetchFullEmail(event.data.email_id);
   const headers = rawEmail ? extractHeaders(rawEmail) : {};
-  const inReplyTo = extractHeaderValue(headers, "in-reply-to") || extractHeaderValue(headers, "references");
-  const pitch = await findPitchByMessageId(inReplyTo);
+  const messageIds = extractMessageIds(headers, "in-reply-to", "references");
+  const pitch = await findPitchByMessageIds(messageIds);
 
   if (pitch) {
     await prisma.pitch.update({

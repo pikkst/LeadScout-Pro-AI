@@ -13,7 +13,6 @@ import { recommendSendTime } from "../services/ai.service";
 import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
 import { getEmailSettings } from "../services/settings.service";
-import { config } from "../config";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -128,7 +127,7 @@ pitchesRouter.post(
       subject: pitch.subject,
       html: pitch.htmlContent,
       text: pitch.textContent,
-      replyTo: undefined,
+      replyTo: senderEmail,
       pitchId: pitch.id,
       inReplyToMessageId: previous?.sentMessageId || undefined,
       references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
@@ -141,7 +140,7 @@ pitchesRouter.post(
         sentAt: new Date(),
         sentFromName: senderName,
         sentFromEmail: senderEmail,
-        replyToEmail: config.inboundEmailAddress,
+        replyToEmail: senderEmail,
         sentMessageId: sendResult.messageId,
       } as any,
     });

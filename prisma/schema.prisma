@@ -247,6 +247,7 @@ model ActivityLog {
   action    String
   detail    String   @default("")
   createdAt DateTime @default(now())
+  readAt    DateTime?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -256,6 +257,7 @@ model ActivityLog {
 
   @@index([leadId])
   @@index([userId])
+  @@index([userId, readAt])
   @@map("activity_logs")
 }
 

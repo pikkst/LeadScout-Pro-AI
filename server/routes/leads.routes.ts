@@ -373,7 +373,7 @@ const meetingSchema = z.object({
   type: z.enum(["CALL", "MEETING", "DEMO", "FOLLOW_UP"]).default("CALL"),
   agenda: z.string().optional().default(""),
   link: z.string().optional(),
-  pitchId: z.string().optional().nullable(),
+  pitchId: z.string().min(1).optional().nullable(),
 });
 
 leadsRouter.post(
@@ -393,6 +393,7 @@ leadsRouter.post(
         type: meetingTypeToDb(body.type),
         agenda: body.agenda ?? "",
         link: body.link,
+        pitchId: body.pitchId ?? null,
       },
     });
     await logActivity({ action: "MEETING_SCHEDULED", detail: body.title, userId: req.user!.id, leadId: lead.id });
