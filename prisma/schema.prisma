@@ -30,6 +30,8 @@ model User {
   commissions   Commission[]  @relation("AgentCommissions")
   routingRules  LeadRoutingRule[] @relation("RoutingAgent")
   meetingSlots  MeetingSlot[] @relation("MeetingSlots")
+  availabilityRules AvailabilityRule[] @relation("AvailabilityRules")
+  bookingLinks BookingLink[] @relation("BookingAgents")
   createdDocuments GeneratedDocument[] @relation("DocumentCreator")
   apiKeys ApiKey[] @relation("ApiKeys")
   sendTimeOptimizations SendTimeOptimization[] @relation("SendTimeOptimizations")
@@ -98,6 +100,7 @@ model Lead {
   documents GeneratedDocument[]
   monitoringAlerts LeadMonitoring[]
   sendTimeOptimizations SendTimeOptimization[]
+  bookingLinks BookingLink[]
 
   @@unique([website, email])
   @@index([domain])
@@ -151,6 +154,7 @@ model Meeting {
   type      MeetingType @default(CALL)
   agenda    String      @default("")
   link      String?
+  timezone  String      @default("Europe/Tallinn")
   createdAt DateTime    @default(now())
 
   leadId String
@@ -163,6 +167,7 @@ model Meeting {
   agent   User?   @relation("AgentMeetings", fields: [agentId], references: [id], onDelete: SetNull)
 
   slots MeetingSlot[]
+  bookingLink BookingLink?
 
   @@index([leadId])
   @@index([agentId])
@@ -175,6 +180,7 @@ model MeetingSlot {
   date        String   // YYYY-MM-DD
   startTime   String   // HH:MM
   endTime     String   // HH:MM
+  timezone    String   @default("Europe/Tallinn")
   isAvailable Boolean  @default(true)
   isBooked    Boolean  @default(false)
   agentId     String
@@ -184,7 +190,55 @@ model MeetingSlot {
 
   @@index([agentId])
   @@index([date])
+  @@unique([agentId, date, startTime])
   @@map("meeting_slots")
+}
+
+/// A recurring weekly availability window for an agent.
+model AvailabilityRule {
+  id           String   @id @default(cuid())
+  weekday      Int
+  startTime    String
+  endTime      String
+  slotDuration Int      @default(30)
+  timezone     String   @default("Europe/Tallinn")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agentId String
+  agent   User @relation("AvailabilityRules", fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, weekday])
+  @@index([agentId, isActive])
+  @@map("availability_rules")
+}
+
+/// Capability link included in outreach emails for public meeting booking.
+model BookingLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  bookedAt  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pitchId String @unique
+  pitch   Pitch  @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  agentId String
+  agent   User @relation("BookingAgents", fields: [agentId], references: [id], onDelete: Cascade)
+
+  meetingId String?  @unique
+  meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([leadId])
+  @@index([expiresAt])
+  @@map("booking_links")
 }
 
 enum MeetingType {
@@ -225,6 +279,7 @@ model Pitch {
   inReplyToId String? @unique
   replies Pitch[] @relation("ReplyChain")
   meetings Meeting[] @relation("MeetingPitches")
+  bookingLink BookingLink?
 
   events PitchEvent[]
 

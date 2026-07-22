@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Download, Eye, Trash2, Edit2, Settings } from 'lucide-react';
+import { api } from '../services/apiClient';
 
 const stripHtml = (html: string): string => {
   const div = document.createElement('div');
@@ -58,13 +59,9 @@ const DocumentsTab: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [templatesRes, docsRes] = await Promise.all([
-        fetch('/api/documents/templates'),
-        fetch('/api/documents'),
-      ]);
       const [templatesData, docsData] = await Promise.all([
-        templatesRes.json(),
-        docsRes.json(),
+        api<Template[]>('/documents/templates'),
+        api<GeneratedDoc[]>('/documents'),
       ]);
       setTemplates(templatesData);
       setDocuments(docsData);
@@ -78,12 +75,11 @@ const DocumentsTab: React.FC = () => {
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingTemplate ? `/api/documents/templates/${editingTemplate.id}` : '/api/documents/templates';
+      const url = editingTemplate ? `/documents/templates/${editingTemplate.id}` : '/documents/templates';
       const method = editingTemplate ? 'PUT' : 'POST';
 
-      await fetch(url, {
+      await api(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(templateForm),
       });
 
@@ -97,7 +93,7 @@ const DocumentsTab: React.FC = () => {
   const handleDeleteTemplate = async (id: string) => {
     if (!confirm('Delete this template?')) return;
     try {
-      await fetch(`/api/documents/templates/${id}`, { method: 'DELETE' });
+      await api(`/documents/templates/${id}`, { method: 'DELETE' });
       await loadData();
     } catch (error) {
       console.error('Failed to delete template:', error);
@@ -107,9 +103,8 @@ const DocumentsTab: React.FC = () => {
   const handleGenerateDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch('/api/documents/generate', {
+      await api('/documents/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...generateForm,
           variables: JSON.parse(generateForm.variables),
@@ -125,8 +120,7 @@ const DocumentsTab: React.FC = () => {
 
   const handleDownloadPDF = async (doc: GeneratedDoc) => {
     try {
-      const response = await fetch(`/api/documents/${doc.id}/pdf`);
-      const data = await response.json();
+      const data = await api<{ html: string }>(`/documents/${doc.id}/pdf`);
 
       const printWindow = window.open('', '_blank');
       if (printWindow) {

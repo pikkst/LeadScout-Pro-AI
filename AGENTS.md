@@ -31,6 +31,9 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Scheduled external side effects need an atomic database claim before the provider call and a terminal failure state for permanent errors
 - Authorization must be checked against the target resource owner, not only at router level
 - Persist notification read state and expose a mutation endpoint before displaying unread counts
+- Public booking links must be unguessable, expiring capability tokens and must expose only masked attendee data
+- Slot booking must claim availability atomically inside the same transaction that creates the meeting
+- Calendar confirmations should use provider-neutral ICS invitations before adding vendor-specific OAuth integrations
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility
@@ -43,6 +46,7 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - [ ] Webhooks: raw-body signature verification, replay protection, and fail-closed secret configuration
 - [ ] Background jobs: atomic claim, crash behavior, and terminal failure handling
 - [ ] DB: migrations safe, indexes present, no N+1 queries, cascade rules correct
+- [ ] Calendar: recurring rules validated, slot uniqueness enforced, booking races tested, public tokens expire
 - [ ] Nesting: no deep callback hell, async/await used correctly
 - [ ] Duplicates: no repeated logic, shared utilities extracted
 - [ ] Best practices: error handling, logging, rate limiting, idempotency

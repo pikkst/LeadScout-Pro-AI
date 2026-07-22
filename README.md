@@ -500,6 +500,18 @@ All non-auth routes require a Bearer token in the `Authorization` header.
 | POST | `/api/webhooks/resend` | Resend delivery tracking webhook |
 | POST | `/api/inbound/resend` | Resend inbound reply webhook |
 
+### Calendar & Public Booking
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET/POST | `/api/calendar/availability` | View or set recurring weekly work hours |
+| GET | `/api/calendar/slots` | List date-based available slots |
+| GET | `/api/calendar/meetings` | List confirmed meetings |
+| POST | `/api/calendar/book` | Book a slot inside the authenticated workspace |
+| GET/POST | `/api/public/booking/:token` | View and book an emailed invitation without signing in |
+
+Users can define working days, start/end times, IANA timezone and slot duration for 4–26 weeks. The Calendar tab displays a navigable week view with available and booked times. Sent outreach emails automatically contain a secure, expiring, single-use booking button. A confirmed booking reserves the link and slot atomically, notifies the owner, advances the lead to the next early pipeline stage, and emails a timezone-aware ICS invitation compatible with Google Calendar, Outlook, Apple Calendar and local calendar applications.
+
 ### Other
 
 | Method | Route | Description |
@@ -726,6 +738,14 @@ All API requests require the header: `Authorization: Bearer <your-api-key>`
 - **Duplicate-send protection**: scheduler atomically clears the schedule before SMTP delivery and marks permanent send errors as `FAILED`, preventing restart retries from sending a delivered pitch twice
 - **Absolute image URLs**: company logos in outreach emails now use absolute URLs on the sending domain to improve deliverability
 - Added `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `INBOUND_EMAIL_ADDRESS`, and `BASE_URL` configuration options
+
+### Stage 5 — Public Calendar Booking (2026-07-22)
+- **Recurring Work Hours**: users configure Monday–Friday or custom weekly availability, time range, slot length and generation horizon
+- **Date-Based Calendar**: responsive week view shows free slots and confirmed meetings by date
+- **Public Booking Links**: every sent outreach email receives a secure lead-specific `/book/:token` link
+- **Conflict-Safe Booking**: database transaction prevents two recipients from taking the same slot
+- **Calendar Compatibility**: confirmation emails include ICS invitations for Google Calendar, Outlook, Apple Calendar and local tools
+- **CRM Automation**: successful bookings notify the agent and advance early-stage leads automatically
 
 ---
 

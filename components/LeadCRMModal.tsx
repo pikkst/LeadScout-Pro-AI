@@ -133,11 +133,8 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/custom-fields', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          if (mounted) setCustomFields(data);
-        }
+        const data = await api<Array<{ id: string; name: string; key: string; type: string; options?: string; isRequired?: boolean }>>('/custom-fields');
+        if (mounted) setCustomFields(data);
       } catch { /* ignore */ }
     })();
     return () => { mounted = false; };

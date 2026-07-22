@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Grip, Play, Settings } from 'lucide-react';
+import { api } from '../services/apiClient';
 
 interface Agent {
   id: string;
@@ -40,13 +41,9 @@ const RoutingSettings: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [rulesRes, usersRes] = await Promise.all([
-        fetch('/api/routing/rules'),
-        fetch('/api/auth/users'),
-      ]);
       const [rulesData, usersData] = await Promise.all([
-        rulesRes.json(),
-        usersRes.json(),
+        api<RoutingRule[]>('/routing/rules'),
+        api<Agent[]>('/auth/users'),
       ]);
       setRules(rulesData);
       setAgents(usersData.filter((u: Agent) => u.role !== 'ADMIN'));
@@ -60,19 +57,15 @@ const RoutingSettings: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingRule ? `/api/routing/rules/${editingRule.id}` : '/api/routing/rules';
+      const url = editingRule ? `/routing/rules/${editingRule.id}` : '/routing/rules';
       const method = editingRule ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      await api(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (response.ok) {
-        await loadData();
-        resetForm();
-      }
+      await loadData();
+      resetForm();
     } catch (error) {
       console.error('Failed to save rule:', error);
     }
@@ -81,7 +74,7 @@ const RoutingSettings: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this routing rule?')) return;
     try {
-      await fetch(`/api/routing/rules/${id}`, { method: 'DELETE' });
+      await api(`/routing/rules/${id}`, { method: 'DELETE' });
       await loadData();
     } catch (error) {
       console.error('Failed to delete rule:', error);

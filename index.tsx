@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { Globe } from 'lucide-react';
+import PublicBookingPage from './components/PublicBookingPage';
 
 const Gate: React.FC = () => {
   const { user, loading } = useAuth();
@@ -27,10 +28,15 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+const bookingMatch = window.location.pathname.match(/^\/book\/([A-Za-z0-9_-]+)\/?$/);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <Gate />
-    </AuthProvider>
+    {bookingMatch ? (
+      <PublicBookingPage token={bookingMatch[1]} />
+    ) : (
+      <AuthProvider>
+        <Gate />
+      </AuthProvider>
+    )}
   </React.StrictMode>
 );

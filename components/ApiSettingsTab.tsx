@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Plus, Trash2, Copy, Check } from 'lucide-react';
+import { api } from '../services/apiClient';
 
 interface ApiKey {
   id: string;
@@ -28,8 +29,7 @@ const ApiSettingsTab: React.FC = () => {
 
   const loadKeys = async () => {
     try {
-      const res = await fetch('/api/api-keys');
-      const data = await res.json();
+      const data = await api<ApiKey[]>('/api-keys');
       setKeys(data);
     } catch (error) {
       console.error('Failed to load API keys:', error);
@@ -41,15 +41,13 @@ const ApiSettingsTab: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/api-keys', {
+      const data = await api<ApiKey & { key: string }>('/api-keys', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
           scopes: formData.scopes.split(',').map(s => s.trim()),
         }),
       });
-      const data = await res.json();
       setNewKey(data.key);
       await loadKeys();
       setShowForm(false);
@@ -62,7 +60,7 @@ const ApiSettingsTab: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('Revoke this API key?')) return;
     try {
-      await fetch(`/api/api-keys/${id}`, { method: 'DELETE' });
+      await api(`/api-keys/${id}`, { method: 'DELETE' });
       await loadKeys();
     } catch (error) {
       console.error('Failed to delete API key:', error);
