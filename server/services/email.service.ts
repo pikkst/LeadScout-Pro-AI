@@ -105,7 +105,41 @@ export async function verifySmtpConfig(cfg: {
   }
 }
 
-/** Invalidate the cached transporter (call after settings change). */
+export async function sendMeetingNotificationEmail(params: {
+  to: string;
+  agentName: string;
+  leadName: string;
+  leadEmail: string;
+  date: string;
+  time: string;
+  title: string;
+}): Promise<{ messageId?: string; error?: string }> {
+  try {
+    const { tx, fromName, fromEmail } = await getTransporter();
+    const subject = `New meeting booked: ${params.title}`;
+    const html = `
+      <p>Hi ${params.agentName},</p>
+      <p>A new meeting has been booked with you:</p>
+      <ul>
+        <li><strong>Meeting:</strong> ${params.title}</li>
+        <li><strong>Date:</strong> ${params.date}</li>
+        <li><strong>Time:</strong> ${params.time}</li>
+        <li><strong>With:</strong> ${params.leadName} (${params.leadEmail})</li>
+      </ul>
+    `;
+    const text = `New meeting booked: ${params.title} on ${params.date} at ${params.time} with ${params.leadName} (${params.leadEmail})`;
+    const info = await tx.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: params.to,
+      subject,
+      html,
+      text,
+    });
+    return { messageId: info.messageId };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
 export function resetEmailTransport(): void {
   transporter = null;
   transporterSignature = "";

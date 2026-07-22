@@ -127,6 +127,8 @@ const CalendarTab: React.FC = () => {
   const handleBookSlot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSlot) return;
+    const previousLead = leads.find(l => l.id === meetingForm.leadId);
+    const previousStage = previousLead?.stage;
     try {
       const meeting = await api<Meeting>('/calendar/book', {
         method: 'POST',
@@ -143,11 +145,13 @@ const CalendarTab: React.FC = () => {
       setMeetingForm({ leadId: '', title: '', agenda: '' });
       addNotification(`Meeting booked: ${meeting.title} on ${meeting.date}`);
 
-      const lead = leads.find(l => l.id === meetingForm.leadId);
-      if (lead && lead.stage === 'Discovered') {
-        addNotification(`Lead "${lead.name}" automatically moved to Contacted after booking.`);
-      } else if (lead && lead.stage === 'Contacted') {
-        addNotification(`Lead "${lead.name}" automatically moved to Negotiation after booking.`);
+      const leadName = meeting.lead?.name || previousLead?.name;
+      if (leadName) {
+        if (previousStage === 'Discovered') {
+          addNotification(`Lead "${leadName}" automatically moved to Contacted after booking.`);
+        } else if (previousStage === 'Contacted') {
+          addNotification(`Lead "${leadName}" automatically moved to Negotiation after booking.`);
+        }
       }
     } catch (error) {
       console.error('Failed to book slot:', error);
