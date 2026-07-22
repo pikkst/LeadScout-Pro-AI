@@ -109,6 +109,7 @@ const App: React.FC = () => {
   const [isGeneratingPitches, setIsGeneratingPitches] = useState(false);
   const [pitchProgress, setPitchProgress] = useState({ current: 0, total: 0, activeName: '' });
   const [sendingPitchIds, setSendingPitchIds] = useState<Set<string>>(new Set());
+  const [schedulingPitchIds, setSchedulingPitchIds] = useState<Set<string>>(new Set());
 
   // Preview / Editor States
   const [activePitch, setActivePitch] = useState<OutreachPitch | null>(null);
@@ -476,6 +477,29 @@ reconnaissance.`,
     addLog(`[Outreach-SMTP] Bulk transmission complete.`);
   };
 
+  const handleSchedulePitch = async (pitchId: string) => {
+    const pitch = pitches.find(p => p.id === pitchId);
+    if (!pitch || schedulingPitchIds.has(pitchId)) return;
+
+    setSchedulingPitchIds(prev => new Set(prev).add(pitchId));
+    addLog(`[Outreach-Scheduler] AI optimizing send time for ${pitch.leadName}...`);
+
+    try {
+      const updated = await crm.schedulePitch(pitchId);
+      setPitches(prev => prev.map(p => (p.id === pitchId ? updated : p)));
+      addLog(`[Outreach-Scheduler] Scheduled send for ${pitch.leadName}: ${updated.scheduledSendAt ? new Date(updated.scheduledSendAt).toLocaleString() : 'optimizing...'}`);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Schedule failed';
+      addLog(`[Error] Failed to schedule ${pitch.leadEmail}: ${msg}`);
+    } finally {
+      setSchedulingPitchIds(prev => {
+        const next = new Set(prev);
+        next.delete(pitchId);
+        return next;
+      });
+    }
+  };
+
   // CRM Lead Database Management actions (persisted server-side)
   const handleSaveCRMLead = async (savedLead: CompanyLead) => {
     try {
@@ -719,6 +743,11 @@ Date().toISOString().split('T')[0]}.json`);
     setEditedBody(pitch.htmlContent);
     setIsPreviewMode(true);
   };
+
+  const handleTogglePreviewMode = () => setIsPreviewMode(true);
+  const handleToggleEditorMode = () => setIsPreviewMode(false);
+  const handleSubjectChange = (value: string) => setEditedSubject(value);
+  const handleBodyChange = (value: string) => setEditedBody(value);
 
   // Compute overdue follow-up scheduler alerts (> 3 days in Contacted stage)
   const overdueLeadsCount = useMemo(() => {
@@ -1043,12 +1072,14 @@ Date().toISOString().split('T')[0]}.json`);
             <OutreachTab
               pitches={pitches}
               sendingPitchIds={sendingPitchIds}
+              schedulingPitchIds={schedulingPitchIds}
               isGeneratingPitches={isGeneratingPitches}
               pitchProgress={pitchProgress}
               onBulkSend={handleBulkSend}
               onOpenPreview={openPitchPreview}
               onDeletePitch={handleDeletePitch}
               onSendPitch={handleSendPitch}
+              onSchedulePitch={handleSchedulePitch}
               onMarkReplied={handleMarkReplied}
               onNavigateToScout={() => setActiveTab('scout')}
             />
@@ -1296,6 +1327,10 @@ Date().toISOString().split('T')[0]}.json`);
         onCloseCRMModal={() => { setIsCRMModalOpen(false); setSelectedCRMLead(null); }}
         onSavePitchChanges={handleSaveChanges}
         onSaveCRMLead={handleSaveCRMLead}
+        onTogglePreviewMode={handleTogglePreviewMode}
+        onToggleEditorMode={handleToggleEditorMode}
+        onSubjectChange={handleSubjectChange}
+        onBodyChange={handleBodyChange}
       />
 
     </div>

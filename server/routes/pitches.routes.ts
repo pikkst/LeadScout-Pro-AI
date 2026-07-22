@@ -9,8 +9,10 @@ import { requireAuth } from "../middleware/auth";
 import { serializePitch, pitchStatusToDb } from "../utils/serializers";
 import { generatePitch } from "../services/ai.service";
 import { sendPitchEmail } from "../services/email.service";
+import { recommendSendTime } from "../services/ai.service";
 import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
+import { getEmailSettings } from "../services/settings.service";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -51,11 +53,15 @@ pitchesRouter.post(
       }
     }
 
+    const emailSettings = await getEmailSettings();
     const generated = await generatePitch(
       { name: lead.name, category: lead.category, website: lead.website, description: lead.description },
       focus,
       preferredLanguage,
       template,
+      req.user!.name,
+      emailSettings.fromName,
+      emailSettings.fromEmail,
     );
 
     const pitch = await prisma.pitch.create({
@@ -109,37 +115,48 @@ pitchesRouter.post(
     const pitch = await prisma.pitch.findUnique({ where: { id: param(req, "id") } });
     if (!pitch) throw notFound("Pitch not found");
 
-    try {
-      await sendPitchEmail({
-        to: pitch.leadEmail,
-        subject: pitch.subject,
-        html: pitch.htmlContent,
-        text: pitch.textContent,
-        replyTo: req.user!.email,
-        pitchId: pitch.id,
-      });
-    } catch (err) {
-      await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });
-      throw err;
-    }
+    const senderName = req.user!.name;
+    const senderEmail = req.user!.email;
+
+    const previous = pitch.inReplyToId
+      ? ((await prisma.pitch.findUnique({ where: { id: pitch.inReplyToId } })) as any)
+      : null;
+
+    const sendResult = await sendPitchEmail({
+      to: pitch.leadEmail,
+      subject: pitch.subject,
+      html: pitch.htmlContent,
+      text: pitch.textContent,
+      replyTo: senderEmail,
+      pitchId: pitch.id,
+      inReplyToMessageId: previous?.sentMessageId || undefined,
+      references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
+    });
 
     const updated = await prisma.pitch.update({
       where: { id: pitch.id },
-      data: { status: "SENT", sentAt: new Date() },
+      data: {
+        status: "SENT",
+        sentAt: new Date(),
+        sentFromName: senderName,
+        sentFromEmail: senderEmail,
+        replyToEmail: senderEmail,
+        sentMessageId: sendResult.messageId,
+      } as any,
     });
-    
+
     await prisma.pitchEvent.create({
       data: { pitchId: pitch.id, type: "SENT" },
     });
-    
-    // Advance the lead to "Contacted" when it is still early-stage.
+
     await prisma.lead.updateMany({
       where: { id: pitch.leadId, stage: "DISCOVERED" },
       data: { stage: "CONTACTED", lastContactedAt: new Date() },
     });
+
     await logActivity({
       action: "PITCH_SENT",
-      detail: `${pitch.leadName} <${pitch.leadEmail}>`,
+      detail: `From: ${senderName} <${senderEmail}> → To: ${pitch.leadName} <${pitch.leadEmail}>`,
       userId: req.user!.id,
       leadId: pitch.leadId,
     });
@@ -153,5 +170,56 @@ pitchesRouter.delete(
   asyncHandler(async (req, res) => {
     await prisma.pitch.delete({ where: { id: param(req, "id") } });
     res.json({ ok: true });
+  }),
+);
+
+// ---- Schedule a pitch using send-time optimization ----
+pitchesRouter.post(
+  "/:id/schedule",
+  asyncHandler(async (req, res) => {
+    const pitch = await prisma.pitch.findUnique({
+      where: { id: param(req, "id") },
+      include: { lead: true },
+    });
+    if (!pitch) throw notFound("Pitch not found");
+    if (pitch.status !== "DRAFT") {
+      return res.status(400).json({ error: "Only draft pitches can be scheduled.", code: "INVALID_STATUS" });
+    }
+
+    const recommendation = await recommendSendTime(pitch.leadId, req.user!.id);
+
+    const now = new Date();
+    const scheduled = new Date(now);
+    const dayIndex = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].indexOf(recommendation.recommendedDay);
+    const diff = (dayIndex + 7 - now.getDay()) % 7 || 7;
+    scheduled.setDate(now.getDate() + diff);
+    scheduled.setHours(recommendation.recommendedHour, 0, 0, 0);
+    if (scheduled <= now) scheduled.setDate(scheduled.getDate() + 7);
+
+    const updated = await prisma.pitch.update({
+      where: { id: pitch.id },
+      data: { scheduledSendAt: scheduled },
+    });
+
+    await prisma.sendTimeOptimization.create({
+      data: {
+        leadId: pitch.leadId,
+        agentId: req.user!.id,
+        recommendedHour: recommendation.recommendedHour,
+        recommendedDay: recommendation.recommendedDay,
+        confidence: recommendation.confidence,
+        reason: recommendation.reason,
+        lastUsedAt: new Date(),
+      },
+    });
+
+    await logActivity({
+      action: "PITCH_SCHEDULED",
+      detail: `Scheduled for ${recommendation.recommendedDay} ${recommendation.recommendedHour}:00 (${recommendation.confidence}% confidence)`,
+      userId: req.user!.id,
+      leadId: pitch.leadId,
+    });
+
+    res.json(serializePitch(updated));
   }),
 );

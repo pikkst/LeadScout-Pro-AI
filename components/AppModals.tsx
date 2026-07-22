@@ -15,6 +15,10 @@ interface AppModalsProps {
   onCloseCRMModal: () => void;
   onSavePitchChanges: () => void;
   onSaveCRMLead: (lead: CompanyLead) => void;
+  onTogglePreviewMode: () => void;
+  onToggleEditorMode: () => void;
+  onSubjectChange: (value: string) => void;
+  onBodyChange: (value: string) => void;
 }
 
 export const AppModals: React.FC<AppModalsProps> = ({
@@ -29,6 +33,10 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onCloseCRMModal,
   onSavePitchChanges,
   onSaveCRMLead,
+  onTogglePreviewMode,
+  onToggleEditorMode,
+  onSubjectChange,
+  onBodyChange,
 }) => {
   if (!activePitch && !isCRMModalOpen) return null;
 
@@ -41,10 +49,10 @@ export const AppModals: React.FC<AppModalsProps> = ({
           editedSubject={editedSubject}
           editedBody={editedBody}
           onClose={onClosePitchPreview}
-          onTogglePreviewMode={() => {}}
-          onToggleEditorMode={() => {}}
-          onSubjectChange={() => {}}
-          onBodyChange={() => {}}
+          onTogglePreviewMode={onTogglePreviewMode}
+          onToggleEditorMode={onToggleEditorMode}
+          onSubjectChange={onSubjectChange}
+          onBodyChange={onBodyChange}
           onSave={onSavePitchChanges}
         />
       )}

@@ -112,6 +112,10 @@ export async function sendPitch(id: string): Promise<OutreachPitch> {
   return api<OutreachPitch>(`/pitches/${id}/send`, { method: "POST" });
 }
 
+export async function schedulePitch(id: string): Promise<OutreachPitch> {
+  return api<OutreachPitch>(`/pitches/${id}/schedule`, { method: "POST" });
+}
+
 export async function deletePitch(id: string): Promise<void> {
   await api(`/pitches/${id}`, { method: "DELETE" });
 }

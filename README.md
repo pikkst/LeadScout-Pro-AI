@@ -90,6 +90,9 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 - HTML preview with live iframe and raw source editor
 - Bulk send, retry failed sends, and track delivery status
 - **Pitch Event Timeline**: see SENT → DELIVERED → OPENED → CLICKED → REPLIED events per pitch
+- **Send-Time Optimization**: AI recommends the best day/hour to send each pitch
+- **Scheduled Send**: automatically queue pitches for delivery at the optimized time
+- **Inbound Reply Tracking**: when a lead replies, the system can automatically match the reply to the original pitch and update lead stage to Negotiation
 
 ### 5. Real Email Delivery (SMTP)
 - Configurable from the UI — no `.env` editing after deployment
@@ -229,7 +232,9 @@ Sign in with the seeded admin:
 | `ALLOW_PUBLIC_REGISTRATION` | `true` to allow self-registration |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | SMTP settings for real email |
 | `SMTP_FROM_NAME` / `SMTP_FROM_EMAIL` | Sender identity |
+| `RESEND_API_KEY` | Resend API key for inbound reply fetching |
 | `RESEND_WEBHOOK_SECRET` | Resend signing secret for webhook verification |
+| `INBOUND_EMAIL_ADDRESS` | Mailbox address used for reply tracking (default: `replies@eventnexus.eu`) |
 
 > **Security note:** The Gemini API key and SMTP password are **never** sent to the browser. They stay on the server.
 
@@ -298,7 +303,9 @@ The AI generates personalized outreach emails for each selected lead using your 
    - Toggle between Live Preview and Raw Source Editor
    - Modify subject and body
    - Save changes
-4. Click **Send Email** to dispatch via SMTP
+4. Choose how to send:
+   - **Send Email** — send immediately via SMTP
+   - **Schedule** — let AI pick the optimal send time and queue the pitch for automatic delivery
 5. Use **Bulk Send All Drafts** for batch sending
 
 ### Step 6: Track Outreach & Advance Pipeline
@@ -306,8 +313,11 @@ The AI generates personalized outreach emails for each selected lead using your 
 1. Go to **Executive Analytics** tab to view:
    - Delivery status logs
    - Sent outreach tracking
-2. When a partner replies, click **Mark as Replied**
-   - Lead automatically advances to **Negotiation** stage
+2. When a partner replies, the system can automatically:
+   - Detect the reply via Resend `email.received` webhook
+   - Match it to the original pitch using `Message-ID`
+   - Mark the pitch as **Replied**
+   - Advance the lead to **Negotiation** stage
 3. Use **CRM Client Database** tab to:
    - Drag leads across pipeline stages
    - Add follow-up tasks
@@ -349,6 +359,12 @@ All runtime configuration is managed from the **Settings** tab — **no `.env` e
 - **Test Email Connection** button
 
 > **Resend note:** Defaults to port 587 + STARTTLS (`secure: false`). Do not enable TLS/SSL (port 465) with the Resend preset — it will cause a "wrong version number" error.
+>
+> **Inbound replies:** To automatically detect when a lead replies to an outreach email:
+> 1. In Resend, go to **Webhooks** and add a new webhook with event type `email.received`
+> 2. Set the URL to your server: `https://eventnexus.eu/api/inbound/resend`
+> 3. Copy the webhook Signing Secret into `RESEND_WEBHOOK_SECRET` and set `RESEND_API_KEY` and `INBOUND_EMAIL_ADDRESS`
+> 4. The server verifies the Svix signature against the raw request body, fetches the full email via Resend API, matches all `In-Reply-To`/`References` message IDs, and updates the pitch/lead status automatically
 
 ### Company Profile
 - Company name, logo, website
@@ -419,7 +435,7 @@ Place screenshots in the `docs/screenshots/` folder (create it if needed) and re
 
 ## API Overview
 
-All non-auth routes require a Bearer token (or the `unitel_token` auth cookie).
+All non-auth routes require a Bearer token in the `Authorization` header.
 
 ### Authentication
 
@@ -454,6 +470,7 @@ All non-auth routes require a Bearer token (or the `unitel_token` auth cookie).
 | POST | `/api/pitches/generate` | Generate + save a pitch for a lead |
 | PATCH | `/api/pitches/:id` | Edit a pitch |
 | POST | `/api/pitches/:id/send` | Send via SMTP |
+| POST | `/api/pitches/:id/schedule` | AI-scheduled send at optimal time |
 | DELETE | `/api/pitches/:id` | Delete pitch |
 
 ### AI
@@ -481,6 +498,7 @@ All non-auth routes require a Bearer token (or the `unitel_token` auth cookie).
 | Method | Route | Description |
 |--------|-------|-------------|
 | POST | `/api/webhooks/resend` | Resend delivery tracking webhook |
+| POST | `/api/inbound/resend` | Resend inbound reply webhook |
 
 ### Other
 
@@ -635,7 +653,7 @@ PORT=3001
 - Verify webhook URL is `https://your-domain/api/webhooks/resend`
 - Check `RESEND_WEBHOOK_SECRET` matches the Resend signing secret
 - Check server logs for incoming webhook requests
-- Without the secret, the endpoint accepts all events (useful for local testing)
+- A missing signing secret disables the endpoint with `503 WEBHOOK_NOT_CONFIGURED`; invalid or replayed signatures return `401 BAD_SIGNATURE`
 
 ### Prisma migration issues
 
@@ -700,6 +718,14 @@ All API requests require the header: `Authorization: Bearer <your-api-key>`
 - New endpoints: `POST /api/optimization/send-time/:leadId`, `POST /api/monitoring/lead/:leadId/check`, `GET /api/optimization/coaching/me`
 - Added monitoring alerts and coaching insights UI to Analytics, CRM, and Scout tabs
 - Added vitest tests for Stage 3 optimization and monitoring logic
+
+### Stage 4 — Scheduled Sending & Inbound Reply Tracking (2026-07-22)
+- **Scheduled Send**: queue pitches for automatic delivery at AI-recommended times via `POST /api/pitches/:id/schedule`
+- **Pitch Scheduler**: server-side job loop sends due pitches and advances leads to `Contacted` automatically
+- **Inbound Reply Tracking**: Resend `email.received` webhook matches replies to original pitches by `Message-ID` and updates pitch/lead status to `Replied`/`Negotiation`
+- **Duplicate-send protection**: scheduler atomically clears the schedule before SMTP delivery and marks permanent send errors as `FAILED`, preventing restart retries from sending a delivered pitch twice
+- **Absolute image URLs**: company logos in outreach emails now use absolute URLs on the sending domain to improve deliverability
+- Added `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `INBOUND_EMAIL_ADDRESS`, and `BASE_URL` configuration options
 
 ---
 

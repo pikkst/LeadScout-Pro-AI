@@ -2,7 +2,16 @@
 
 Base URL: `/api`
 
-All endpoints require authentication via session cookie or `Authorization: Bearer <token>` header.
+All endpoints require authentication via an `Authorization: Bearer <token>` header.
+
+## Notifications
+
+```text
+GET /api/auth/notifications
+PATCH /api/auth/notifications/read-all
+```
+
+The list includes a persisted `read` flag. The mutation marks all notifications belonging to the authenticated user as read.
 
 ## Leads
 
@@ -94,6 +103,24 @@ POST /api/pitches
 ### Send pitch
 ```
 POST /api/pitches/:id/send
+```
+
+Manual sends use the authenticated sender's email as `Reply-To`. Scheduled sends use the configured inbound mailbox so replies can be matched automatically.
+
+### Schedule pitch
+```
+POST /api/pitches/:id/schedule
+```
+
+Response: updated pitch with `scheduledSendAt` set to the AI-recommended delivery time.
+
+```json
+{
+  "id": "pitch-id",
+  "status": "DRAFT",
+  "scheduledSendAt": "2026-07-22T10:00:00.000Z",
+  ...
+}
 ```
 
 ### Generate pitches for leads
@@ -405,9 +432,12 @@ Body:
   "slotId": "slot-id",
   "leadId": "lead-id",
   "title": "Demo Meeting",
-  "agenda": "Product demo"
+  "agenda": "Product demo",
+  "pitchId": "optional-pitch-id"
 }
 ```
+
+`pitchId`, when supplied, must be a non-empty string. Agents may book only their own slots; admins and managers may book any agent's slot.
 
 ### List meetings
 ```
@@ -486,8 +516,41 @@ POST /api/webhooks/resend
 ```
 
 Headers:
+- `svix-id` - unique webhook delivery ID (also used for replay protection)
 - `svix-signature` - Resend signature for verification
 - `svix-timestamp` - Timestamp for signature verification
+
+`RESEND_WEBHOOK_SECRET` is required. Missing configuration returns `503`; invalid or replayed signatures return `401`.
+
+## Inbound
+
+### Resend inbound webhook
+```
+POST /api/inbound/resend
+```
+
+Accepts Resend `email.received` events. The server fetches the full email via Resend API, parses `In-Reply-To`/`References`, and if it matches a sent pitch’s `Message-ID`, updates the pitch status to `REPLIED` and advances the lead to `NEGOTIATION`.
+
+Request body shape:
+```json
+{
+  "type": "email.received",
+  "data": {
+    "email_id": "resend-email-id"
+  }
+}
+```
+
+The `svix-id`, `svix-timestamp`, and `svix-signature` headers are required and are verified against the unmodified raw request body before the inbound event is processed.
+
+Response:
+```json
+{
+  "ok": true,
+  "matched": true,
+  "pitchId": "pitch-id"
+}
+```
 
 ## Events
 

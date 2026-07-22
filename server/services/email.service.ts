@@ -3,6 +3,7 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { HttpError } from "../utils/httpError";
 import { getEmailSettings } from "./settings.service";
+import { config } from "../config";
 
 let transporter: Transporter | null = null;
 let transporterSignature = "";
@@ -36,6 +37,8 @@ export interface SendPitchInput {
   text: string;
   replyTo?: string;
   pitchId?: string;
+  inReplyToMessageId?: string;
+  references?: string[];
 }
 
 export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId: string }> {
@@ -48,7 +51,9 @@ export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId
       subject: input.subject,
       html: input.html,
       text: input.text,
-      replyTo: input.replyTo || fromEmail,
+      replyTo: input.replyTo || config.inboundEmailAddress || fromEmail,
+      inReplyTo: input.inReplyToMessageId,
+      references: input.references,
       // Resend tags let the delivery webhook map events back to this pitch.
       ...(input.pitchId
         ? { tags: [{ name: "pitchId", value: input.pitchId }] }
@@ -100,7 +105,41 @@ export async function verifySmtpConfig(cfg: {
   }
 }
 
-/** Invalidate the cached transporter (call after settings change). */
+export async function sendMeetingNotificationEmail(params: {
+  to: string;
+  agentName: string;
+  leadName: string;
+  leadEmail: string;
+  date: string;
+  time: string;
+  title: string;
+}): Promise<{ messageId?: string; error?: string }> {
+  try {
+    const { tx, fromName, fromEmail } = await getTransporter();
+    const subject = `New meeting booked: ${params.title}`;
+    const html = `
+      <p>Hi ${params.agentName},</p>
+      <p>A new meeting has been booked with you:</p>
+      <ul>
+        <li><strong>Meeting:</strong> ${params.title}</li>
+        <li><strong>Date:</strong> ${params.date}</li>
+        <li><strong>Time:</strong> ${params.time}</li>
+        <li><strong>With:</strong> ${params.leadName} (${params.leadEmail})</li>
+      </ul>
+    `;
+    const text = `New meeting booked: ${params.title} on ${params.date} at ${params.time} with ${params.leadName} (${params.leadEmail})`;
+    const info = await tx.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: params.to,
+      subject,
+      html,
+      text,
+    });
+    return { messageId: info.messageId };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
 export function resetEmailTransport(): void {
   transporter = null;
   transporterSignature = "";

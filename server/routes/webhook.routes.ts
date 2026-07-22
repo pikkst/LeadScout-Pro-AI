@@ -1,11 +1,12 @@
 // Resend delivery webhook: maps Resend email events (delivered/opened/bounced)
 // back to pitches via the "pitchId" tag and updates their status.
 // Set RESEND_WEBHOOK_SECRET (the Signing Secret from Resend) to verify signatures.
-import { Router, Request } from "express";
-import crypto from "crypto";
+import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { prisma } from "../db";
 import { pitchStatusToDb } from "../utils/serializers";
+import { getEmailSettings } from "../services/settings.service";
+import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook";
 
 export const webhookRouter = Router();
 
@@ -18,27 +19,19 @@ const webhookLimiter = rateLimit({
 });
 webhookRouter.use(webhookLimiter);
 
-function verifyResendSignature(req: Request, secret: string): boolean {
-  const signature = req.header("svix-signature") || req.header("resend-signature");
-  const timestamp = req.header("svix-timestamp");
-  const rawBody = (req as Request & { rawBody?: string }).rawBody || "";
-  if (!signature || !timestamp) return false;
-  // Resend signatures look like: <timestamp>.<uuid>.<hex>
-  const parts = signature.split(".");
-  const payload = `${timestamp}.${rawBody}`;
-  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  const candidate = parts[parts.length - 1];
-  if (candidate.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(expected));
-}
+webhookRouter.post("/resend", async (req: RawBodyRequest, res) => {
+  const { webhookSecret } = await getEmailSettings();
+  if (!webhookSecret) {
+    return res.status(503).json({ error: "Resend webhook signing secret is not configured", code: "WEBHOOK_NOT_CONFIGURED" });
+  }
 
-webhookRouter.post("/resend", async (req: Request & { rawBody?: string }, res) => {
-  const secret = process.env.RESEND_WEBHOOK_SECRET;
-  if (secret && !verifyResendSignature(req, secret)) {
+  let evt: { type?: string; data?: { tags?: Array<{ name: string; value: string }> } };
+  try {
+    evt = verifyResendWebhook(req, webhookSecret) as typeof evt;
+  } catch {
     return res.status(401).json({ error: "Invalid signature", code: "BAD_SIGNATURE" });
   }
 
-  const evt = req.body as { type?: string; data?: { tags?: Array<{ name: string; value: string }> } };
   const type = evt?.type;
   const tags = evt?.data?.tags || [];
   const pitchId = tags.find((t) => t.name === "pitchId")?.value;

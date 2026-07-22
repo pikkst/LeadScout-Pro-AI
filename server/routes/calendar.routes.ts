@@ -1,11 +1,14 @@
 // Calendar & Meeting scheduling routes
 import { Router } from "express";
 import { z } from "zod";
+import { LeadStage } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { notFound } from "../utils/httpError";
+import { forbidden, notFound } from "../utils/httpError";
 import { requireAuth } from "../middleware/auth";
 import { param } from "../utils/param";
+import { logActivity } from "../utils/activity";
+import { canBookAgentSlot } from "../utils/calendarBooking";
 
 export const calendarRouter = Router();
 calendarRouter.use(requireAuth);
@@ -24,8 +27,16 @@ const meetingSchema = z.object({
   time: z.string(),
   duration: z.coerce.number().min(15).max(120).default(30),
   type: z.enum(["CALL", "MEETING", "DEMO", "FOLLOW_UP"]).default("CALL"),
-  agenda: z.string().default(""),
-  agentId: z.string(),
+  agenda: z.string().optional().default(""),
+  pitchId: z.string().min(1).optional().nullable(),
+});
+
+const bookSlotSchema = z.object({
+  slotId: z.string().min(1),
+  leadId: z.string().min(1),
+  title: z.string().max(200).optional().default(""),
+  agenda: z.string().optional().default(""),
+  pitchId: z.string().min(1).optional().nullable(),
 });
 
 // ---- List available slots for booking ----
@@ -117,15 +128,13 @@ calendarRouter.post("/slots/bulk", asyncHandler(async (req, res) => {
 
 // ---- Book a slot and create meeting ----
 calendarRouter.post("/book", asyncHandler(async (req, res) => {
-  const { slotId, leadId, title, agenda } = req.body as {
-    slotId: string;
-    leadId: string;
-    title: string;
-    agenda?: string;
-  };
+  const { slotId, leadId, title, agenda, pitchId } = bookSlotSchema.parse(req.body);
 
   const slot = await prisma.meetingSlot.findUnique({ where: { id: slotId } });
   if (!slot || !slot.isAvailable || slot.isBooked) throw notFound("Slot not available");
+  if (!canBookAgentSlot(req.user!, slot.agentId)) {
+    throw forbidden("Only the slot owner or a manager can book this slot.");
+  }
 
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) throw notFound("Lead not found");
@@ -138,6 +147,12 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
       time: slot.startTime,
       agenda: agenda || "",
       type: "MEETING",
+      agentId: slot.agentId,
+      pitchId: pitchId ?? null,
+    },
+    include: {
+      agent: { select: { name: true, email: true } },
+      lead: { select: { name: true, email: true } },
     },
   });
 
@@ -146,7 +161,53 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
     data: { isBooked: true, meetingId: meeting.id },
   });
 
-  res.json(meeting);
+  const response = {
+    ...meeting,
+    agentName: meeting.agent?.name ?? null,
+    lead: { name: meeting.lead.name, email: meeting.lead.email },
+  };
+
+  const nextStage: LeadStage | null = lead.stage === LeadStage.DISCOVERED
+    ? LeadStage.CONTACTED
+    : lead.stage === LeadStage.CONTACTED
+      ? LeadStage.NEGOTIATION
+      : null;
+  if (nextStage) {
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { stage: nextStage, lastContactedAt: new Date() },
+    });
+  }
+
+  await logActivity({
+    action: "MEETING_BOOKED",
+    detail: `${title || `Meeting with ${lead.name}`} on ${slot.date} ${slot.startTime} (agent: ${slot.agentId})`,
+    userId: req.user!.id,
+    leadId,
+  });
+
+  await logActivity({
+    action: "YOUR_SLOT_BOOKED",
+    detail: `${title || `Meeting with ${lead.name}`} on ${slot.date} ${slot.startTime} with ${lead.email}`,
+    userId: slot.agentId,
+    leadId,
+  });
+
+  const agent = meeting.agent;
+  if (agent?.email && slot.agentId !== req.user!.id) {
+    const { sendMeetingNotificationEmail } = await import("../services/email.service");
+    void sendMeetingNotificationEmail({
+      to: agent.email,
+      agentName: agent.name,
+      leadName: lead.name,
+      leadEmail: lead.email,
+      date: slot.date,
+      time: slot.startTime,
+      title: title || `Meeting with ${lead.name}`,
+    });
+  }
+
+  res.status(201).json(response);
 }));
 
 // ---- List meetings ----
@@ -167,11 +228,17 @@ calendarRouter.get("/meetings", asyncHandler(async (req, res) => {
 
   const meetings = await prisma.meeting.findMany({
     where,
-    include: { lead: { select: { name: true, email: true } } },
+    include: {
+      agent: { select: { name: true } },
+      lead: { select: { name: true, email: true } },
+    },
     orderBy: { date: "asc" },
   });
 
-  res.json(meetings);
+  res.json(meetings.map((m) => ({
+    ...m,
+    agentName: m.agent?.name ?? null,
+  })));
 }));
 
 // ---- Cancel meeting ----

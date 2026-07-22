@@ -22,6 +22,15 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Dev CSP connect-src must derive WebSocket origins from configuration (e.g. config.port) rather than hardcoding arbitrary port numbers
 - Always provide a favicon.ico in public/ to prevent avoidable 404 noise in browser console
 - After every PR review (human or bot), update AGENTS.md Lessons Learned and checklist with any new findings so future sessions avoid repeating the same mistake
+- Resend inbound `email.received` webhook delivers metadata only; full raw email must be fetched via Resend API using the email_id
+- Scheduled pitch senders must use absolute image URLs on the sending domain to avoid spam-filter issues in Gmail and other clients
+- Pitch scheduler idempotency requires both in-memory locks and DB-level recheck, because job loops can run across multiple server restarts
+- New inbound/webhook routes need raw-body middleware mounted before the global JSON parser
+- When adding settings-backed secrets, extend both `SETTING_DEFS` and the returned settings object, otherwise callers will get type errors
+- Verify every external webhook against the exact raw body with the provider-supported library; fail closed when the signing secret is missing
+- Scheduled external side effects need an atomic database claim before the provider call and a terminal failure state for permanent errors
+- Authorization must be checked against the target resource owner, not only at router level
+- Persist notification read state and expose a mutation endpoint before displaying unread counts
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility
@@ -31,6 +40,8 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 
 ## Code Review Checklist (After Every Stage)
 - [ ] Security: input validation, auth checks, SQL injection, XSS, secrets exposure
+- [ ] Webhooks: raw-body signature verification, replay protection, and fail-closed secret configuration
+- [ ] Background jobs: atomic claim, crash behavior, and terminal failure handling
 - [ ] DB: migrations safe, indexes present, no N+1 queries, cascade rules correct
 - [ ] Nesting: no deep callback hell, async/await used correctly
 - [ ] Duplicates: no repeated logic, shared utilities extracted

@@ -34,6 +34,7 @@ model User {
   apiKeys ApiKey[] @relation("ApiKeys")
   sendTimeOptimizations SendTimeOptimization[] @relation("SendTimeOptimizations")
   coachingInsights AgentCoaching[] @relation("AgentCoaching")
+  scheduledMeetings Meeting[] @relation("AgentMeetings")
 
   @@index([role])
   @@map("users")
@@ -155,9 +156,16 @@ model Meeting {
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
+  pitchId String?
+  pitch   Pitch?  @relation("MeetingPitches", fields: [pitchId], references: [id], onDelete: SetNull)
+
+  agentId String?
+  agent   User?   @relation("AgentMeetings", fields: [agentId], references: [id], onDelete: SetNull)
+
   slots MeetingSlot[]
 
   @@index([leadId])
+  @@index([agentId])
   @@map("meetings")
 }
 
@@ -196,6 +204,7 @@ model Pitch {
   status          PitchStatus @default(DRAFT)
   opened          Boolean     @default(false)
   sentAt          DateTime?
+  scheduledSendAt DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -206,6 +215,16 @@ model Pitch {
 
   createdById String?
   createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  sentFromEmail String? // actual sender email used at send time (for audit)
+  sentFromName  String? // actual sender name used at send time
+  replyToEmail  String? // where replies should go (agent email or SMTP from)
+  sentMessageId String? // SMTP Message-ID for reply threading
+
+  inReplyTo Pitch?   @relation("ReplyChain", fields: [inReplyToId], references: [id], onDelete: SetNull)
+  inReplyToId String? @unique
+  replies Pitch[] @relation("ReplyChain")
+  meetings Meeting[] @relation("MeetingPitches")
 
   events PitchEvent[]
 
@@ -228,6 +247,7 @@ model ActivityLog {
   action    String
   detail    String   @default("")
   createdAt DateTime @default(now())
+  readAt    DateTime?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -237,6 +257,7 @@ model ActivityLog {
 
   @@index([leadId])
   @@index([userId])
+  @@index([userId, readAt])
   @@map("activity_logs")
 }
 

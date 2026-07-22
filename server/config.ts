@@ -36,8 +36,6 @@ export const config = {
     return secret;
   })(),
   jwtExpiresIn: optional(process.env.JWT_EXPIRES_IN, "7d"),
-  cookieName: optional(process.env.AUTH_COOKIE_NAME, "unitel_token"),
-
   // CORS
   corsOrigin: isProduction
     ? required("CORS_ORIGIN", process.env.CORS_ORIGIN)
@@ -64,6 +62,14 @@ export const config = {
   get emailEnabled(): boolean {
     return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
   },
+
+  // Public base URL for absolute links in emails and webhooks.
+  baseUrl: isProduction
+    ? required("BASE_URL", process.env.BASE_URL)
+    : process.env.BASE_URL || "http://localhost:3000",
+
+  // Inbound replies mailbox on the sending domain.
+  inboundEmailAddress: process.env.INBOUND_EMAIL_ADDRESS || "replies@eventnexus.eu",
 };
 
 export type AppConfig = typeof config;

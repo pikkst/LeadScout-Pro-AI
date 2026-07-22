@@ -366,13 +366,14 @@ leadsRouter.delete(
 
 // ---- Meetings ----
 const meetingSchema = z.object({
-  title: z.string().min(1),
-  date: z.string(),
-  time: z.string(),
-  duration: z.number().int().positive().optional(),
-  type: z.enum(["Call", "Meeting", "Demo", "Follow-up"]).optional(),
-  agenda: z.string().optional(),
+  title: z.string().min(1).max(200),
+  date: z.string().min(1),
+  time: z.string().min(1),
+  duration: z.number().int().nonnegative().optional().default(30),
+  type: z.enum(["CALL", "MEETING", "DEMO", "FOLLOW_UP"]).default("CALL"),
+  agenda: z.string().optional().default(""),
   link: z.string().optional(),
+  pitchId: z.string().min(1).optional().nullable(),
 });
 
 leadsRouter.post(
@@ -392,6 +393,7 @@ leadsRouter.post(
         type: meetingTypeToDb(body.type),
         agenda: body.agenda ?? "",
         link: body.link,
+        pitchId: body.pitchId ?? null,
       },
     });
     await logActivity({ action: "MEETING_SCHEDULED", detail: body.title, userId: req.user!.id, leadId: lead.id });

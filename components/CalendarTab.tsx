@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Plus, Trash2, Users, CheckCircle, XCircle, Brain, Loader2 } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, Users, CheckCircle, XCircle, Brain, Loader2, Bell } from 'lucide-react';
+import { api } from '../services/apiClient';
+import { CompanyLead } from '../types';
 
 interface Slot {
   id: string;
@@ -8,7 +10,7 @@ interface Slot {
   endTime: string;
   isAvailable: boolean;
   isBooked: boolean;
-  agent: { name: string };
+  agent: { id: string; name: string };
 }
 
 interface Meeting {
@@ -21,6 +23,8 @@ interface Meeting {
   agenda: string;
   link?: string;
   lead: { name: string; email: string };
+  agentId?: string;
+  agentName?: string;
 }
 
 interface MeetingPrepState {
@@ -30,10 +34,18 @@ interface MeetingPrepState {
   recommendedApproach: string;
 }
 
+interface Notification {
+  id: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+}
+
 const CalendarTab: React.FC = () => {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+  const [leads, setLeads] = useState<CompanyLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -42,6 +54,8 @@ const CalendarTab: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [meetingPrep, setMeetingPrep] = useState<Record<string, MeetingPrepState>>({});
   const [prepLoading, setPrepLoading] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [slotForm, setSlotForm] = useState({
     date: '',
@@ -58,23 +72,32 @@ const CalendarTab: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const data = await api<Notification[]>('/auth/notifications');
+      setNotifications(data.slice(0, 20));
+    } catch (error) {
+      // silent
+    }
+  };
 
   const loadData = async () => {
     try {
-      const [slotsRes, meetingsRes, usersRes] = await Promise.all([
-        fetch('/api/calendar/slots'),
-        fetch('/api/calendar/meetings'),
-        fetch('/api/auth/users'),
-      ]);
-      const [slotsData, meetingsData, usersData] = await Promise.all([
-        slotsRes.json(),
-        meetingsRes.json(),
-        usersRes.json(),
+      const [slotsData, meetingsData, usersData, leadsData] = await Promise.all([
+        api<Slot[]>('/calendar/slots'),
+        api<Meeting[]>('/calendar/meetings'),
+        api<{ id: string; name: string; role: string }[]>('/auth/users'),
+        api<CompanyLead[]>('/leads'),
       ]);
       setSlots(slotsData);
       setMeetings(meetingsData);
-      setAgents(usersData.filter((u: { role: string }) => u.role !== 'ADMIN'));
+      setAgents(usersData.filter(u => u.role !== 'ADMIN'));
+      setLeads(leadsData);
     } catch (error) {
       console.error('Failed to load calendar data:', error);
     } finally {
@@ -85,9 +108,8 @@ const CalendarTab: React.FC = () => {
   const handleCreateSlots = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch('/api/calendar/slots/bulk', {
+      await api('/calendar/slots/bulk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...slotForm,
           interval: 30,
@@ -96,6 +118,7 @@ const CalendarTab: React.FC = () => {
       await loadData();
       setShowSlotForm(false);
       setSlotForm({ date: '', startTime: '09:00', endTime: '17:00', agentId: '' });
+      addNotification('Time slots created successfully');
     } catch (error) {
       console.error('Failed to create slots:', error);
     }
@@ -104,19 +127,32 @@ const CalendarTab: React.FC = () => {
   const handleBookSlot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSlot) return;
+    const previousLead = leads.find(l => l.id === meetingForm.leadId);
+    const previousStage = previousLead?.stage;
     try {
-      await fetch('/api/calendar/book', {
+      const meeting = await api<Meeting>('/calendar/book', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slotId: selectedSlot.id,
-          ...meetingForm,
+          leadId: meetingForm.leadId,
+          title: meetingForm.title,
+          agenda: meetingForm.agenda,
         }),
       });
       await loadData();
       setShowBookingForm(false);
       setSelectedSlot(null);
       setMeetingForm({ leadId: '', title: '', agenda: '' });
+      addNotification(`Meeting booked: ${meeting.title} on ${meeting.date}`);
+
+      const leadName = meeting.lead?.name || previousLead?.name;
+      if (leadName) {
+        if (previousStage === 'Discovered') {
+          addNotification(`Lead "${leadName}" automatically moved to Contacted after booking.`);
+        } else if (previousStage === 'Contacted') {
+          addNotification(`Lead "${leadName}" automatically moved to Negotiation after booking.`);
+        }
+      }
     } catch (error) {
       console.error('Failed to book slot:', error);
     }
@@ -125,8 +161,9 @@ const CalendarTab: React.FC = () => {
   const handleCancelMeeting = async (id: string) => {
     if (!confirm('Cancel this meeting?')) return;
     try {
-      await fetch(`/api/calendar/meetings/${id}`, { method: 'DELETE' });
+      await api(`/calendar/meetings/${id}`, { method: 'DELETE' });
       await loadData();
+      addNotification('Meeting cancelled');
     } catch (error) {
       console.error('Failed to cancel meeting:', error);
     }
@@ -135,16 +172,23 @@ const CalendarTab: React.FC = () => {
   const handleGeneratePrep = async (meetingId: string) => {
     setPrepLoading(meetingId);
     try {
-      const res = await fetch(`/api/ai/meeting-prep/${meetingId}`, { method: 'POST', credentials: 'include' });
-      if (res.ok) {
-        const prep = await res.json();
-        setMeetingPrep(prev => ({ ...prev, [meetingId]: prep }));
-      }
+      const prep = await api<MeetingPrepState>(`/ai/meeting-prep/${meetingId}`, { method: 'POST' });
+      setMeetingPrep(prev => ({ ...prev, [meetingId]: prep }));
     } catch (error) {
       console.error('Failed to generate meeting prep:', error);
     } finally {
       setPrepLoading(null);
     }
+  };
+
+  const addNotification = (message: string) => {
+    const notification: Notification = {
+      id: Date.now().toString(),
+      message,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false,
+    };
+    setNotifications(prev => [notification, ...prev].slice(0, 20));
   };
 
   const formatDate = (dateStr: string) => {
@@ -166,10 +210,26 @@ const CalendarTab: React.FC = () => {
   };
 
   const filteredSlots = slots.filter(slot => {
-    if (selectedAgent && slot.agent.name !== selectedAgent) return false;
+    if (selectedAgent && slot.agent?.name !== selectedAgent) return false;
     if (selectedDate && slot.date !== selectedDate) return false;
     return true;
   });
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const toggleNotifications = async () => {
+    const opening = !showNotifications;
+    setShowNotifications(opening);
+    if (opening && unreadCount > 0) {
+      setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+      try {
+        await api('/auth/notifications/read-all', { method: 'PATCH' });
+      } catch (error) {
+        console.error('Failed to mark notifications as read:', error);
+        void loadNotifications();
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -193,6 +253,38 @@ const CalendarTab: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={toggleNotifications}
+              className="p-2 text-slate-400 hover:text-white transition-colors relative"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            {showNotifications && (
+              <div className="absolute right-0 top-10 w-80 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto">
+                <div className="p-3 border-b border-slate-800">
+                  <h4 className="text-xs font-bold text-white">Notifications</h4>
+                </div>
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-xs text-slate-500">No notifications</div>
+                ) : (
+                  <div className="divide-y divide-slate-800">
+                    {notifications.map(n => (
+                      <div key={n.id} className="p-3 hover:bg-slate-850">
+                        <div className="text-xs text-slate-300">{n.message}</div>
+                        <div className="text-[10px] text-slate-500 mt-1">{n.timestamp}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <select
             value={selectedAgent}
             onChange={(e) => setSelectedAgent(e.target.value)}
@@ -243,7 +335,7 @@ const CalendarTab: React.FC = () => {
               }`}
             >
               <div className="font-bold">{slot.startTime}</div>
-              <div className="text-[10px] opacity-70">{slot.agent.name}</div>
+              <div className="text-[10px] opacity-70">{slot.agent?.name}</div>
             </button>
           ))}
           {filteredSlots.length === 0 && (
@@ -277,6 +369,11 @@ const CalendarTab: React.FC = () => {
                   <div className="text-xs text-slate-500">
                     With: {meeting.lead.name} ({meeting.lead.email})
                   </div>
+                  {meeting.agentName && (
+                    <div className="text-xs text-slate-500">
+                      Agent: {meeting.agentName}
+                    </div>
+                  )}
                   {meeting.agenda && (
                     <div className="text-xs text-slate-500 mt-1">{meeting.agenda}</div>
                   )}
@@ -449,7 +546,7 @@ const CalendarTab: React.FC = () => {
             <div className="text-xs text-slate-400 mb-4">
               {selectedSlot.date} at {selectedSlot.startTime} - {selectedSlot.endTime}
               <br />
-              with {selectedSlot.agent.name}
+              with {selectedSlot.agent?.name}
             </div>
             <form onSubmit={handleBookSlot} className="space-y-4">
               <div>
@@ -463,8 +560,8 @@ const CalendarTab: React.FC = () => {
                   required
                 >
                   <option value="">Select lead</option>
-                  {agents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                  {leads.map((lead) => (
+                    <option key={lead.id} value={lead.id}>{lead.name}</option>
                   ))}
                 </select>
               </div>

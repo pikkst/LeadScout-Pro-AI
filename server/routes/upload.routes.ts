@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware/auth";
 import { requireRole } from "../middleware/auth";
 import { updateSettings, getCompanyProfile } from "../services/settings.service";
 import { HttpError } from "../utils/httpError";
+import { config } from "../config";
 
 export const uploadRouter = Router();
 uploadRouter.use(requireAuth, requireRole("ADMIN"));
@@ -42,15 +43,22 @@ const upload = multer({
   },
 });
 
+function toAbsoluteUrl(req: Request, relativePath: string): string {
+  const host = req.get("host");
+  const protocol = req.secure ? "https" : "http";
+  return `${protocol}://${host}${relativePath}`;
+}
+
 // Upload or replace the logo.
 uploadRouter.post(
   "/company-logo",
   upload.single("logo"),
   async (req: Request & { file?: Express.Multer.File }, res) => {
     if (!req.file) throw new HttpError(400, "No logo file provided.", "BAD_FILE");
-    const url = `/uploads/${req.file.filename}`;
-    await updateSettings({ COMPANY_LOGO_URL: url }, req.user!.id);
-    res.status(200).json({ url, logoUrl: url });
+    const relativePath = `/uploads/${req.file.filename}`;
+    const absoluteUrl = toAbsoluteUrl(req, relativePath);
+    await updateSettings({ COMPANY_LOGO_URL: absoluteUrl }, req.user!.id);
+    res.status(200).json({ url: relativePath, logoUrl: absoluteUrl });
   },
 );
 
