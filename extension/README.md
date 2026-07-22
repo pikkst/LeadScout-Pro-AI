@@ -31,10 +31,12 @@ Right-click on any page and select "Add to LeadScout PRO AI" to quickly add a le
 ## Configuration
 
 1. Open the extension popup
-2. Click the settings icon (or visit Settings in the main app)
+2. Expand **Connection settings** in the popup
 3. In the main app, create an API key with the `write` scope under **Settings → API Keys**
-4. Enter your LeadScout PRO AI API URL (default: `http://localhost:3000`) and the API key
-5. Save the connection settings; the raw API key is shown by the app only once
+4. Enter the LeadScout origin (default: `http://localhost:3000`) and the API key
+5. Save the connection settings; the main app shows the raw API key only once
+
+The extension calls `POST /api/integrations/leads` with `X-API-Key`. A duplicate normalized email or domain returns the existing lead instead of creating another record.
 
 ## Supported Sites
 

@@ -28,7 +28,8 @@
 11. [Development](#development)
 12. [Production Deployment](#production-deployment)
 13. [Troubleshooting](#troubleshooting)
-14. [License](#license)
+14. [Product Roadmap](PRODUCT_ROADMAP.md)
+15. [License](#license)
 
 ---
 
@@ -44,15 +45,18 @@ Designed for teams that need to:
 
 Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database** — all leads, pitches, and activity logs are stored server-side and visible to every authorized team member.
 
+See [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) for the product thesis, honest current limitations, north-star metric, and phased path from the current application to a solo- and team-ready revenue cockpit.
+
 ---
 
 ## Features
 
 ### 1. Team Accounts & Roles
-- Email/password authentication with JWT
+- Email/password authentication with an HttpOnly, SameSite session cookie
+- Optional bearer-token mode for CLI and trusted non-browser clients
 - Three roles: **ADMIN**, **MANAGER**, **AGENT**
 - First registered user becomes ADMIN automatically
-- Role-based access control throughout the UI
+- Role, ownership, and active-account checks enforced by the API
 
 ### 2. AI-Powered Scouting (Google Gemini)
 - **City discovery**: Find major cities in any country or region
@@ -63,6 +67,8 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 - **Lead source tracking**: AI_SCOUT, MANUAL, CSV_IMPORT, PITCH_REPLY
 
 ### 3. Shared CRM Pipeline
+- Administrator-defined pipeline stage names, colors, order, and additional stages
+- Custom lead fields for text, number, date, select, multiselect, and boolean data
 - Visual Kanban board with pipeline stages: Discovered → Contacted → Negotiation → Signed → Active
 - Follow-up task scheduling with due dates and completion tracking
 - Meeting notes and activity logging
@@ -83,7 +89,7 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 - **Meeting Prep AI**: auto-generated talking points, win themes, potential objections, and recommended approach
 - Conversion by segment and agent performance analytics
 
-### 4. AI Outreach Generator
+### 5. AI Outreach Generator
 - Generates localized partnership pitch emails in 7 languages
 - Uses your **Company Profile** (name, offerings, value prop) for brand-consistent messaging
 - **Template-based generation**: select a saved template as the structural base for AI personalization
@@ -94,42 +100,54 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 - **Scheduled Send**: automatically queue pitches for delivery at the optimized time
 - **Inbound Reply Tracking**: when a lead replies, the system can automatically match the reply to the original pitch and update lead stage to Negotiation
 
-### 5. Real Email Delivery (SMTP)
+### 6. Real Email Delivery (SMTP)
 - Configurable from the UI — no `.env` editing after deployment
 - Provider presets: Gmail, Microsoft 365/Outlook, SendGrid, Mailgun, Brevo, Zoho, Amazon SES, Resend
 - Live connection test button
 - Optional Resend webhook for delivery/open/bounce tracking
 - Auto-scheduled follow-up tasks after sending
 
-### 6. Pitch Templates
+### 7. Pitch Templates
 - Save reusable email structures for faster outreach drafting
 - CRUD operations from Settings page
 - Templates can be focused by industry segment
 - AI uses templates as structural base while personalizing content
 
-### 7. Team Collaboration
+### 8. Team Collaboration
 - **Team Activity Feed**: see who did what and when across the shared pipeline
 - Shared database — all leads, pitches, and logs visible to authorized team members
 - Lead assignment and ownership tracking
 
-### 8. Data Management
+### 9. Calendar & Public Booking
+- Per-user weekly work hours with an IANA timezone and 15/30/45/60-minute slots
+- Date-based calendar for free slots and confirmed meetings
+- Secure, expiring booking links automatically appended to sent outreach
+- Atomic booking and cancellation so a slot cannot be double-booked
+- Agent notification, attendee confirmation, and ICS invitations for local calendar applications
+- Automatic early-stage pipeline advancement after a successful booking
+
+### 10. Data Management
 - **CSV Import**: bulk import leads from CSV files
 - **CSV Export**: export pipeline to CSV for external analysis
 - JSON backup and restore
 - Column sorting in leads table
 - Lead source tracking (AI scouting, manual entry, CSV import, pitch reply)
 
-### 9. Dashboard & Analytics
+### 11. Dashboard & Analytics
 - Real-time stats: scouted profiles, selected targets, outreach sent, response rate
 - Communications log with status tracking
 - Overdue follow-up alerts with action center
 - **Browser notifications** for pitch sends and stage changes
 
-### 10. Security
+### 12. Security
 - Helmet, CORS, rate limiting
 - Input validation (Zod)
 - Hashed passwords (bcrypt)
-- AES-256-GCM encryption for secrets at rest
+- HttpOnly SameSite sessions with Origin validation for cookie-authenticated mutations
+- AES-256-GCM encryption for runtime secrets at rest with a dedicated production key
+- Hashed, scoped API keys for external integrations
+- Resource ownership checks, webhook signature verification, and durable replay protection
+- Sandboxed generated-HTML previews and locally bundled production CSS
 - Optional public self-registration toggle
 
 ---
@@ -138,12 +156,12 @@ Unlike browser-only demos, LeadScout PRO AI uses a **shared PostgreSQL database*
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19 + Vite 6 + TypeScript + Tailwind CSS (CDN) |
+| Frontend | React 19 + Vite 6 + TypeScript + locally bundled Tailwind CSS 3 |
 | Backend | Express 5 (Node.js) |
 | Database | PostgreSQL + Prisma ORM |
 | AI | Google Gemini (`@google/genai`) |
 | Email | Nodemailer (SMTP) |
-| Auth | JWT + bcrypt |
+| Auth | HttpOnly JWT session cookie + bcrypt; optional bearer mode |
 | Validation | Zod |
 
 ---
@@ -214,13 +232,17 @@ Sign in with the seeded admin:
 
 ## Configuration
 
-### Required `.env` variables
+### Required bootstrap variables
+
+`DATABASE_URL` is always required. The other entries below are required when `NODE_ENV=production`; development mode supplies local-only defaults where noted.
 
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_SECRET` | Long random secret for token signing |
-| `GEMINI_API_KEY` | Google Gemini API key (server-side only) |
+| `SETTINGS_ENCRYPTION_KEY` | Separate random 32+ character key (required in production) |
+| `CORS_ORIGIN` | Allowed browser origin, for example `https://sales.example.com` (required in production) |
+| `BASE_URL` | Public application URL used in booking links and email assets (required in production) |
 
 ### Optional `.env` variables
 
@@ -231,14 +253,14 @@ Sign in with the seeded admin:
 | `JWT_EXPIRES_IN` | Token expiry (default: `7d`) |
 | `ALLOW_PUBLIC_REGISTRATION` | `true` to allow self-registration |
 | `TRUST_PROXY` | Enable only behind a trusted reverse proxy that sets client IP headers |
-| `SETTINGS_ENCRYPTION_KEY` | Required in production; separate 32+ character key for stored settings secrets |
+| `GEMINI_API_KEY` | Bootstrap AI key; may instead be configured in Settings |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | SMTP settings for real email |
 | `SMTP_FROM_NAME` / `SMTP_FROM_EMAIL` | Sender identity |
 | `RESEND_API_KEY` | Resend API key for inbound reply fetching |
 | `RESEND_WEBHOOK_SECRET` | Resend signing secret for webhook verification |
 | `INBOUND_EMAIL_ADDRESS` | Mailbox address used for reply tracking (default: `replies@eventnexus.eu`) |
 
-> **Security note:** The Gemini API key and SMTP password are **never** sent to the browser. They stay on the server.
+> **Security note:** Secret values are masked in API responses and encrypted at rest. `DATABASE_URL`, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `CORS_ORIGIN`, and `BASE_URL` remain bootstrap environment configuration.
 
 ---
 
@@ -332,15 +354,17 @@ The AI generates personalized outreach emails for each selected lead using your 
 2. Enable "Developer mode"
 3. Click "Load unpacked" and select the `extension` folder
 4. The extension icon appears in your toolbar
-5. Visit any LinkedIn company page, Google Maps listing, or website
-6. Click the extension icon and:
+5. In **Settings → API Keys**, create a key with the `write` scope and copy it when shown
+6. Open the extension's **Connection settings**, enter the application URL and API key, and save
+7. Visit any LinkedIn company page, Google Maps listing, or website
+8. Click the extension icon and:
    - Click **Auto-fill from Page** to extract company info
    - Or fill in details manually
    - Click **Save Lead** to add to your pipeline
 
 ## In-App Settings (Admin)
 
-All runtime configuration is managed from the **Settings** tab — **no `.env` editing is required after deployment.**
+AI, email, company profile, and registration policy are managed from the **Settings** tab. Startup-critical values remain in `.env` or the deployment platform's secret manager.
 
 ### AI Engine (Google Gemini)
 - API key (masked; leave blank to keep saved value)
@@ -380,8 +404,18 @@ The AI agents read this to personalize every pitch and email in your brand voice
 ### Security & Access
 - Toggle public self-registration on/off
 
+### CRM Customization
+- Add and edit custom lead fields
+- Add, rename, recolor, reorder, activate, and deactivate deal stages
+- Stage key changes migrate matching leads transactionally; a stage in use cannot be deleted
+
+### API Keys
+- Create `read` and/or `write` scoped keys for external integrations
+- Copy the raw key when it is created; only its hash remains stored
+- Revoke keys by deleting them in Settings
+
 ### System (Read-Only)
-- Bootstrap values that stay in `.env`: `NODE_ENV`, `PORT`, database URL, JWT secret
+- Bootstrap values that stay in `.env`: `NODE_ENV`, `PORT`, database URL, JWT secret, settings encryption key, CORS origin, and public base URL
 - These cannot be moved to the database because they are needed to start the server
 
 ---
@@ -443,7 +477,7 @@ The browser uses an HttpOnly, SameSite session cookie. CLI clients can request a
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| POST | `/api/auth/register` | Create user (first user = admin; otherwise admin-only) |
+| POST | `/api/auth/register` | Create the first admin or a public-registration agent account |
 | POST | `/api/auth/login` | Log in and create a secure browser session |
 | POST | `/api/auth/logout` | Log out |
 | GET | `/api/auth/me` | Current user |
@@ -508,8 +542,11 @@ The browser uses an HttpOnly, SameSite session cookie. CLI clients can request a
 |--------|-------|-------------|
 | GET/POST | `/api/calendar/availability` | View or set recurring weekly work hours |
 | GET | `/api/calendar/slots` | List date-based available slots |
+| POST | `/api/calendar/slots` | Create one availability slot |
+| POST | `/api/calendar/slots/bulk` | Generate validated slots across a date range |
 | GET | `/api/calendar/meetings` | List confirmed meetings |
 | POST | `/api/calendar/book` | Book a slot inside the authenticated workspace |
+| DELETE | `/api/calendar/meetings/:id` | Cancel a meeting and release its slot |
 | GET/POST | `/api/public/booking/:token` | View and book an emailed invitation without signing in |
 
 Users can define working days, start/end times, IANA timezone and slot duration for 4–26 weeks. The Calendar tab displays a navigable week view with available and booked times. Sent outreach emails automatically contain a secure, expiring, single-use booking button. A confirmed booking reserves the link and slot atomically, notifies the owner, advances the lead to the next early pipeline stage, and emails a timezone-aware ICS invitation compatible with Google Calendar, Outlook, Apple Calendar and local calendar applications.
@@ -520,7 +557,7 @@ Users can define working days, start/end times, IANA timezone and slot duration 
 |--------|-------|-------------|
 | GET | `/api/stats` | Dashboard analytics |
 | GET | `/api/stats/activity` | Activity log |
-| GET | `/api/health` | Health / config status |
+| GET | `/api/health` | Minimal service health and server time |
 
 ---
 
@@ -559,8 +596,8 @@ LeadScout-Pro-AI/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start dev server with hot reload |
-| `npm run build` | Build frontend + bundle server to `dist/` |
-| `npm run start` | Run production server |
+| `npm run build` | Build frontend to `dist/` and server to `server-dist/` |
+| `npm run start` | Run the bundled server with the static frontend mounted |
 | `npm run typecheck` | Run TypeScript compiler (no emit) |
 | `npm run prisma:generate` | Generate Prisma client |
 | `npm run prisma:migrate` | Create migration (development) |
@@ -612,6 +649,9 @@ Use Nginx or Caddy to proxy `https://your-domain.com` → `http://localhost:3000
 Ensure these are set in your production environment:
 - `DATABASE_URL` — production PostgreSQL
 - `JWT_SECRET` — strong random secret
+- `SETTINGS_ENCRYPTION_KEY` — separate random 32+ character secret
+- `CORS_ORIGIN` — exact public browser origin
+- `BASE_URL` — exact public application URL
 - `GEMINI_API_KEY` — production Gemini key
 - `SMTP_*` — production SMTP credentials
 - `RESEND_WEBHOOK_SECRET` — if using Resend webhooks
@@ -620,6 +660,12 @@ Ensure these are set in your production environment:
 ---
 
 ## Troubleshooting
+
+### Browser shows `Cannot GET /`
+
+Run `npm run build`, stop every older process listening on the application port, and restart with `npm start`. The start command mounts the compiled `dist/` frontend. Open `http://localhost:3000/`; `0.0.0.0` is a bind address, not a browser destination.
+
+Chrome may probe `/.well-known/appspecific/com.chrome.devtools.json`. LeadScout responds with `204 No Content`; CSP messages from `operator-script.js` indicate an injected browser extension running against an old 404 document, not application code.
 
 ### Port already in use
 
@@ -717,6 +763,7 @@ Integration requests use `X-API-Key: <your-api-key>` and the scoped `/api/integr
 - **Reliable Jobs**: scheduled sends and sequence steps use database claims and transactional state updates
 - **Webhook Safety**: signed Resend events receive durable replay protection and bounded receipt retention
 - **Production Hardening**: Tailwind is bundled locally, generated HTML previews are sandboxed, and server artifacts are kept outside public static files
+- **Reliable Startup**: `npm start` mounts the built frontend explicitly, prints a browser-safe localhost URL, and handles Chrome DevTools probes without weakening CSP
 - **Calendar Safety**: validated slot intervals, timezone-aware past-slot checks, ownership checks and transactional cancellation
 
 ### Stage 1 — AI Lead Intelligence (2026-07-21)

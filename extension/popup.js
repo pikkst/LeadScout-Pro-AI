@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         status.className = 'status success';
         form.reset();
       } else if (response.status === 401) {
-        status.textContent = 'Please login in the main app';
+        status.textContent = 'API key is invalid or revoked';
         status.className = 'status error';
       } else {
         const err = await response.json();
