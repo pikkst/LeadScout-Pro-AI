@@ -14,7 +14,7 @@ import { uploadRouter } from "./server/routes/upload.routes";
 import { webhookRouter } from "./server/routes/webhook.routes";
 import { inboundRouter } from "./server/routes/inbound.routes";
 import { errorHandler, notFoundHandler } from "./server/middleware/error";
-import { sendPitchEmail } from "./server/services/email.service";
+import { sendCompliantOutreachEmail } from "./server/services/email.service";
 import { logActivity } from "./server/utils/activity";
 import { getOrCreateBookingLink } from "./server/services/calendar.service";
 import { getOrCreateUnsubscribeLink } from "./server/services/compliance.service";
@@ -237,7 +237,7 @@ async function startServer() {
               agentId: sender.id,
             });
             const unsubscribeLink = await getOrCreateUnsubscribeLink(pitch.id, pitch.leadEmail);
-            const result = await sendPitchEmail({
+            const result = await sendCompliantOutreachEmail({
               to: pitch.leadEmail,
               subject: pitch.subject,
               html: pitch.htmlContent,
@@ -440,7 +440,7 @@ const runSequenceEngine = async () => {
               agentId: sender.id,
             });
             const unsubscribeLink = await getOrCreateUnsubscribeLink(pitch.id, pitch.leadEmail);
-            const sent = await sendPitchEmail({
+            const sent = await sendCompliantOutreachEmail({
               to: pitch.leadEmail,
               subject: pitch.subject,
               html: pitch.htmlContent,

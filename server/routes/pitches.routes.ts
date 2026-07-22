@@ -8,7 +8,7 @@ import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { serializePitch, pitchStatusToDb } from "../utils/serializers";
 import { generatePitch } from "../services/ai.service";
-import { sendPitchEmail } from "../services/email.service";
+import { sendCompliantOutreachEmail } from "../services/email.service";
 import { recommendSendTime } from "../services/ai.service";
 import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
@@ -137,7 +137,7 @@ pitchesRouter.post(
     const senderName = req.user!.name;
     const senderEmail = req.user!.email;
 
-    let sendResult: Awaited<ReturnType<typeof sendPitchEmail>>;
+    let sendResult: Awaited<ReturnType<typeof sendCompliantOutreachEmail>>;
     try {
       const previous = pitch.inReplyToId
         ? ((await prisma.pitch.findUnique({ where: { id: pitch.inReplyToId } })) as any)
@@ -148,7 +148,7 @@ pitchesRouter.post(
         agentId: req.user!.id,
       });
       const unsubscribeLink = await getOrCreateUnsubscribeLink(pitch.id, pitch.leadEmail);
-      sendResult = await sendPitchEmail({
+      sendResult = await sendCompliantOutreachEmail({
         to: pitch.leadEmail,
         subject: pitch.subject,
         html: pitch.htmlContent,

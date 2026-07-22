@@ -114,7 +114,7 @@ export interface SequenceStep {
   id: string;
   order: number;
   delayDays: number;
-  actionType: 'EMAIL' | 'TASK';
+  actionType: 'EMAIL' | 'TASK' | 'WEBHOOK';
   subject?: string;
   body?: string;
   taskName?: string;

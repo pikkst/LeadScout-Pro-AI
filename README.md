@@ -266,6 +266,7 @@ Sign in with the seeded admin:
 | `JWT_EXPIRES_IN` | Token expiry (default: `7d`) |
 | `ALLOW_PUBLIC_REGISTRATION` | `true` to allow self-registration |
 | `TRUST_PROXY` | Enable only behind a trusted reverse proxy that sets client IP headers |
+| `SETTINGS_ENCRYPTION_KEY_PREVIOUS` | Former settings encryption key(s), comma-separated, used temporarily for zero-downtime key rotation |
 | `GEMINI_API_KEY` | Bootstrap AI key; may instead be configured in Settings |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | SMTP settings for real email |
 | `SMTP_FROM_NAME` / `SMTP_FROM_EMAIL` | Sender identity |
@@ -274,6 +275,8 @@ Sign in with the seeded admin:
 | `INBOUND_EMAIL_ADDRESS` | Mailbox address used for reply tracking (default: `replies@eventnexus.eu`) |
 
 > **Security note:** Secret values are masked in API responses and encrypted at rest. `DATABASE_URL`, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `CORS_ORIGIN`, and the application `BASE_URL` remain bootstrap environment configuration. The separate origin used in generated booking/unsubscribe links can be changed by an admin in Settings.
+
+To rotate `SETTINGS_ENCRYPTION_KEY`, move the current value to `SETTINGS_ENCRYPTION_KEY_PREVIOUS`, generate a new current key, and restart the app. Stored secrets are decrypted with the previous key and automatically re-encrypted with the new key when settings are loaded. Remove the previous key after every app instance has loaded the settings successfully.
 
 ---
 

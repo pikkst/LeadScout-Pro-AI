@@ -19,6 +19,7 @@ import { param } from "../utils/param";
 import { normalizeDomain, normalizeEmail } from "../utils/normalize";
 import { cancelMeeting } from "../services/calendar.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { canCancelMeeting } from "../utils/calendarBooking";
 
 export const leadsRouter = Router();
 leadsRouter.use(requireAuth);
@@ -414,10 +415,10 @@ leadsRouter.delete(
   asyncHandler(async (req, res) => {
     const meeting = await prisma.meeting.findFirst({
       where: { id: param(req, "meetingId"), leadId: param(req, "id") },
+      include: { slots: { select: { agentId: true }, take: 1 } },
     });
     if (!meeting) throw notFound("Meeting not found");
-    const privileged = req.user!.role === "ADMIN" || req.user!.role === "MANAGER";
-    if (!privileged && meeting.agentId !== req.user!.id) throw forbidden("You cannot cancel this meeting.");
+    if (!canCancelMeeting(req.user!, meeting)) throw forbidden("You cannot cancel this meeting.");
     await cancelMeeting(meeting.id);
     res.json({ ok: true });
   }),

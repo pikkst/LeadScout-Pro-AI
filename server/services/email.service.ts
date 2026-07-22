@@ -78,7 +78,12 @@ export function appendComplianceFooter(html: string, text: string, unsubscribeUr
   return { html: nextHtml, text: `${text}\n\nUnsubscribe from future outreach: ${unsubscribeUrl}` };
 }
 
-export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId: string }> {
+/**
+ * The only outbound pitch delivery entry point. Route handlers, schedulers and
+ * sequence workers must use this function so suppression and safety policy are
+ * enforced consistently before SMTP delivery.
+ */
+export async function sendCompliantOutreachEmail(input: SendPitchInput): Promise<{ messageId: string }> {
   await assertOutreachAllowed(input.to);
   const { tx, fromName, fromEmail } = await getTransporter();
   const from = `"${fromName}" <${fromEmail}>`;

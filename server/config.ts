@@ -44,6 +44,10 @@ export const config = {
           ? process.env.JWT_SECRET
           : "dev-insecure-secret-change-me",
       ),
+  settingsEncryptionPreviousKeys: (process.env.SETTINGS_ENCRYPTION_KEY_PREVIOUS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
   trustProxy: (() => {
     const value = optional(process.env.TRUST_PROXY, "false").trim().toLowerCase();
     if (value === "true") return 1;

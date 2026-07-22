@@ -7,7 +7,7 @@ import { badRequest, forbidden, notFound } from "../utils/httpError";
 import { requireAuth } from "../middleware/auth";
 import { param } from "../utils/param";
 import { logActivity } from "../utils/activity";
-import { canBookAgentSlot } from "../utils/calendarBooking";
+import { canBookAgentSlot, canCancelMeeting } from "../utils/calendarBooking";
 import { bookMeetingSlot, cancelMeeting, saveAgentAvailability, timeToMinutes } from "../services/calendar.service";
 import { sendBookingConfirmationEmail, sendMeetingNotificationEmail } from "../services/email.service";
 import { recordActivationEvent } from "../services/activation.service";
@@ -306,10 +306,12 @@ calendarRouter.get("/meetings", asyncHandler(async (req, res) => {
 
 // ---- Cancel meeting ----
 calendarRouter.delete("/meetings/:id", asyncHandler(async (req, res) => {
-  const meeting = await prisma.meeting.findUnique({ where: { id: param(req, "id") } });
+  const meeting = await prisma.meeting.findUnique({
+    where: { id: param(req, "id") },
+    include: { slots: { select: { agentId: true }, take: 1 } },
+  });
   if (!meeting) throw notFound("Meeting not found");
-  const privileged = req.user!.role === "ADMIN" || req.user!.role === "MANAGER";
-  if (!privileged && meeting.agentId !== req.user!.id) throw forbidden("You cannot cancel this meeting.");
+  if (!canCancelMeeting(req.user!, meeting)) throw forbidden("You cannot cancel this meeting.");
 
   await cancelMeeting(meeting.id);
 

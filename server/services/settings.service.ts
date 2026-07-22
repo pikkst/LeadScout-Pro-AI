@@ -3,7 +3,7 @@
 // Secrets are encrypted at rest. Values are cached and invalidated on save.
 import { prisma } from "../db";
 import { config } from "../config";
-import { encryptSecret, decryptSecret } from "../utils/crypto";
+import { decryptSecretWithKeyring, encryptSecret } from "../utils/crypto";
 import { badRequest } from "../utils/httpError";
 
 export function normalizePublicBookingBaseUrl(input: string): string {
@@ -263,7 +263,18 @@ async function loadAll(): Promise<Record<string, string>> {
   const rows = await prisma.appSetting.findMany();
   const dbValues: Record<string, string> = {};
   for (const row of rows) {
-    dbValues[row.key] = row.isSecret ? decryptSecret(row.value) : row.value;
+    if (!row.isSecret) {
+      dbValues[row.key] = row.value;
+      continue;
+    }
+    const decrypted = decryptSecretWithKeyring(row.value);
+    dbValues[row.key] = decrypted.value;
+    if (decrypted.decrypted && decrypted.needsRotation) {
+      await prisma.appSetting.update({
+        where: { key: row.key },
+        data: { value: encryptSecret(decrypted.value) },
+      });
+    }
   }
   const resolved: Record<string, string> = {};
   for (const def of SETTING_DEFS) {

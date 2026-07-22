@@ -16,7 +16,7 @@ const canWrite = requireRole("ADMIN", "MANAGER");
 const stepSchema = z.object({
   order: z.number().int().nonnegative(),
   delayDays: z.number().int().nonnegative().default(0),
-  actionType: z.enum(["EMAIL", "TASK"]).default("TASK"),
+  actionType: z.enum(["EMAIL", "TASK", "WEBHOOK"]).default("TASK"),
   subject: z.string().optional().nullable(),
   body: z.string().optional().nullable(),
   taskName: z.string().optional().nullable(),

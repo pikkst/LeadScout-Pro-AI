@@ -49,18 +49,18 @@ export async function getDeliverabilityStatus() {
   const now = new Date();
   const since24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const since30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const [sent24Hours, sent30Days, bouncedRows, complainedRows, suppressionCount, verifiedAt, publicBaseUrl] = await Promise.all([
+  const [sent24Hours, sent30Days, bounced30Days, complained30Days, suppressionCount, verifiedAt, publicBaseUrl] = await Promise.all([
     prisma.pitch.count({ where: { sentAt: { gte: since24Hours } } }),
     prisma.pitch.count({ where: { sentAt: { gte: since30Days } } }),
-    prisma.pitchEvent.findMany({ where: { type: "BOUNCED", createdAt: { gte: since30Days } }, distinct: ["pitchId"], select: { pitchId: true } }),
-    prisma.pitchEvent.findMany({ where: { type: "COMPLAINED", createdAt: { gte: since30Days } }, distinct: ["pitchId"], select: { pitchId: true } }),
+    prisma.pitch.count({ where: { sentAt: { gte: since30Days }, events: { some: { type: "BOUNCED", createdAt: { gte: since30Days } } } } }),
+    prisma.pitch.count({ where: { sentAt: { gte: since30Days }, events: { some: { type: "COMPLAINED", createdAt: { gte: since30Days } } } } }),
     prisma.emailSuppression.count(),
     getInternalSetting("EMAIL_VERIFIED_AT"),
     getPublicBookingBaseUrl(),
   ]);
 
-  const bounceRate = sent30Days > 0 ? (bouncedRows.length / sent30Days) * 100 : 0;
-  const complaintRate = sent30Days > 0 ? (complainedRows.length / sent30Days) * 100 : 0;
+  const bounceRate = sent30Days > 0 ? (bounced30Days / sent30Days) * 100 : 0;
+  const complaintRate = sent30Days > 0 ? (complained30Days / sent30Days) * 100 : 0;
   const enoughVolume = sent30Days >= 20;
   const reasons: string[] = [];
   if (!settings.configured) reasons.push("SMTP sender is not configured.");
@@ -84,8 +84,8 @@ export async function getDeliverabilityStatus() {
     sent24Hours,
     dailySendLimit: settings.dailySendLimit,
     sent30Days,
-    bounced30Days: bouncedRows.length,
-    complained30Days: complainedRows.length,
+    bounced30Days,
+    complained30Days,
     bounceRate: Number(bounceRate.toFixed(2)),
     complaintRate: Number(complaintRate.toFixed(3)),
     bounceThresholdPercent: settings.bounceThresholdPercent,

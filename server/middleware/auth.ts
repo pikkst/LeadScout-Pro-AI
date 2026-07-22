@@ -44,6 +44,16 @@ function extractToken(req: Request): { token: string; source: "bearer" | "cookie
   return token ? { token, source: "cookie" } : null;
 }
 
+export function isSameHostBrowserOrigin(origin: string, host: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:")
+      && parsed.host.toLowerCase() === host.trim().toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 function assertCookieRequestOrigin(req: Request) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
   const origin = req.get("origin");
@@ -51,8 +61,8 @@ function assertCookieRequestOrigin(req: Request) {
     try { return new URL(value).origin; } catch { return value.replace(/\/$/, ""); }
   }));
   const host = req.get("host");
-  if (host) allowed.add(`${req.protocol}://${host}`);
-  if (!origin || !allowed.has(origin)) throw forbidden("Invalid request origin");
+  const matchesRequestHost = Boolean(origin && host && isSameHostBrowserOrigin(origin, host));
+  if (!origin || (!allowed.has(origin) && !matchesRequestHost)) throw forbidden("Invalid request origin");
 }
 
 /** Requires a valid token and an active user. Attaches req.user. */
