@@ -135,7 +135,7 @@ async function startServer() {
 
   const server = app.listen(config.port, "0.0.0.0", () => {
     console.log(
-      `[server] Unitel Global CarrierScout AI running on http://0.0.0.0:${config.port} (${
+      `[server] Unitel Global CarrierScout AI running on http://localhost:${config.port} (${
         isProduction ? "production" : "development"
       })`,
     );
