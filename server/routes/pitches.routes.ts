@@ -16,6 +16,7 @@ import { getEmailSettings } from "../services/settings.service";
 import { getOrCreateBookingLink } from "../services/calendar.service";
 import { getOrCreateUnsubscribeLink } from "../services/compliance.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { config } from "../config";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -153,7 +154,7 @@ pitchesRouter.post(
         subject: pitch.subject,
         html: pitch.htmlContent,
         text: pitch.textContent,
-        replyTo: senderEmail,
+        replyTo: config.inboundEmailAddress,
         pitchId: pitch.id,
         inReplyToMessageId: previous?.sentMessageId || undefined,
         references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
@@ -173,7 +174,7 @@ pitchesRouter.post(
           sentAt: new Date(),
           sentFromName: senderName,
           sentFromEmail: senderEmail,
-          replyToEmail: senderEmail,
+          replyToEmail: config.inboundEmailAddress,
           sentMessageId: sendResult.messageId,
         } as any,
       }),
