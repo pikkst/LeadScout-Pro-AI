@@ -479,6 +479,7 @@ leadsRouter.get("/:id/custom-fields", asyncHandler(async (req, res) => {
 }));
 
 leadsRouter.put("/:id/custom-fields", validate({ body: z.array(cfvSchema) }), asyncHandler(async (req, res) => {
+  if (!Array.isArray(req.body)) throw badRequest("Custom field values must be an array.");
   const values = req.body as z.infer<typeof cfvSchema>[];
   const leadId = param(req, "id");
 
