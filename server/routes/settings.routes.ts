@@ -13,9 +13,12 @@ import {
   updateSettings,
   isSecretKey,
   getEmailSettings,
+  setInternalSetting,
 } from "../services/settings.service";
 import { verifyAiConfig } from "../services/ai.service";
 import { verifySmtpConfig, resetEmailTransport } from "../services/email.service";
+import { markSenderVerified } from "../services/compliance.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export const settingsRouter = Router();
 settingsRouter.use(requireAuth, requireRole("ADMIN"));
@@ -60,7 +63,17 @@ settingsRouter.put(
       normalized[key] = stringVal;
     }
 
+    const emailBefore = await getEmailSettings();
     await updateSettings(normalized, req.user!.id);
+    const emailAfter = await getEmailSettings();
+    const senderConfigurationChanged = (["host", "port", "secure", "user", "pass", "fromEmail"] as const)
+      .some((key) => emailBefore[key] !== emailAfter[key]);
+    if (senderConfigurationChanged) {
+      await setInternalSetting("EMAIL_VERIFIED_AT", "", req.user!.id);
+    }
+    if (Object.keys(normalized).some((key) => key.startsWith("COMPANY_"))) {
+      await recordActivationEvent({ type: "COMPANY_PROFILE_SAVED", userId: req.user!.id });
+    }
     resetEmailTransport();
     await logActivity({
       action: "SETTINGS_UPDATED",
@@ -110,6 +123,18 @@ settingsRouter.post(
       user: body.user || saved.user,
       pass: body.pass || saved.pass,
     });
-    res.json(result);
+    const testingSavedConfiguration =
+      (!body.host || body.host === saved.host) &&
+      (!body.port || body.port === saved.port) &&
+      (body.secure === undefined || body.secure === saved.secure) &&
+      (!body.user || body.user === saved.user) &&
+      (!body.pass || body.pass === saved.pass);
+    if (result.ok && testingSavedConfiguration) {
+      await markSenderVerified(req.user!.id);
+      await recordActivationEvent({ type: "SENDER_VERIFIED", userId: req.user!.id });
+    }
+    res.json(result.ok && !testingSavedConfiguration
+      ? { ok: true, message: "Connection successful. Save these sender settings, then test again to verify the active sender." }
+      : result);
   }),
 );

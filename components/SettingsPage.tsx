@@ -34,6 +34,7 @@ import {
   TestResult,
 } from '../services/settingsService';
 import { ApiError } from '../services/apiClient';
+import { ComplianceCenter } from './ComplianceCenter';
 
 type Values = Record<string, string | boolean>;
 
@@ -514,6 +515,7 @@ export const SettingsPage: React.FC = () => {
         </div>
       </section>
 
+      <ComplianceCenter />
       <CustomFieldsSettings />
       <SequencesSettings />
       <RoutingSettings />

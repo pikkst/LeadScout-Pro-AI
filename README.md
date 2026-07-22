@@ -150,6 +150,17 @@ See [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) for the product thesis, honest curr
 - Sandboxed generated-HTML previews and locally bundled production CSS
 - Optional public self-registration toggle
 
+### 13. Trustworthy Activation & Compliance
+- Guided launch checklist for playbook, company profile, verified sender, availability, first target, first pitch, and first compliant send
+- Workspace playbooks for founder sales, agencies, partnerships, recruiting, and channel sales
+- Daily command center for overdue replies, draft approvals, upcoming meetings, failed sends, and high-value next actions
+- Mandatory one-click unsubscribe links and recipient-level suppression enforced across manual, scheduled, and sequence sends
+- Automatic suppression after bounces, complaints, or unsubscribe requests
+- Configurable rolling daily limit, bounce threshold, complaint threshold, sender verification, and domain-health guidance
+- Activation and meeting funnel events for product and workspace analytics
+- Accessible public unsubscribe flow, skip navigation, route loading states, and render recovery
+- Route-level frontend code splitting for settings, calendar, revenue, documents, analytics, and team management
+
 ---
 
 ## Tech Stack
@@ -562,6 +573,26 @@ Users can define working days, start/end times, IANA timezone and slot duration 
 ---
 
 ## Development
+
+Run the type checker, route/service tests, and production build:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+The opt-in browser E2E suite uses a running local server and a disposable admin/test workspace:
+
+```powershell
+$env:E2E_ADMIN_EMAIL="admin@example.com"
+$env:E2E_ADMIN_PASSWORD="your-test-password"
+$env:E2E_BOOKING_TOKEN="a-disposable-active-booking-token"
+$env:E2E_BOOKING_COMMIT="1"
+npm run test:e2e
+```
+
+Without credentials the E2E command exits cleanly with a skip message. The suite creates and removes a temporary custom stage, intercepts the pitch-send request so it never sends real email, and only consumes a booking slot when `E2E_BOOKING_COMMIT=1`.
 
 ### Project Structure
 

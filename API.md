@@ -71,6 +71,22 @@ A deal stage cannot be deleted while leads use it. Field values are replaced tra
 
 Sequence actions currently support `EMAIL` and `TASK`. The worker uses database claims, persists trigger state, pauses incomplete executions, and prevents more than one active execution per lead/sequence.
 
+Every outgoing pitch includes a workspace booking link when available and a unique unsubscribe capability. Manual, scheduled, and sequence sends all enforce sender verification, the suppression list, rolling send limits, and bounce/complaint pause thresholds before delivery.
+
+## Activation, command center, and compliance
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET | `/activation/state` | Signed in | Return launch checklist and progress |
+| GET | `/activation/templates` | Signed in | List workspace onboarding playbooks |
+| POST | `/activation/template` | Admin/manager | Apply a playbook, pitch template, and follow-up sequence |
+| PATCH | `/activation/wizard` | Signed in | Hide or restore the launch checklist for the current user |
+| GET | `/activation/command-center` | Signed in | Prioritized actions, health, meetings, and funnel totals |
+| GET | `/compliance/status` | Signed in | Sender health, rates, thresholds, pauses, and guidance |
+| GET/POST/DELETE | `/compliance/suppressions[/:email]` | Admin/manager | Manage the recipient do-not-contact list |
+| PUT | `/compliance/policy` | Admin/manager | Update daily, bounce, and complaint safety limits |
+| GET/POST | `/public/unsubscribe/:token` | Public capability | Inspect or apply a one-click recipient opt-out |
+
 ## Calendar and public booking
 
 | Method | Route | Access | Purpose |
@@ -130,6 +146,6 @@ Send integration keys as `X-API-Key: lsp_...`; `Authorization: Bearer lsp_...` i
 
 ## Webhooks and health
 
-`POST /webhooks/resend` and `POST /inbound/resend` require a valid Resend/Svix signature over the exact raw request body and a unique `svix-id`. Missing configuration fails closed. Duplicate event IDs return success without reprocessing, and replay receipts older than 90 days are cleaned periodically.
+`POST /webhooks/resend` and `POST /inbound/resend` require a valid Resend/Svix signature over the exact raw request body and a unique `svix-id`. Missing configuration fails closed. Duplicate event IDs return success without reprocessing, and replay receipts older than 90 days are cleaned periodically. Bounce and complaint events are recorded separately and automatically suppress the recipient; matched inbound replies advance the lead and the activation funnel.
 
 `GET /health` returns only `{ status, time }`. Chrome's `/.well-known/appspecific/com.chrome.devtools.json` probe is outside `/api` and intentionally returns `204 No Content`.

@@ -283,6 +283,7 @@ model Pitch {
   replies Pitch[] @relation("ReplyChain")
   meetings Meeting[] @relation("MeetingPitches")
   bookingLink BookingLink?
+  unsubscribeLink UnsubscribeLink?
 
   events PitchEvent[]
 
@@ -340,7 +341,52 @@ enum PitchEventType {
   CLICKED
   REPLIED
   BOUNCED
+  COMPLAINED
   FAILED
+}
+
+/// Recipient-level do-not-contact entry enforced before every outreach send.
+model EmailSuppression {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  reason      String
+  source      String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("email_suppressions")
+}
+
+/// Non-expiring capability included in an outreach footer so a recipient can opt out.
+model UnsubscribeLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  createdAt DateTime @default(now())
+
+  pitchId String @unique
+  pitch   Pitch  @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@map("unsubscribe_links")
+}
+
+/// Product funnel instrumentation for activation, outreach, and booking outcomes.
+model ActivationEvent {
+  id        String   @id @default(cuid())
+  type      String
+  userId    String?
+  leadId    String?
+  pitchId   String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+  @@index([leadId])
+  @@index([pitchId])
+  @@map("activation_events")
 }
 
 /// Saved pitch template for reuse across the team.

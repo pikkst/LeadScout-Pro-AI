@@ -14,6 +14,8 @@ import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
 import { getEmailSettings } from "../services/settings.service";
 import { getOrCreateBookingLink } from "../services/calendar.service";
+import { getOrCreateUnsubscribeLink } from "../services/compliance.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -84,6 +86,7 @@ pitchesRouter.post(
       },
     });
     await logActivity({ action: "PITCH_GENERATED", detail: lead.name, userId: req.user!.id, leadId: lead.id });
+    await recordActivationEvent({ type: "PITCH_CREATED", userId: req.user!.id, leadId: lead.id, pitchId: pitch.id });
     res.status(201).json(serializePitch(pitch));
   }),
 );
@@ -144,6 +147,7 @@ pitchesRouter.post(
         leadId: pitch.leadId,
         agentId: req.user!.id,
       });
+      const unsubscribeLink = await getOrCreateUnsubscribeLink(pitch.id, pitch.leadEmail);
       sendResult = await sendPitchEmail({
         to: pitch.leadEmail,
         subject: pitch.subject,
@@ -154,6 +158,7 @@ pitchesRouter.post(
         inReplyToMessageId: previous?.sentMessageId || undefined,
         references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
         bookingUrl: bookingLink.url,
+        unsubscribeUrl: unsubscribeLink.url,
       });
     } catch (error) {
       await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });
@@ -185,6 +190,7 @@ pitchesRouter.post(
       userId: req.user!.id,
       leadId: pitch.leadId,
     });
+    await recordActivationEvent({ type: "PITCH_SENT", userId: req.user!.id, leadId: pitch.leadId, pitchId: pitch.id });
     res.json(serializePitch(updated));
   }),
 );

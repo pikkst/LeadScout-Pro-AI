@@ -85,6 +85,7 @@ export const LoginScreen: React.FC = () => {
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                data-testid="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -102,6 +103,7 @@ export const LoginScreen: React.FC = () => {
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                data-testid="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -128,6 +130,7 @@ export const LoginScreen: React.FC = () => {
           )}
 
           <button
+            data-testid="login-submit"
             type="submit"
             disabled={busy}
             className="w-full bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm px-5 py-3 rounded-xl uppercase tracking-wider transition-colors flex items-center justify-center gap-2"

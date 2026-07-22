@@ -5,6 +5,7 @@ import { requireApiKey, requireApiKeyScope } from "../middleware/apiKey";
 import { validate } from "../middleware/validate";
 import { asyncHandler } from "../utils/asyncHandler";
 import { normalizeDomain, normalizeEmail } from "../utils/normalize";
+import { recordActivationEvent } from "../services/activation.service";
 
 export const integrationsRouter = Router();
 integrationsRouter.use(requireApiKey);
@@ -48,6 +49,7 @@ integrationsRouter.post(
         createdBy: { connect: { id: req.user!.id } },
       },
     });
+    await recordActivationEvent({ type: "TARGET_CREATED", userId: req.user!.id, leadId: lead.id, metadata: { source: "INTEGRATION" } });
     res.status(201).json(lead);
   }),
 );

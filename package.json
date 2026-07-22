@@ -9,6 +9,7 @@
     "start": "node server-dist/server.cjs --serve-static",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "tsx e2e/phase0.e2e.ts",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

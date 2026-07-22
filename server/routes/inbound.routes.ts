@@ -6,6 +6,7 @@ import { logActivity } from "../utils/activity";
 import { getEmailSettings } from "../services/settings.service";
 import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook";
 import { claimWebhookEvent } from "../services/webhookReceipt.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export function extractHeaders(raw: string): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -117,6 +118,12 @@ inboundRouter.post("/resend", async (req: RawBodyRequest, res) => {
       detail: `Inbound reply detected: ${pitch.leadName}`,
       userId: pitch.lead.createdById || pitch.createdById || "unknown",
       leadId: pitch.leadId,
+    });
+    await recordActivationEvent({
+      type: "REPLY_RECEIVED",
+      userId: pitch.lead.createdById || pitch.createdById || undefined,
+      leadId: pitch.leadId,
+      pitchId: pitch.id,
     });
   }
 

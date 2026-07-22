@@ -18,6 +18,7 @@ import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
 import { normalizeDomain, normalizeEmail } from "../utils/normalize";
 import { cancelMeeting } from "../services/calendar.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export const leadsRouter = Router();
 leadsRouter.use(requireAuth);
@@ -114,6 +115,7 @@ leadsRouter.post(
       include: leadInclude,
     });
     await logActivity({ action: "LEAD_CREATED", detail: lead.name, userId: req.user!.id, leadId: lead.id });
+    await recordActivationEvent({ type: "TARGET_CREATED", userId: req.user!.id, leadId: lead.id, metadata: { source: body.source ?? "MANUAL" } });
     res.status(201).json(serializeLead(lead));
   }),
 );
@@ -170,6 +172,7 @@ leadsRouter.post(
         include: leadInclude,
       });
       created.push(lead);
+      await recordActivationEvent({ type: "TARGET_CREATED", userId: req.user!.id, leadId: lead.id, metadata: { source: body.source ?? "CSV_IMPORT" } });
     }
 
     await logActivity({

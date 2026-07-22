@@ -4,6 +4,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { HttpError } from "../utils/httpError";
 import { getEmailSettings } from "./settings.service";
 import { config } from "../config";
+import { assertOutreachAllowed } from "./compliance.service";
 
 let transporter: Transporter | null = null;
 let transporterSignature = "";
@@ -40,6 +41,7 @@ export interface SendPitchInput {
   inReplyToMessageId?: string;
   references?: string[];
   bookingUrl?: string;
+  unsubscribeUrl?: string;
 }
 
 function escapeHtml(value: string): string {
@@ -64,10 +66,24 @@ export function appendBookingCallToAction(html: string, text: string, bookingUrl
   return { html: nextHtml, text: `${text}\n\nBook a meeting: ${bookingUrl}` };
 }
 
+export function appendComplianceFooter(html: string, text: string, unsubscribeUrl?: string) {
+  if (!unsubscribeUrl) return { html, text };
+  const safeUrl = escapeHtml(unsubscribeUrl);
+  const footer = `
+    <div style="margin-top:28px;padding-top:14px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5">
+      You are receiving this one-to-one business message because we believe it may be relevant to your role.
+      <a href="${safeUrl}" style="color:#475569">Unsubscribe from future outreach</a>.
+    </div>`;
+  const nextHtml = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${footer}</body>`) : `${html}${footer}`;
+  return { html: nextHtml, text: `${text}\n\nUnsubscribe from future outreach: ${unsubscribeUrl}` };
+}
+
 export async function sendPitchEmail(input: SendPitchInput): Promise<{ messageId: string }> {
+  await assertOutreachAllowed(input.to);
   const { tx, fromName, fromEmail } = await getTransporter();
   const from = `"${fromName}" <${fromEmail}>`;
-  const content = appendBookingCallToAction(input.html, input.text, input.bookingUrl);
+  const bookingContent = appendBookingCallToAction(input.html, input.text, input.bookingUrl);
+  const content = appendComplianceFooter(bookingContent.html, bookingContent.text, input.unsubscribeUrl);
   try {
     const info = await tx.sendMail({
       from,

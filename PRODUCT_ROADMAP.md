@@ -62,7 +62,7 @@ These are product gaps, not documentation footnotes:
 - email is SMTP/Resend-oriented; there is no full Gmail or Microsoft inbox synchronization and unified conversation inbox;
 - calendar booking produces standard ICS invitations but has no Google Calendar or Outlook OAuth free/busy synchronization;
 - sequences support email and task actions, not a complete multichannel cadence or visual workflow builder;
-- there is no first-class unsubscribe, suppression-list, consent, sending-domain health, or deliverability center;
+- consent provenance is not yet modeled per contact, and domain guidance does not yet query external reputation or DNS providers;
 - analytics do not yet connect sequence variants and individual steps to meetings, opportunities, and revenue;
 - the application is a single shared installation, not a SaaS-grade multi-tenant workspace/billing platform;
 - there is no public OpenAPI contract, outbound webhook system, or broad integration marketplace;
@@ -71,6 +71,8 @@ These are product gaps, not documentation footnotes:
 ## Roadmap
 
 ### Phase 0 — Trustworthy activation (0–6 weeks)
+
+**Implementation status (July 2026): delivered in the `feat/trustworthy-activation` milestone.** The product now includes the launch checklist, five playbooks, daily command center, enforced sender verification and suppression controls, one-click unsubscribe, funnel events, route-contract and browser E2E coverage, accessibility recovery states, and route-level code splitting. The exit criterion still requires measurement with new users in production rather than being inferred from implementation alone.
 
 Goal: a new solo user reaches the first quality outreach and booking without technical help.
 

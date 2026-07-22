@@ -185,6 +185,7 @@ const PublicBookingPage: React.FC<{ token: string }> = ({ token }) => {
                   {daySlots.map((slot) => (
                     <button
                       key={slot.id}
+                      data-testid={`booking-slot-${slot.id}`}
                       type="button"
                       onClick={() => setSelectedSlot(slot)}
                       className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${selectedSlot?.id === slot.id ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300' : 'border-slate-800 bg-slate-950/50 text-slate-300 hover:border-emerald-500/50'}`}
@@ -208,6 +209,7 @@ const PublicBookingPage: React.FC<{ token: string }> = ({ token }) => {
                     />
                     {error && <p className="text-sm text-red-400 mt-3">{error}</p>}
                     <button
+                      data-testid="confirm-booking"
                       type="button"
                       onClick={confirmBooking}
                       disabled={submitting}

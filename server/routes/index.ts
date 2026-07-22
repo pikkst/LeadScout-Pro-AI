@@ -21,6 +21,9 @@ import { usersRouter } from "./users.routes";
 import { inboundRouter } from "./inbound.routes";
 import { publicBookingRouter } from "./public-booking.routes";
 import { integrationsRouter } from "./integrations.routes";
+import { activationRouter } from "./activation.routes";
+import { complianceRouter } from "./compliance.routes";
+import { publicUnsubscribeRouter } from "./public-unsubscribe.routes";
 
 export const apiRouter = Router();
 
@@ -33,7 +36,10 @@ apiRouter.get("/health", (_req, res) => {
 
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/public/booking", publicBookingRouter);
+apiRouter.use("/public/unsubscribe", publicUnsubscribeRouter);
 apiRouter.use("/integrations", integrationsRouter);
+apiRouter.use("/activation", activationRouter);
+apiRouter.use("/compliance", complianceRouter);
 apiRouter.use("/leads", leadsRouter);
 apiRouter.use("/pitches", pitchesRouter);
 apiRouter.use("/templates", templatesRouter);

@@ -17,6 +17,8 @@ import { errorHandler, notFoundHandler } from "./server/middleware/error";
 import { sendPitchEmail } from "./server/services/email.service";
 import { logActivity } from "./server/utils/activity";
 import { getOrCreateBookingLink } from "./server/services/calendar.service";
+import { getOrCreateUnsubscribeLink } from "./server/services/compliance.service";
+import { recordActivationEvent } from "./server/services/activation.service";
 
 async function startServer() {
   const app = express();
@@ -234,6 +236,7 @@ async function startServer() {
               leadId: pitch.leadId,
               agentId: sender.id,
             });
+            const unsubscribeLink = await getOrCreateUnsubscribeLink(pitch.id, pitch.leadEmail);
             const result = await sendPitchEmail({
               to: pitch.leadEmail,
               subject: pitch.subject,
@@ -242,6 +245,7 @@ async function startServer() {
               replyTo: undefined,
               pitchId: pitch.id,
               bookingUrl: bookingLink.url,
+              unsubscribeUrl: unsubscribeLink.url,
             });
 
             await prisma.$transaction([
@@ -264,11 +268,12 @@ async function startServer() {
             ]);
 
             await logActivity({
-            action: "PITCH_SENT",
-            detail: `Scheduled send: From: ${sender.name} <${sender.email}> → To: ${pitch.leadName} <${pitch.leadEmail}>`,
-            userId: sender.id,
-            leadId: pitch.leadId,
-          });
+              action: "PITCH_SENT",
+              detail: `Scheduled send: From: ${sender.name} <${sender.email}> → To: ${pitch.leadName} <${pitch.leadEmail}>`,
+              userId: sender.id,
+              leadId: pitch.leadId,
+            });
+            await recordActivationEvent({ type: "PITCH_SENT", userId: sender.id, leadId: pitch.leadId, pitchId: pitch.id, metadata: { scheduled: true } });
           } catch (err) {
             await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });
             await prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "FAILED" } });
@@ -427,12 +432,14 @@ const runSequenceEngine = async () => {
               createdById: sender.id,
             },
           });
+          await recordActivationEvent({ type: "PITCH_CREATED", userId: sender.id, leadId: pitch.leadId, pitchId: pitch.id, metadata: { sequence: execution.sequence.id } });
           try {
             const bookingLink = await getOrCreateBookingLink({
               pitchId: pitch.id,
               leadId: pitch.leadId,
               agentId: sender.id,
             });
+            const unsubscribeLink = await getOrCreateUnsubscribeLink(pitch.id, pitch.leadEmail);
             const sent = await sendPitchEmail({
               to: pitch.leadEmail,
               subject: pitch.subject,
@@ -441,6 +448,7 @@ const runSequenceEngine = async () => {
               replyTo: sender.email,
               pitchId: pitch.id,
               bookingUrl: bookingLink.url,
+              unsubscribeUrl: unsubscribeLink.url,
             });
             await prisma.$transaction([
               prisma.pitch.update({
@@ -460,6 +468,7 @@ const runSequenceEngine = async () => {
                 data: { stage: "CONTACTED", lastContactedAt: new Date() },
               }),
             ]);
+            await recordActivationEvent({ type: "PITCH_SENT", userId: sender.id, leadId: pitch.leadId, pitchId: pitch.id, metadata: { sequence: execution.sequence.id } });
           } catch (error) {
             await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });
             throw error;

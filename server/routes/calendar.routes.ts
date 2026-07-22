@@ -10,6 +10,7 @@ import { logActivity } from "../utils/activity";
 import { canBookAgentSlot } from "../utils/calendarBooking";
 import { bookMeetingSlot, cancelMeeting, saveAgentAvailability, timeToMinutes } from "../services/calendar.service";
 import { sendBookingConfirmationEmail, sendMeetingNotificationEmail } from "../services/email.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export const calendarRouter = Router();
 calendarRouter.use(requireAuth);
@@ -143,6 +144,7 @@ calendarRouter.post("/availability", asyncHandler(async (req, res) => {
     detail: `${body.days.length} weekly work days, ${result.slotsCreated} slots generated through ${result.endDate}`,
     userId: agentId,
   });
+  await recordActivationEvent({ type: "AVAILABILITY_PUBLISHED", userId: agentId, metadata: { slotsCreated: result.slotsCreated } });
   res.json(result);
 }));
 
@@ -225,6 +227,7 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
 
   const booked = await bookMeetingSlot({ slotId, leadId, title, agenda, pitchId, expectedAgentId: slot.agentId });
   const { meeting, lead } = booked;
+  await recordActivationEvent({ type: "BOOKING_COMPLETED", userId: slot.agentId, leadId, pitchId: pitchId ?? undefined, metadata: { source: "WORKSPACE" } });
 
   await logActivity({
     action: "MEETING_BOOKED",

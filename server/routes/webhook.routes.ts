@@ -8,6 +8,8 @@ import { pitchStatusToDb } from "../utils/serializers";
 import { getEmailSettings } from "../services/settings.service";
 import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook";
 import { claimWebhookEvent } from "../services/webhookReceipt.service";
+import { suppressEmail } from "../services/compliance.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export const webhookRouter = Router();
 
@@ -56,12 +58,28 @@ webhookRouter.post("/resend", async (req: RawBodyRequest, res) => {
       const eventType = type === "email.delivered" ? "DELIVERED" :
                          type === "email.opened" ? "OPENED" :
                          type === "email.clicked" ? "CLICKED" :
-                         type === "email.bounced" || type === "email.complained" ? "BOUNCED" :
+                         type === "email.bounced" ? "BOUNCED" :
+                         type === "email.complained" ? "COMPLAINED" :
                          type === "email.replied" ? "REPLIED" : null;
       
       if (eventType) {
         await prisma.pitchEvent.create({
           data: { pitchId, type: eventType as any },
+        });
+        await recordActivationEvent({
+          type: `EMAIL_${eventType}`,
+          pitchId,
+          leadId: pitch.leadId,
+          userId: pitch.createdById ?? undefined,
+        });
+      }
+
+      if (type === "email.bounced" || type === "email.complained") {
+        await suppressEmail({
+          email: pitch.leadEmail,
+          reason: type === "email.complained" ? "Recipient reported this message as spam" : "Delivery bounced",
+          source: type === "email.complained" ? "COMPLAINT" : "BOUNCE",
+          createdById: pitch.createdById ?? undefined,
         });
       }
     } catch {

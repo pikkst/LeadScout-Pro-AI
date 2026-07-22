@@ -3,10 +3,11 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { notFound } from "../utils/httpError";
+import { badRequest, notFound } from "../utils/httpError";
 import { bookMeetingSlot, currentDateTimeInZone } from "../services/calendar.service";
 import { logActivity } from "../utils/activity";
 import { sendBookingConfirmationEmail, sendMeetingNotificationEmail } from "../services/email.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export const publicBookingRouter = Router();
 
@@ -19,10 +20,20 @@ publicBookingRouter.use(rateLimit({
 }));
 
 const tokenSchema = z.string().min(32).max(128);
+const parseToken = (value: string) => {
+  const result = tokenSchema.safeParse(value);
+  if (!result.success) throw badRequest("Invalid booking link.");
+  return result.data;
+};
 const publicBookingSchema = z.object({
   slotId: z.string().min(1),
   agenda: z.string().max(2000).optional().default(""),
 });
+const parseBooking = (value: unknown) => {
+  const result = publicBookingSchema.safeParse(value);
+  if (!result.success) throw badRequest("Invalid booking request.", result.error.flatten());
+  return result.data;
+};
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
@@ -51,7 +62,7 @@ async function getActiveBookingLink(token: string) {
 }
 
 publicBookingRouter.get("/:token", asyncHandler(async (req, res) => {
-  const token = tokenSchema.parse(req.params.token);
+  const token = parseToken(String(req.params.token));
   const link = await getActiveBookingLink(token);
   if (link.bookedAt && link.meeting) {
     return res.json({
@@ -95,8 +106,8 @@ publicBookingRouter.get("/:token", asyncHandler(async (req, res) => {
 }));
 
 publicBookingRouter.post("/:token", asyncHandler(async (req, res) => {
-  const token = tokenSchema.parse(req.params.token);
-  const body = publicBookingSchema.parse(req.body);
+  const token = parseToken(String(req.params.token));
+  const body = parseBooking(req.body);
   const link = await getActiveBookingLink(token);
   const booked = await bookMeetingSlot({
     slotId: body.slotId,
@@ -109,6 +120,7 @@ publicBookingRouter.post("/:token", asyncHandler(async (req, res) => {
   });
 
   const { meeting, lead, slot } = booked;
+  await recordActivationEvent({ type: "BOOKING_COMPLETED", userId: link.agentId, leadId: link.leadId, pitchId: link.pitchId, metadata: { source: "PUBLIC_LINK" } });
   await logActivity({
     action: "PUBLIC_MEETING_BOOKED",
     detail: `${meeting.title} on ${meeting.date} ${meeting.time} with ${lead.email}`,

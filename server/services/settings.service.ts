@@ -120,6 +120,33 @@ export const SETTING_DEFS: SettingDef[] = [
     placeholder: "whsec_...",
     help: "Required to verify Resend delivery and inbound webhook signatures.",
   },
+  {
+    key: "EMAIL_DAILY_SEND_LIMIT",
+    label: "Daily Outreach Limit",
+    group: "email",
+    type: "number",
+    envDefault: () => process.env.EMAIL_DAILY_SEND_LIMIT || "100",
+    placeholder: "100",
+    help: "Maximum outreach pitches sent across this workspace in a rolling 24-hour window.",
+  },
+  {
+    key: "EMAIL_BOUNCE_THRESHOLD_PERCENT",
+    label: "Bounce Pause Threshold (%)",
+    group: "email",
+    type: "number",
+    envDefault: () => process.env.EMAIL_BOUNCE_THRESHOLD_PERCENT || "5",
+    placeholder: "5",
+    help: "Pause outreach when the 30-day bounce rate reaches this percentage after at least 20 sends.",
+  },
+  {
+    key: "EMAIL_COMPLAINT_THRESHOLD_PERCENT",
+    label: "Complaint Pause Threshold (%)",
+    group: "email",
+    type: "number",
+    envDefault: () => process.env.EMAIL_COMPLAINT_THRESHOLD_PERCENT || "0.3",
+    placeholder: "0.3",
+    help: "Pause outreach when the 30-day complaint rate reaches this percentage after at least 20 sends.",
+  },
 
   // --- Security ---
   {
@@ -259,7 +286,23 @@ export async function getEmailSettings() {
     configured: Boolean(s.SMTP_HOST && s.SMTP_USER && s.SMTP_PASS),
     providerApiKey: s.RESEND_API_KEY || "",
     webhookSecret: s.RESEND_WEBHOOK_SECRET || "",
+    dailySendLimit: Math.max(1, parseInt(s.EMAIL_DAILY_SEND_LIMIT || "100", 10) || 100),
+    bounceThresholdPercent: Math.max(0, Number(s.EMAIL_BOUNCE_THRESHOLD_PERCENT || "5") || 5),
+    complaintThresholdPercent: Math.max(0, Number(s.EMAIL_COMPLAINT_THRESHOLD_PERCENT || "0.3") || 0.3),
   };
+}
+
+export async function getInternalSetting(key: string): Promise<string> {
+  const row = await prisma.appSetting.findUnique({ where: { key } });
+  return row?.value ?? "";
+}
+
+export async function setInternalSetting(key: string, value: string, updatedById?: string): Promise<void> {
+  await prisma.appSetting.upsert({
+    where: { key },
+    update: { value, isSecret: false, updatedById },
+    create: { key, value, isSecret: false, updatedById },
+  });
 }
 
 export async function getAllowPublicRegistration(): Promise<boolean> {
