@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, Plus, Trash2, Users, Brain, Loader2, Bell, ChevronLeft, ChevronRight, CalendarDays, Link2 } from 'lucide-react';
 import { api } from '../services/apiClient';
 import { CompanyLead } from '../types';
@@ -125,14 +125,14 @@ const CalendarTab: React.FC = () => {
       .catch((error) => console.error('Failed to load availability:', error));
   }, [selectedAgent]);
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       const data = await api<Notification[]>('/auth/notifications');
       setNotifications(data.slice(0, 20));
     } catch (error) {
       // silent
     }
-  };
+  }, []);
 
   const loadData = async () => {
     try {

@@ -248,24 +248,28 @@ async function startServer() {
               unsubscribeUrl: unsubscribeLink.url,
             });
 
-            await prisma.$transaction([
-              prisma.pitch.update({
+            const updateData: Record<string, unknown> = {
+              status: "SENT",
+              sentAt: now,
+              sentFromName: sender.name,
+              sentFromEmail: sender.email,
+              replyToEmail: config.inboundEmailAddress,
+              sentMessageId: result.messageId,
+            };
+            try {
+              await prisma.$transaction([
+                prisma.pitch.update({ where: { id: pitch.id }, data: updateData as any }),
+                prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "SENT" } }),
+                prisma.lead.updateMany({ where: { id: pitch.leadId, stage: "DISCOVERED" }, data: { stage: "CONTACTED", lastContactedAt: now } }),
+              ]);
+            } catch (txErr) {
+              await prisma.pitch.update({
                 where: { id: pitch.id },
-                data: {
-                  status: "SENT",
-                  sentAt: now,
-                  sentFromName: sender.name,
-                  sentFromEmail: sender.email,
-                  replyToEmail: config.inboundEmailAddress,
-                  sentMessageId: result.messageId,
-                } as any,
-              }),
-              prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "SENT" } }),
-              prisma.lead.updateMany({
-                where: { id: pitch.leadId, stage: "DISCOVERED" },
-                data: { stage: "CONTACTED", lastContactedAt: now },
-              }),
-            ]);
+                data: { status: "SENT", sentAt: now, sentMessageId: result.messageId, replyToEmail: config.inboundEmailAddress } as any,
+              });
+              await prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "SENT" } });
+              console.error(`[PitchScheduler] Partial transaction failure for pitch ${pitch.id}:`, txErr);
+            }
 
             await logActivity({
               action: "PITCH_SENT",
