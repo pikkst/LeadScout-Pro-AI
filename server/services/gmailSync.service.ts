@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { getSetting } from "./settings.service";
+import { stopSequencesForLead } from "./sequenceStop.service";
 import { getValidAccessToken, getConnectionForUser } from "./google.service";
 
 export interface GmailMessage {
@@ -107,53 +108,86 @@ export async function syncConversationsForUser(userId: string, limit = 50): Prom
   let synced = 0;
 
   for (const message of messages) {
-  const existing = await prisma.conversation.findFirst({
-    where: { externalThreadId: message.threadId, connectionId: connection.id },
-  });
+    const existing = await prisma.conversation.findFirst({
+      where: { externalThreadId: message.threadId, connectionId: connection.id },
+    });
 
-  const conversation = await prisma.conversation.upsert({
-    where: { id: existing?.id ?? "" },
-    create: {
-      externalThreadId: message.threadId,
-      subject: message.subject,
-      participants: { from: message.from, to: message.to },
-      status: "OPEN",
-      unreadCount: message.labels.includes("UNREAD") ? 1 : 0,
-      lastMessageAt: new Date(message.internalDate),
-      connectionId: connection.id,
-      ownerId: userId,
-      messages: {
-        create: {
-          externalMessageId: message.id,
-          direction: "INBOUND",
-          senderEmail: message.from,
-          recipientEmails: [message.to],
-          subject: message.subject,
-          textBody: message.body || message.snippet,
-          occurredAt: new Date(message.internalDate),
-          isRead: !message.labels.includes("UNREAD"),
+    const isInbound = !message.labels.includes("SENT") && message.labels.includes("INBOX");
+
+    const conversation = await prisma.conversation.upsert({
+      where: { id: existing?.id ?? "" },
+      create: {
+        externalThreadId: message.threadId,
+        subject: message.subject,
+        participants: { from: message.from, to: message.to },
+        status: "OPEN",
+        unreadCount: message.labels.includes("UNREAD") ? 1 : 0,
+        lastMessageAt: new Date(message.internalDate),
+        connectionId: connection.id,
+        ownerId: userId,
+        legacyLeadId: existing?.legacyLeadId ?? undefined,
+        messages: {
+          create: {
+            externalMessageId: message.id,
+            direction: "INBOUND",
+            senderEmail: message.from,
+            recipientEmails: [message.to],
+            subject: message.subject,
+            textBody: message.body || message.snippet,
+            occurredAt: new Date(message.internalDate),
+            isRead: !message.labels.includes("UNREAD"),
+          },
         },
       },
-    },
-    update: {
-      lastMessageAt: new Date(message.internalDate),
-      unreadCount: { increment: message.labels.includes("UNREAD") ? 1 : 0 },
-      messages: {
-        create: {
-          externalMessageId: message.id,
-          direction: "INBOUND",
-          senderEmail: message.from,
-          recipientEmails: [message.to],
-          subject: message.subject,
-          textBody: message.body || message.snippet,
-          occurredAt: new Date(message.internalDate),
-          isRead: !message.labels.includes("UNREAD"),
+      update: {
+        lastMessageAt: new Date(message.internalDate),
+        unreadCount: { increment: message.labels.includes("UNREAD") ? 1 : 0 },
+        legacyLeadId: existing?.legacyLeadId ?? undefined,
+        messages: {
+          create: {
+            externalMessageId: message.id,
+            direction: "INBOUND",
+            senderEmail: message.from,
+            recipientEmails: [message.to],
+            subject: message.subject,
+            textBody: message.body || message.snippet,
+            occurredAt: new Date(message.internalDate),
+            isRead: !message.labels.includes("UNREAD"),
+          },
         },
       },
-    },
-  });
+    });
 
     synced += 1;
+
+    if (isInbound) {
+      if (!conversation.legacyLeadId) {
+        const lead = await prisma.lead.findFirst({
+          where: { OR: [{ email: { equals: message.from } }, { email: { contains: message.from } }] },
+          select: { id: true },
+        });
+        if (lead) {
+          await prisma.conversation.update({
+            where: { id: conversation.id },
+            data: { legacyLeadId: lead.id },
+          });
+          conversation.legacyLeadId = lead.id;
+        }
+      }
+
+      if (conversation.legacyLeadId) {
+        const leadId = conversation.legacyLeadId;
+        await prisma.lead.updateMany({
+          where: { id: leadId, stage: { in: ["CONTACTED", "DISCOVERED"] } },
+          data: { stage: "NEGOTIATION", lastContactedAt: new Date() },
+        });
+        try {
+          await stopSequencesForLead(leadId, "REPLY");
+        } catch {
+          // ignore sequence stop failures
+        }
+      }
+    }
   }
 
   if (messages.length > 0) {
