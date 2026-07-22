@@ -516,3 +516,65 @@ export async function updateRelationship(id: string, data: Partial<RelationshipR
     body: JSON.stringify(data),
   });
 }
+
+export interface ConversationMessage {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND";
+  senderEmail: string;
+  recipientEmails: string[];
+  subject: string;
+  textBody: string;
+  occurredAt: string;
+  isRead: boolean;
+  intent?: string;
+  sentiment?: string;
+}
+
+export interface ConnectionInfo {
+  provider: string;
+  accountEmail: string;
+}
+
+export interface Conversation {
+  id: string;
+  subject: string;
+  status: string;
+  unreadCount: number;
+  lastMessageAt: string;
+  summary?: string;
+  suggestedReply?: string;
+  messages: ConversationMessage[];
+  connection?: ConnectionInfo;
+}
+
+export async function listConversationsApi(leadId?: string): Promise<Conversation[]> {
+  const qs = leadId ? `?leadId=${encodeURIComponent(leadId)}` : "";
+  return api<Conversation[]>(`/conversations${qs}`);
+}
+
+export async function getConversationApi(id: string): Promise<Conversation> {
+  return api<Conversation>(`/conversations/${encodeURIComponent(id)}`);
+}
+
+export async function markConversationReadApi(id: string): Promise<void> {
+  await api(`/conversations/${encodeURIComponent(id)}/read`, { method: "POST" });
+}
+
+export async function syncConversationsApi(): Promise<{ synced: number }> {
+  return api<{ synced: number }>("/conversations/sync", { method: "POST" });
+}
+
+export async function startGoogleOAuth(): Promise<{ authorizeUrl: string }> {
+  return api<{ authorizeUrl: string }>("/google/oauth/start");
+}
+
+export async function disconnectGoogleApi(): Promise<void> {
+  await api("/google/disconnect", { method: "POST" });
+}
+
+export async function sendGmailReplyApi(payload: { to: string; subject: string; body: string; threadId?: string }): Promise<{ id: string; threadId?: string }> {
+  return api<{ id: string; threadId?: string }>("/google/send", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

@@ -261,3 +261,33 @@ export interface CompetitorInsight {
   threatLevel: "LOW" | "MEDIUM" | "HIGH";
   recommendation: string;
 }
+
+export interface ConversationMessage {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND";
+  senderEmail: string;
+  recipientEmails: string[];
+  subject: string;
+  textBody: string;
+  occurredAt: string;
+  isRead: boolean;
+  intent?: string;
+  sentiment?: string;
+}
+
+export interface ConnectionInfo {
+  provider: string;
+  accountEmail: string;
+}
+
+export interface Conversation {
+  id: string;
+  subject: string;
+  status: string;
+  unreadCount: number;
+  lastMessageAt: string;
+  summary?: string;
+  suggestedReply?: string;
+  messages: ConversationMessage[];
+  connection?: ConnectionInfo;
+}

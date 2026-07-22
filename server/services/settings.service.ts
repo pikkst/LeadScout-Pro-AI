@@ -177,6 +177,21 @@ export const SETTING_DEFS: SettingDef[] = [
     placeholder: "https://book.example.com",
     help: "Public origin used for booking and unsubscribe links. DNS and HTTPS must already route this address to LeadScout.",
   },
+  {
+    key: "GOOGLE_CLIENT_ID",
+    label: "Google Client ID",
+    group: "email",
+    type: "string",
+    envDefault: () => process.env.GOOGLE_CLIENT_ID || "",
+    placeholder: "123456789-abc.apps.googleusercontent.com",
+  },
+  {
+    key: "GOOGLE_CLIENT_SECRET",
+    label: "Google Client Secret",
+    group: "email",
+    type: "secret",
+    envDefault: () => process.env.GOOGLE_CLIENT_SECRET || "",
+  },
 
   // --- Security ---
   {

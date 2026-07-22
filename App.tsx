@@ -53,6 +53,7 @@ const RevenueTab = lazy(() => import('./components/RevenueTab'));
 const CalendarTab = lazy(() => import('./components/CalendarTab'));
 const DocumentsTab = lazy(() => import('./components/DocumentsTab'));
 const AnalyticsTab = lazy(() => import('./components/AnalyticsTab'));
+const ConversationView = lazy(() => import('./components/ConversationView').then((module) => ({ default: module.ConversationView })));
 const TeamManagement = lazy(() => import('./components/TeamManagement').then((module) => ({ default: module.TeamManagement })));
 const SettingsPage = lazy(() => import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 const ScoutTab = lazy(() => import('./components/ScoutTab').then((module) => ({ default: module.ScoutTab })));
@@ -196,12 +197,13 @@ const App: React.FC = () => {
     'ctrl+1': () => setActiveTab('scout'),
     'ctrl+2': () => setActiveTab('outreach'),
     'ctrl+3': () => setActiveTab('crm'),
-    'ctrl+4': () => setActiveTab('dashboard'),
-    'ctrl+5': () => setActiveTab('revenue'),
-    'ctrl+6': () => setActiveTab('calendar'),
-    'ctrl+7': () => setActiveTab('documents'),
-    'ctrl+8': () => setActiveTab('analytics'),
-    'ctrl+9': () => setActiveTab('team'),
+    'ctrl+4': () => setActiveTab('conversations'),
+    'ctrl+5': () => setActiveTab('dashboard'),
+    'ctrl+6': () => setActiveTab('revenue'),
+    'ctrl+7': () => setActiveTab('calendar'),
+    'ctrl+8': () => setActiveTab('documents'),
+    'ctrl+9': () => setActiveTab('analytics'),
+    'ctrl+0': () => setActiveTab('team'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1130,6 +1132,13 @@ Date().toISOString().split('T')[0]}.json`);
               />
               </Suspense>
             </div>
+          )}
+
+          {/* TAB 3b: CONVERSATIONS & GMAIL */}
+          {activeTab === 'conversations' && (
+            <Suspense fallback={<RouteLoading />}>
+              <ConversationView />
+            </Suspense>
           )}
 
           {/* TAB 4: EXECUTIVE ANALYTICS & COMMUNICATIONS TELEMETRY */}

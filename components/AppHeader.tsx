@@ -53,6 +53,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </span>
       ) : undefined,
     },
+    { id: 'conversations', label: ' Conversations', icon: <Mail className="w-4 h-4 text-indigo-400" /> },
     { id: 'dashboard', label: '4. Executive Analytics', icon: <Layers className="w-4 h-4" /> },
     { id: 'team', label: 'Team', icon: <Users className="w-4 h-4" /> },
     { id: 'revenue', label: '5. Revenue', icon: <DollarSign className="w-4 h-4 text-emerald-400" /> },
