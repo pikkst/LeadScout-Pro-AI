@@ -1,8 +1,12 @@
-// Express 5 types can widen route params to `string | string[]`.
-// This helper safely returns a single string value.
+// Reject ambiguous/missing route parameters instead of silently selecting an
+// array element. This keeps untrusted route input type-safe at every caller.
 import type { Request } from "express";
+import { badRequest } from "./httpError";
 
 export function param(req: Request, name: string): string {
-  const value = (req.params as Record<string, string | string[]>)[name];
-  return Array.isArray(value) ? value[0] : value;
+  const value: unknown = req.params[name];
+  if (typeof value !== "string" || value.length === 0) {
+    throw badRequest(`Invalid ${name} route parameter.`);
+  }
+  return value;
 }

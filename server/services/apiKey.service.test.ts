@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hashApiKey, parseApiKeyScopes } from "./apiKey.service";
 
 describe("API key security helpers", () => {
-  it("stores a deterministic SHA-256 digest instead of the raw key", () => {
+  it("stores a deterministic keyed HMAC-SHA-256 digest instead of the raw key", () => {
     const raw = "lsp_test-secret-value";
     const digest = hashApiKey(raw);
     expect(digest).toMatch(/^[0-9a-f]{64}$/);

@@ -1,11 +1,16 @@
 import crypto from "crypto";
 import { prisma } from "../db";
+import { config } from "../config";
 
 export const API_KEY_SCOPES = ["read", "write"] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
 export function hashApiKey(rawKey: string): string {
-  return crypto.createHash("sha256").update(rawKey, "utf8").digest("hex");
+  return crypto
+    .createHmac("sha256", config.settingsEncryptionKey)
+    .update("leadscout-api-key\0", "utf8")
+    .update(rawKey, "utf8")
+    .digest("hex");
 }
 
 export function parseApiKeyScopes(value: string): ApiKeyScope[] {

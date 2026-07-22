@@ -142,7 +142,7 @@ Generated HTML is previewed in sandboxed iframes. The PDF endpoint is `POST /doc
 | GET | `/integrations/leads` | API key with `read` | List up to 200 recent leads |
 | POST | `/integrations/leads` | API key with `write` | Create or return a normalized duplicate |
 
-Send integration keys as `X-API-Key: lsp_...`; `Authorization: Bearer lsp_...` is also accepted. Only SHA-256 hashes are stored. Keys created before the hashing migration are revoked and must be recreated.
+Send integration keys as `X-API-Key: lsp_...`; `Authorization: Bearer lsp_...` is also accepted. Only server-keyed HMAC-SHA-256 digests are stored. Keys created before the keyed-hash migration are revoked and must be recreated.
 
 ## Webhooks and health
 
