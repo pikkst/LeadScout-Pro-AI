@@ -7,7 +7,7 @@ import type { Lead as PrismaLead } from "@prisma/client";
 import { asyncHandler } from "../utils/asyncHandler";
 import { badRequest, forbidden, notFound } from "../utils/httpError";
 import { validate } from "../middleware/validate";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import {
   serializeLead,
   serializeMeeting,
@@ -17,9 +17,11 @@ import {
 import { logActivity } from "../utils/activity";
 import { param } from "../utils/param";
 import { normalizeDomain, normalizeEmail } from "../utils/normalize";
+import { cancelMeeting } from "../services/calendar.service";
 
 export const leadsRouter = Router();
 leadsRouter.use(requireAuth);
+const canAssign = requireRole("ADMIN", "MANAGER");
 
 const leadInclude = {
   assignedAgent: true,
@@ -29,11 +31,11 @@ const leadInclude = {
   customFieldValues: { include: { field: true } },
 };
 
-const STAGE_VALUES = ["Discovered", "Contacted", "Negotiation", "Signed", "Active", "Archived"] as const;
+const stageValueSchema = z.string().min(1).max(60).regex(/^[A-Za-z0-9_-]+$/);
 
 // ---- List / filter leads ----
 const listQuerySchema = z.object({
-  stage: z.enum(STAGE_VALUES).optional(),
+  stage: stageValueSchema.optional(),
   focus: z.string().optional(),
   mine: z.coerce.boolean().optional(),
   search: z.string().optional(),
@@ -76,7 +78,7 @@ const createLeadSchema = z.object({
   sourceUrl: z.string().optional(),
   focus: z.string().optional(),
   isVerified: z.boolean().optional(),
-  stage: z.enum(STAGE_VALUES).optional(),
+  stage: stageValueSchema.optional(),
   notes: z.string().optional(),
   estimatedValue: z.number().int().nonnegative().optional(),
   assignedAgentId: z.string().optional().nullable(),
@@ -225,7 +227,7 @@ leadsRouter.patch(
 );
 
 // ---- Update stage only (pipeline drag/drop) ----
-const stageSchema = z.object({ stage: z.enum(STAGE_VALUES) });
+const stageSchema = z.object({ stage: stageValueSchema });
 
 leadsRouter.patch(
   "/:id/stage",
@@ -250,6 +252,7 @@ const assignSchema = z.object({ assignedAgentId: z.string().nullable() });
 
 leadsRouter.patch(
   "/:id/assign",
+  canAssign,
   validate({ body: assignSchema }),
   asyncHandler(async (req, res) => {
     const { assignedAgentId } = req.body as z.infer<typeof assignSchema>;
@@ -275,6 +278,7 @@ const bulkAssignSchema = z.object({
 
 leadsRouter.post(
   "/bulk/assign",
+  canAssign,
   validate({ body: bulkAssignSchema }),
   asyncHandler(async (req, res) => {
     const { leadIds, assignedAgentId } = req.body as z.infer<typeof bulkAssignSchema>;
@@ -393,6 +397,7 @@ leadsRouter.post(
         type: meetingTypeToDb(body.type),
         agenda: body.agenda ?? "",
         link: body.link,
+        agentId: req.user!.id,
         pitchId: body.pitchId ?? null,
       },
     });
@@ -404,7 +409,13 @@ leadsRouter.post(
 leadsRouter.delete(
   "/:id/meetings/:meetingId",
   asyncHandler(async (req, res) => {
-    await prisma.meeting.deleteMany({ where: { id: param(req, "meetingId"), leadId: param(req, "id") } });
+    const meeting = await prisma.meeting.findFirst({
+      where: { id: param(req, "meetingId"), leadId: param(req, "id") },
+    });
+    if (!meeting) throw notFound("Meeting not found");
+    const privileged = req.user!.role === "ADMIN" || req.user!.role === "MANAGER";
+    if (!privileged && meeting.agentId !== req.user!.id) throw forbidden("You cannot cancel this meeting.");
+    await cancelMeeting(meeting.id);
     res.json({ ok: true });
   }),
 );
@@ -471,14 +482,16 @@ leadsRouter.put("/:id/custom-fields", validate({ body: z.array(cfvSchema) }), as
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) throw notFound("Lead not found");
 
-  await prisma.customFieldValue.deleteMany({ where: { leadId } });
+  const uniqueFieldIds = new Set(values.map((value) => value.fieldId));
+  if (uniqueFieldIds.size !== values.length) throw badRequest("Each custom field may be supplied only once.");
+  const fieldCount = await prisma.customFieldDefinition.count({ where: { id: { in: [...uniqueFieldIds] } } });
+  if (fieldCount !== uniqueFieldIds.size) throw badRequest("One or more custom fields do not exist.");
 
-  const created = await prisma.customFieldValue.createMany({
-    data: values.map(v => ({
-      leadId,
-      fieldId: v.fieldId,
-      value: v.value,
-    })),
+  await prisma.$transaction(async (tx) => {
+    await tx.customFieldValue.deleteMany({ where: { leadId } });
+    await tx.customFieldValue.createMany({
+      data: values.map(v => ({ leadId, fieldId: v.fieldId, value: v.value })),
+    });
   });
 
   const updated = await prisma.lead.findUnique({

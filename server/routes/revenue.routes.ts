@@ -4,11 +4,12 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { notFound } from "../utils/httpError";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { param } from "../utils/param";
 
 export const revenueRouter = Router();
 revenueRouter.use(requireAuth);
+const canWrite = requireRole("ADMIN", "MANAGER");
 
 const dealSchema = z.object({
   leadId: z.string(),
@@ -44,7 +45,7 @@ revenueRouter.get("/deals", asyncHandler(async (req, res) => {
 }));
 
 // ---- Create deal ----
-revenueRouter.post("/deals", asyncHandler(async (req, res) => {
+revenueRouter.post("/deals", canWrite, asyncHandler(async (req, res) => {
   const data = dealSchema.parse(req.body);
   const lead = await prisma.lead.findUnique({ where: { id: data.leadId } });
   if (!lead) throw notFound("Lead not found");
@@ -54,29 +55,25 @@ revenueRouter.post("/deals", asyncHandler(async (req, res) => {
 
   const commission = Math.round(data.value * (data.commissionRate / 100));
 
-  const deal = await prisma.deal.create({
-    data: {
-      leadId: data.leadId,
-      value: data.value,
-      commissionRate: data.commissionRate,
-      commission,
-      agentId: data.agentId,
-      notes: data.notes,
-    },
-    include: {
-      lead: { select: { id: true, name: true } },
-      agent: { select: { id: true, name: true } },
-    },
-  });
-
-  // Create commission record
-  await prisma.commission.create({
-    data: {
-      dealId: deal.id,
-      agentId: data.agentId,
-      amount: commission,
-      status: "PENDING",
-    },
+  const deal = await prisma.$transaction(async (tx) => {
+    const created = await tx.deal.create({
+      data: {
+        leadId: data.leadId,
+        value: data.value,
+        commissionRate: data.commissionRate,
+        commission,
+        agentId: data.agentId,
+        notes: data.notes,
+      },
+      include: {
+        lead: { select: { id: true, name: true } },
+        agent: { select: { id: true, name: true } },
+      },
+    });
+    await tx.commission.create({
+      data: { dealId: created.id, agentId: data.agentId, amount: commission, status: "PENDING" },
+    });
+    return created;
   });
 
   res.json(deal);
@@ -168,7 +165,7 @@ revenueRouter.get("/commissions", asyncHandler(async (req, res) => {
 }));
 
 // ---- Mark commission as paid ----
-revenueRouter.put("/commissions/:id/pay", asyncHandler(async (req, res) => {
+revenueRouter.put("/commissions/:id/pay", canWrite, asyncHandler(async (req, res) => {
   const commission = await prisma.commission.update({
     where: { id: param(req, "id") },
     data: { status: "PAID", paidAt: new Date() },

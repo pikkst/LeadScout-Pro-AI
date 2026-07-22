@@ -39,7 +39,7 @@ export interface CompanyLead {
   isVerified?: boolean;
   source?: 'AI_SCOUT' | 'MANUAL' | 'CSV_IMPORT' | 'PITCH_REPLY' | 'OTHER';
   // CRM Properties
-  stage?: 'Discovered' | 'Contacted' | 'Negotiation' | 'Signed' | 'Active' | 'Archived';
+  stage?: string;
   notes?: string;
   phone?: string;
   estimatedValue?: number; // Potential monthly value in EUR
@@ -114,7 +114,7 @@ export interface SequenceStep {
   id: string;
   order: number;
   delayDays: number;
-  actionType: 'EMAIL' | 'TASK' | 'WEBHOOK';
+  actionType: 'EMAIL' | 'TASK';
   subject?: string;
   body?: string;
   taskName?: string;
@@ -172,7 +172,7 @@ export interface OutreachPitch {
   htmlContent: string;
   textContent: string;
   language: string;
-  status: 'Draft' | 'Sent' | 'Delivered' | 'Replied' | 'Failed';
+  status: 'Draft' | 'Sending' | 'Sent' | 'Delivered' | 'Replied' | 'Failed';
   sentAt?: string;
   scheduledSendAt?: string;
   opened?: boolean;

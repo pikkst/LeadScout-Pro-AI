@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { notFound } from "../utils/httpError";
-import { bookMeetingSlot } from "../services/calendar.service";
+import { bookMeetingSlot, currentDateTimeInZone } from "../services/calendar.service";
 import { logActivity } from "../utils/activity";
 import { sendBookingConfirmationEmail, sendMeetingNotificationEmail } from "../services/email.service";
 
@@ -79,13 +79,18 @@ publicBookingRouter.get("/:token", asyncHandler(async (req, res) => {
     take: 500,
   });
 
+  const availableSlots = slots.filter((slot) => {
+    const current = currentDateTimeInZone(slot.timezone);
+    return slot.date > current.date || (slot.date === current.date && slot.startTime > current.time);
+  });
+
   res.json({
     host: { name: link.agent.name },
     attendee: { name: link.lead.name, emailMasked: maskEmail(link.lead.email) },
     meetingTitle: link.pitch.subject,
     expiresAt: link.expiresAt.toISOString(),
-    timezone: slots[0]?.timezone || "Europe/Tallinn",
-    slots,
+    timezone: availableSlots[0]?.timezone || "Europe/Tallinn",
+    slots: availableSlots,
   });
 }));
 
@@ -134,7 +139,7 @@ publicBookingRouter.post("/:token", asyncHandler(async (req, res) => {
       duration: meeting.duration,
       timezone: meeting.timezone,
     }),
-  ]);
+  ]).catch((error) => console.error("[booking] Failed to send one or more confirmation emails:", error));
 
   res.status(201).json({
     booked: true,

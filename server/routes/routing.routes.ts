@@ -4,18 +4,26 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { notFound } from "../utils/httpError";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { param } from "../utils/param";
 
 export const routingRouter = Router();
 routingRouter.use(requireAuth);
+const canWrite = requireRole("ADMIN", "MANAGER");
 
 const routingRuleSchema = z.object({
   name: z.string().min(1),
   isActive: z.boolean().default(true),
   priority: z.coerce.number().int().min(0).default(0),
   ruleType: z.enum(["TERRITORY", "INDUSTRY", "ROUND_ROBIN", "MANUAL", "SCORE_BASED"]),
-  criteria: z.string().default("{}"),
+  criteria: z.string().max(10000).default("{}").refine((value) => {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed);
+    } catch {
+      return false;
+    }
+  }, "Criteria must be a valid JSON object"),
   assignedAgentId: z.string(),
 });
 
@@ -32,7 +40,7 @@ routingRouter.get("/rules", asyncHandler(async (req, res) => {
 }));
 
 // ---- Create routing rule ----
-routingRouter.post("/rules", asyncHandler(async (req, res) => {
+routingRouter.post("/rules", canWrite, asyncHandler(async (req, res) => {
   const data = routingRuleSchema.parse(req.body);
 
   const agent = await prisma.user.findUnique({ where: { id: data.assignedAgentId } });
@@ -49,7 +57,7 @@ routingRouter.post("/rules", asyncHandler(async (req, res) => {
 }));
 
 // ---- Update routing rule ----
-routingRouter.put("/rules/:id", asyncHandler(async (req, res) => {
+routingRouter.put("/rules/:id", canWrite, asyncHandler(async (req, res) => {
   const data = routingRuleSchema.parse(req.body);
 
   const rule = await prisma.leadRoutingRule.findUnique({ where: { id: param(req, "id") } });
@@ -70,13 +78,13 @@ routingRouter.put("/rules/:id", asyncHandler(async (req, res) => {
 }));
 
 // ---- Delete routing rule ----
-routingRouter.delete("/rules/:id", asyncHandler(async (req, res) => {
+routingRouter.delete("/rules/:id", canWrite, asyncHandler(async (req, res) => {
   await prisma.leadRoutingRule.delete({ where: { id: param(req, "id") } });
   res.json({ success: true });
 }));
 
 // ---- Auto-assign lead based on rules ----
-routingRouter.post("/auto-assign/:leadId", asyncHandler(async (req, res) => {
+routingRouter.post("/auto-assign/:leadId", canWrite, asyncHandler(async (req, res) => {
   const leadId = param(req, "leadId");
 
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });

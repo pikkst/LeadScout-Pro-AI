@@ -3,7 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { notFound } from "../utils/httpError";
+import { badRequest, conflict, forbidden, notFound } from "../utils/httpError";
 import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { serializePitch, pitchStatusToDb } from "../utils/serializers";
@@ -17,6 +17,11 @@ import { getOrCreateBookingLink } from "../services/calendar.service";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
+
+function assertCanManagePitch(user: NonNullable<Express.Request["user"]>, createdById: string | null) {
+  if (user.role === "ADMIN" || user.role === "MANAGER" || createdById === user.id) return;
+  throw forbidden("You cannot modify another user's pitch.");
+}
 
 // ---- List all pitches ----
 pitchesRouter.get(
@@ -97,6 +102,9 @@ pitchesRouter.patch(
   validate({ body: updateSchema }),
   asyncHandler(async (req, res) => {
     const body = req.body as z.infer<typeof updateSchema>;
+    const existing = await prisma.pitch.findUnique({ where: { id: param(req, "id") } });
+    if (!existing) throw notFound("Pitch not found");
+    assertCanManagePitch(req.user!, existing.createdById);
     const data: Record<string, unknown> = {};
     if (body.subject !== undefined) data.subject = body.subject;
     if (body.htmlContent !== undefined) data.htmlContent = body.htmlContent;
@@ -115,51 +123,61 @@ pitchesRouter.post(
   asyncHandler(async (req, res) => {
     const pitch = await prisma.pitch.findUnique({ where: { id: param(req, "id") } });
     if (!pitch) throw notFound("Pitch not found");
+    assertCanManagePitch(req.user!, pitch.createdById);
+    if (pitch.status !== "DRAFT" && pitch.status !== "FAILED") throw badRequest("Only draft or failed pitches can be sent.");
+    const claimed = await prisma.pitch.updateMany({
+      where: { id: pitch.id, status: pitch.status },
+      data: { status: "SENDING", scheduledSendAt: null },
+    });
+    if (claimed.count !== 1) throw conflict("This pitch is already being sent.");
 
     const senderName = req.user!.name;
     const senderEmail = req.user!.email;
 
-    const previous = pitch.inReplyToId
-      ? ((await prisma.pitch.findUnique({ where: { id: pitch.inReplyToId } })) as any)
-      : null;
-    const bookingLink = await getOrCreateBookingLink({
-      pitchId: pitch.id,
-      leadId: pitch.leadId,
-      agentId: req.user!.id,
-    });
+    let sendResult: Awaited<ReturnType<typeof sendPitchEmail>>;
+    try {
+      const previous = pitch.inReplyToId
+        ? ((await prisma.pitch.findUnique({ where: { id: pitch.inReplyToId } })) as any)
+        : null;
+      const bookingLink = await getOrCreateBookingLink({
+        pitchId: pitch.id,
+        leadId: pitch.leadId,
+        agentId: req.user!.id,
+      });
+      sendResult = await sendPitchEmail({
+        to: pitch.leadEmail,
+        subject: pitch.subject,
+        html: pitch.htmlContent,
+        text: pitch.textContent,
+        replyTo: senderEmail,
+        pitchId: pitch.id,
+        inReplyToMessageId: previous?.sentMessageId || undefined,
+        references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
+        bookingUrl: bookingLink.url,
+      });
+    } catch (error) {
+      await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });
+      throw error;
+    }
 
-    const sendResult = await sendPitchEmail({
-      to: pitch.leadEmail,
-      subject: pitch.subject,
-      html: pitch.htmlContent,
-      text: pitch.textContent,
-      replyTo: senderEmail,
-      pitchId: pitch.id,
-      inReplyToMessageId: previous?.sentMessageId || undefined,
-      references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
-      bookingUrl: bookingLink.url,
-    });
-
-    const updated = await prisma.pitch.update({
-      where: { id: pitch.id },
-      data: {
-        status: "SENT",
-        sentAt: new Date(),
-        sentFromName: senderName,
-        sentFromEmail: senderEmail,
-        replyToEmail: senderEmail,
-        sentMessageId: sendResult.messageId,
-      } as any,
-    });
-
-    await prisma.pitchEvent.create({
-      data: { pitchId: pitch.id, type: "SENT" },
-    });
-
-    await prisma.lead.updateMany({
-      where: { id: pitch.leadId, stage: "DISCOVERED" },
-      data: { stage: "CONTACTED", lastContactedAt: new Date() },
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.pitch.update({
+        where: { id: pitch.id },
+        data: {
+          status: "SENT",
+          sentAt: new Date(),
+          sentFromName: senderName,
+          sentFromEmail: senderEmail,
+          replyToEmail: senderEmail,
+          sentMessageId: sendResult.messageId,
+        } as any,
+      }),
+      prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "SENT" } }),
+      prisma.lead.updateMany({
+        where: { id: pitch.leadId, stage: "DISCOVERED" },
+        data: { stage: "CONTACTED", lastContactedAt: new Date() },
+      }),
+    ]);
 
     await logActivity({
       action: "PITCH_SENT",
@@ -175,7 +193,10 @@ pitchesRouter.post(
 pitchesRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
-    await prisma.pitch.delete({ where: { id: param(req, "id") } });
+    const pitch = await prisma.pitch.findUnique({ where: { id: param(req, "id") } });
+    if (!pitch) throw notFound("Pitch not found");
+    assertCanManagePitch(req.user!, pitch.createdById);
+    await prisma.pitch.delete({ where: { id: pitch.id } });
     res.json({ ok: true });
   }),
 );
@@ -189,6 +210,7 @@ pitchesRouter.post(
       include: { lead: true },
     });
     if (!pitch) throw notFound("Pitch not found");
+    assertCanManagePitch(req.user!, pitch.createdById);
     if (pitch.status !== "DRAFT") {
       return res.status(400).json({ error: "Only draft pitches can be scheduled.", code: "INVALID_STATUS" });
     }

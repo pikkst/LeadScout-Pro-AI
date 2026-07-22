@@ -14,12 +14,11 @@ export const uploadRouter = Router();
 uploadRouter.use(requireAuth, requireRole("ADMIN"));
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
+const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const EXT_BY_TYPE: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
-  "image/svg+xml": "svg",
   "image/gif": "gif",
 };
 
@@ -39,14 +38,20 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
   fileFilter: (_req, file, cb) => {
     if (ALLOWED.has(file.mimetype)) cb(null, true);
-    else cb(new HttpError(400, "Only image files (PNG, JPG, WEBP, SVG, GIF) are allowed.", "BAD_FILE"));
+    else cb(new HttpError(400, "Only image files (PNG, JPG, WEBP, GIF) are allowed.", "BAD_FILE"));
   },
 });
 
-function toAbsoluteUrl(req: Request, relativePath: string): string {
-  const host = req.get("host");
-  const protocol = req.secure ? "https" : "http";
-  return `${protocol}://${host}${relativePath}`;
+function toAbsoluteUrl(relativePath: string): string {
+  return `${config.baseUrl.replace(/\/$/, "")}${relativePath}`;
+}
+
+async function removeOtherLogoFiles(keepFilename?: string) {
+  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  const entries = await fs.readdir(UPLOAD_DIR);
+  await Promise.all(entries
+    .filter((name) => /^company-logo\.(png|jpg|webp|gif)$/i.test(name) && name !== keepFilename)
+    .map((name) => fs.unlink(path.join(UPLOAD_DIR, name)).catch(() => undefined)));
 }
 
 // Upload or replace the logo.
@@ -56,8 +61,9 @@ uploadRouter.post(
   async (req: Request & { file?: Express.Multer.File }, res) => {
     if (!req.file) throw new HttpError(400, "No logo file provided.", "BAD_FILE");
     const relativePath = `/uploads/${req.file.filename}`;
-    const absoluteUrl = toAbsoluteUrl(req, relativePath);
-    await updateSettings({ COMPANY_LOGO_URL: absoluteUrl }, req.user!.id);
+    const absoluteUrl = toAbsoluteUrl(relativePath);
+    await removeOtherLogoFiles(req.file.filename);
+    await updateSettings({ COMPANY_LOGO_URL: relativePath }, req.user!.id);
     res.status(200).json({ url: relativePath, logoUrl: absoluteUrl });
   },
 );
@@ -65,13 +71,10 @@ uploadRouter.post(
 // Remove the logo (clears the setting and deletes the file).
 uploadRouter.delete("/company-logo", async (req, res) => {
   const profile = await getCompanyProfile();
-  if (profile.logoUrl && profile.logoUrl.startsWith("/uploads/")) {
-    try {
-      await fs.unlink(path.join(process.cwd(), profile.logoUrl));
-    } catch {
-      /* file may already be missing */
-    }
-  }
+  const logoPath = (() => {
+    try { return new URL(profile.logoUrl, config.baseUrl).pathname; } catch { return ""; }
+  })();
+  if (/^\/uploads\/company-logo\.(png|jpg|webp|gif)$/i.test(logoPath)) await removeOtherLogoFiles();
   await updateSettings({ COMPANY_LOGO_URL: "" }, req.user!.id);
   res.status(200).json({ ok: true, logoUrl: "" });
 });

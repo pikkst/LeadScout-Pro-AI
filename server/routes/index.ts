@@ -20,22 +20,20 @@ import { optimizationRouter } from "./optimization.routes";
 import { usersRouter } from "./users.routes";
 import { inboundRouter } from "./inbound.routes";
 import { publicBookingRouter } from "./public-booking.routes";
-import { getAiSettings, getEmailSettings } from "../services/settings.service";
+import { integrationsRouter } from "./integrations.routes";
 
 export const apiRouter = Router();
 
-apiRouter.get("/health", async (_req, res) => {
-  const [ai, email] = await Promise.all([getAiSettings(), getEmailSettings()]);
+apiRouter.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     time: new Date().toISOString(),
-    aiConfigured: ai.configured,
-    emailConfigured: email.configured,
   });
 });
 
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/public/booking", publicBookingRouter);
+apiRouter.use("/integrations", integrationsRouter);
 apiRouter.use("/leads", leadsRouter);
 apiRouter.use("/pitches", pitchesRouter);
 apiRouter.use("/templates", templatesRouter);

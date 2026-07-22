@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { Globe } from 'lucide-react';
 import PublicBookingPage from './components/PublicBookingPage';
+import './styles.css';
 
 const Gate: React.FC = () => {
   const { user, loading } = useAuth();

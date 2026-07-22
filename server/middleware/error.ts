@@ -10,6 +10,7 @@ export function notFoundHandler(req: Request, res: Response) {
 // surface the original message (it usually carries the real cause, e.g. a Gemini
 // API error) but strip anything that looks like a secret/key.
 function safeMessage(err: unknown): string {
+  if (process.env.NODE_ENV === "production") return "Internal server error";
   const raw = (err as { message?: string })?.message || "Internal server error";
   return raw
     .replace(/AIza[0-9A-Za-z_-]{20,}/g, "***REDACTED***")

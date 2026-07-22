@@ -8,17 +8,19 @@ import { requireAuth } from "../middleware/auth";
 import { param } from "../utils/param";
 import { logActivity } from "../utils/activity";
 import { canBookAgentSlot } from "../utils/calendarBooking";
-import { bookMeetingSlot, saveAgentAvailability, timeToMinutes } from "../services/calendar.service";
+import { bookMeetingSlot, cancelMeeting, saveAgentAvailability, timeToMinutes } from "../services/calendar.service";
 import { sendBookingConfirmationEmail, sendMeetingNotificationEmail } from "../services/email.service";
 
 export const calendarRouter = Router();
 calendarRouter.use(requireAuth);
 
 const slotSchema = z.object({
-  date: z.string(),
-  startTime: z.string(),
-  endTime: z.string(),
-  agentId: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  agentId: z.string().min(1),
+}).refine((slot) => timeToMinutes(slot.endTime) > timeToMinutes(slot.startTime), {
+  message: "End time must be after start time",
 });
 
 const meetingSchema = z.object({
@@ -66,6 +68,19 @@ const availabilitySchema = z.object({
   })).min(1).max(7).refine((days) => new Set(days.map((day) => day.weekday)).size === days.length, {
     message: "Each weekday may be configured only once",
   }),
+});
+
+const bulkSlotSchema = z.object({
+  agentId: z.string().min(1),
+  startDate: dateSchema,
+  endDate: dateSchema,
+  startTime: timeSchema,
+  endTime: timeSchema,
+  interval: z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60)]).default(30),
+}).refine((value) => value.endDate >= value.startDate, {
+  message: "End date must not be before start date",
+}).refine((value) => timeToMinutes(value.endTime) > timeToMinutes(value.startTime), {
+  message: "End time must be after start time",
 });
 
 // ---- List available slots for booking ----
@@ -134,6 +149,7 @@ calendarRouter.post("/availability", asyncHandler(async (req, res) => {
 // ---- Create meeting slot (agent sets availability) ----
 calendarRouter.post("/slots", asyncHandler(async (req, res) => {
   const data = slotSchema.parse(req.body);
+  if (data.date < new Date().toISOString().slice(0, 10)) throw badRequest("Past slots cannot be created.");
   if (!canBookAgentSlot(req.user!, data.agentId)) {
     throw forbidden("Only managers can create slots for another user.");
   }
@@ -151,14 +167,8 @@ calendarRouter.post("/slots", asyncHandler(async (req, res) => {
 
 // ---- Bulk create slots for a week ----
 calendarRouter.post("/slots/bulk", asyncHandler(async (req, res) => {
-  const { agentId, startDate, endDate, startTime, endTime, interval = 30 } = req.body as {
-    agentId: string;
-    startDate: string;
-    endDate: string;
-    startTime: string;
-    endTime: string;
-    interval?: number;
-  };
+  const { agentId, startDate, endDate, startTime, endTime, interval } = bulkSlotSchema.parse(req.body);
+  if (startDate < new Date().toISOString().slice(0, 10)) throw badRequest("Past slots cannot be created.");
   if (!canBookAgentSlot(req.user!, agentId)) {
     throw forbidden("Only managers can create slots for another user.");
   }
@@ -243,7 +253,7 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
       meetingId: meeting.id,
       duration: meeting.duration,
       timezone: meeting.timezone,
-    });
+    }).catch((error) => console.error("[calendar] Failed to send agent meeting notification:", error));
   }
   void sendBookingConfirmationEmail({
     to: lead.email,
@@ -255,7 +265,7 @@ calendarRouter.post("/book", asyncHandler(async (req, res) => {
     time: meeting.time,
     duration: meeting.duration,
     timezone: meeting.timezone,
-  });
+  }).catch((error) => console.error("[calendar] Failed to send attendee booking confirmation:", error));
 
   res.status(201).json({ ...meeting, agentName: agent?.name ?? null, previousStage: booked.previousStage, nextStage: booked.nextStage });
 }));
@@ -295,20 +305,10 @@ calendarRouter.get("/meetings", asyncHandler(async (req, res) => {
 calendarRouter.delete("/meetings/:id", asyncHandler(async (req, res) => {
   const meeting = await prisma.meeting.findUnique({ where: { id: param(req, "id") } });
   if (!meeting) throw notFound("Meeting not found");
+  const privileged = req.user!.role === "ADMIN" || req.user!.role === "MANAGER";
+  if (!privileged && meeting.agentId !== req.user!.id) throw forbidden("You cannot cancel this meeting.");
 
-  // Free up the slot
-  const slot = await prisma.meetingSlot.findFirst({
-    where: { meetingId: meeting.id },
-  });
-
-  await prisma.meeting.delete({ where: { id: param(req, "id") } });
-
-  if (slot) {
-    await prisma.meetingSlot.update({
-      where: { id: slot.id },
-      data: { isBooked: false, meetingId: null },
-    });
-  }
+  await cancelMeeting(meeting.id);
 
   res.json({ success: true });
 }));

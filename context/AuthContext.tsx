@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = useCallback(
     async (input: { email: string; password: string; name: string }) => {
       const result = await apiRegister(input);
-      if (result.token) {
+      if (result.autoLoggedIn) {
         setUser(result.user);
         return { autoLoggedIn: true };
       }

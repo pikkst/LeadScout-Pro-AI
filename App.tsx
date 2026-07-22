@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { CompanyLead, SearchState, AgentTask, LeadFocus, OutreachPitch } from './types';
+import { CompanyLead, SearchState, AgentTask, LeadFocus, OutreachPitch, DealStage } from './types';
 import { findLeads, findMajorCities, verifyEmailAuthenticity } from './services/geminiService';
 import * as crm from './services/crmService';
 import { api, ApiError } from './services/apiClient';
@@ -73,6 +73,7 @@ const App: React.FC = () => {
   const [leads, setLeads] = useState<CompanyLead[]>([]);
   const [pitches, setPitches] = useState<OutreachPitch[]>([]);
   const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [dealStages, setDealStages] = useState<DealStage[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Team activity feed
@@ -132,14 +133,16 @@ const App: React.FC = () => {
   // Load leads + pitches from the server on mount.
   const reloadData = useCallback(async () => {
     try {
-      const [serverLeads, serverPitches, serverUsers] = await Promise.all([
+      const [serverLeads, serverPitches, serverUsers, serverDealStages] = await Promise.all([
         crm.listLeads(),
         crm.listPitches(),
         api<Array<{ id: string; name: string; email: string }>>('/auth/users').catch(() => []),
+        crm.listDealStages().catch(() => []),
       ]);
       setLeads(serverLeads);
       setPitches(serverPitches);
       setUsers(Array.isArray(serverUsers) ? serverUsers : []);
+      setDealStages(serverDealStages);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to load data from server';
       addLog(`[Critical] ${msg}`);
@@ -164,6 +167,11 @@ const App: React.FC = () => {
   useEffect(() => {
     reloadData();
   }, [reloadData]);
+
+  useEffect(() => {
+    if (activeTab !== 'crm') return;
+    crm.listDealStages().then(setDealStages).catch((error) => console.error('Failed to refresh deal stages:', error));
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -1098,6 +1106,7 @@ Date().toISOString().split('T')[0]}.json`);
                 onBulkUpdateStage={handleBulkUpdateStage}
                 onBulkAssign={handleBulkAssign}
                 users={users}
+                dealStages={dealStages}
                 onUpdateStage={handleUpdateStage}
                 onEditLead={(lead) => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
                 onDeleteLead={handleDeleteLead}
@@ -1323,6 +1332,7 @@ Date().toISOString().split('T')[0]}.json`);
         isCRMModalOpen={isCRMModalOpen}
         selectedCRMLead={selectedCRMLead}
         focusOptions={FOCUS_OPTIONS}
+        dealStages={dealStages}
         onClosePitchPreview={() => setActivePitch(null)}
         onCloseCRMModal={() => { setIsCRMModalOpen(false); setSelectedCRMLead(null); }}
         onSavePitchChanges={handleSaveChanges}

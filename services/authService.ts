@@ -1,5 +1,5 @@
 // Auth service: login/register/logout/current user against the backend.
-import { api, setToken } from "./apiClient";
+import { api } from "./apiClient";
 
 export interface AuthUser {
   id: string;
@@ -11,11 +11,10 @@ export interface AuthUser {
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
-  const { user, token } = await api<{ user: AuthUser; token: string }>("/auth/login", {
+  const { user } = await api<{ user: AuthUser }>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
-  setToken(token);
   return user;
 }
 
@@ -24,13 +23,11 @@ export async function register(input: {
   password: string;
   name: string;
   role?: AuthUser["role"];
-}): Promise<{ user: AuthUser; token?: string }> {
-  const result = await api<{ user: AuthUser; token?: string }>("/auth/register", {
+}): Promise<{ user: AuthUser; autoLoggedIn?: boolean }> {
+  return api<{ user: AuthUser; autoLoggedIn?: boolean }>("/auth/register", {
     method: "POST",
     body: JSON.stringify(input),
   });
-  if (result.token) setToken(result.token);
-  return result;
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
@@ -45,9 +42,7 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
 export async function logout(): Promise<void> {
   try {
     await api("/auth/logout", { method: "POST" });
-  } finally {
-    setToken(null);
-  }
+  } finally { /* cookie is cleared by the server */ }
 }
 
 export async function fetchTeam(): Promise<AuthUser[]> {

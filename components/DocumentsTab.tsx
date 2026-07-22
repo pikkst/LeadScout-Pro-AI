@@ -120,14 +120,19 @@ const DocumentsTab: React.FC = () => {
 
   const handleDownloadPDF = async (doc: GeneratedDoc) => {
     try {
-      const data = await api<{ html: string }>(`/documents/${doc.id}/pdf`);
-
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(data.html);
-        printWindow.document.close();
-        setTimeout(() => printWindow.print(), 500);
-      }
+      const data = await api<{ html: string }>(`/documents/${doc.id}/pdf`, { method: 'POST' });
+      const frame = document.createElement('iframe');
+      frame.setAttribute('sandbox', 'allow-same-origin allow-modals');
+      frame.style.position = 'fixed';
+      frame.style.width = '1px';
+      frame.style.height = '1px';
+      frame.style.opacity = '0';
+      frame.srcdoc = data.html;
+      frame.onload = () => {
+        frame.contentWindow?.print();
+        setTimeout(() => frame.remove(), 1000);
+      };
+      document.body.appendChild(frame);
     } catch (error) {
       console.error('Failed to download PDF:', error);
     }
@@ -480,9 +485,11 @@ const DocumentsTab: React.FC = () => {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
-            <div
-              className="bg-white rounded-lg p-6 text-slate-900"
-              dangerouslySetInnerHTML={{ __html: previewDoc.content }}
+            <iframe
+              title={`Preview: ${previewDoc.title}`}
+              srcDoc={previewDoc.content}
+              sandbox="allow-same-origin"
+              className="w-full min-h-[60vh] rounded-lg border border-slate-800 bg-white"
             />
           </div>
         </div>

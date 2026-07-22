@@ -74,7 +74,7 @@ model Lead {
   focus          String? // LeadFocus segment (voip_carriers, sms_aggregators, ...)
   source         LeadSource @default(AI_SCOUT)
   isVerified     Boolean    @default(false)
-  stage          LeadStage  @default(DISCOVERED)
+  stage          String     @default("DISCOVERED")
   notes          String     @default("")
   estimatedValue Int        @default(0) // Potential monthly value in EUR
   aiScore        Int?       // AI-calculated conversion probability 0-100
@@ -109,15 +109,6 @@ model Lead {
   @@index([assignedAgentId])
   @@index([focus])
   @@map("leads")
-}
-
-enum LeadStage {
-  DISCOVERED
-  CONTACTED
-  NEGOTIATION
-  SIGNED
-  ACTIVE
-  ARCHIVED
 }
 
 enum LeadSource {
@@ -190,8 +181,20 @@ model MeetingSlot {
 
   @@index([agentId])
   @@index([date])
+  @@index([agentId, date, isAvailable, isBooked])
   @@unique([agentId, date, startTime])
   @@map("meeting_slots")
+}
+
+model WebhookReceipt {
+  id              String   @id @default(cuid())
+  provider        String
+  providerEventId String
+  receivedAt      DateTime @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([receivedAt])
+  @@map("webhook_receipts")
 }
 
 /// A recurring weekly availability window for an agent.
@@ -285,11 +288,13 @@ model Pitch {
 
   @@index([leadId])
   @@index([status])
+  @@index([status, scheduledSendAt])
   @@map("pitches")
 }
 
 enum PitchStatus {
   DRAFT
+  SENDING
   SENT
   DELIVERED
   REPLIED
@@ -470,6 +475,9 @@ model SequenceExecution {
   completedAt DateTime?
   nextRunAt   DateTime?
   lastEventCheckedAt DateTime? // last time pitch events were checked for trigger events
+  triggeredStep Int?
+  processingStep Int?
+  processingStartedAt DateTime?
 
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -479,6 +487,7 @@ model SequenceExecution {
 
   @@index([leadId])
   @@index([sequenceId])
+  @@index([status, nextRunAt])
   @@map("sequence_executions")
 }
 
@@ -603,7 +612,7 @@ enum DocumentType {
 model ApiKey {
   id         String   @id @default(cuid())
   name       String
-  key        String   @unique
+  keyHash    String   @unique @map("key")
   keyPrefix  String
   scopes     String   @default("[]")
   isRevoked  Boolean  @default(false)

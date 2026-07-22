@@ -230,6 +230,8 @@ Sign in with the seeded admin:
 | `NODE_ENV` | `development` or `production` |
 | `JWT_EXPIRES_IN` | Token expiry (default: `7d`) |
 | `ALLOW_PUBLIC_REGISTRATION` | `true` to allow self-registration |
+| `TRUST_PROXY` | Enable only behind a trusted reverse proxy that sets client IP headers |
+| `SETTINGS_ENCRYPTION_KEY` | Required in production; separate 32+ character key for stored settings secrets |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | SMTP settings for real email |
 | `SMTP_FROM_NAME` / `SMTP_FROM_EMAIL` | Sender identity |
 | `RESEND_API_KEY` | Resend API key for inbound reply fetching |
@@ -435,14 +437,14 @@ Place screenshots in the `docs/screenshots/` folder (create it if needed) and re
 
 ## API Overview
 
-All non-auth routes require a Bearer token in the `Authorization` header.
+The browser uses an HttpOnly, SameSite session cookie. CLI clients can request a bearer token by sending `X-Auth-Mode: bearer` to login, then use `Authorization: Bearer <token>`.
 
 ### Authentication
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | POST | `/api/auth/register` | Create user (first user = admin; otherwise admin-only) |
-| POST | `/api/auth/login` | Log in, returns JWT |
+| POST | `/api/auth/login` | Log in and create a secure browser session |
 | POST | `/api/auth/logout` | Log out |
 | GET | `/api/auth/me` | Current user |
 | GET | `/api/auth/team` | List team (admin/manager) |
@@ -586,7 +588,7 @@ npm run build
 ```
 
 This creates:
-- `dist/server.cjs` — bundled server
+- `server-dist/server.cjs` — bundled server (kept outside the public frontend directory)
 - `dist/` — static frontend assets
 
 ### 2. Run migrations
@@ -683,7 +685,7 @@ npm run db:seed
 
 ## API Documentation
 
-Full REST API documentation is available in `API.md`. Key endpoints:
+Full REST API documentation is available in [`API.md`](API.md). Key endpoints:
 
 - `/api/leads` - Lead management
 - `/api/pitches` - Email pitch generation and sending
@@ -701,11 +703,21 @@ Generate API keys in Settings → API Keys to connect with:
 - Make (formerly Integromat)
 - Custom scripts and automation tools
 
-All API requests require the header: `Authorization: Bearer <your-api-key>`
+Integration requests use `X-API-Key: <your-api-key>` and the scoped `/api/integrations/*` endpoints. Existing plaintext keys are revoked by the security migration and must be recreated.
 
 ---
 
 ## Changelog
+
+### Stage 6 — Security & Reliability Audit (2026-07-22)
+- **Secure Sessions**: browser JWTs moved from local storage to HttpOnly SameSite cookies with Origin checks
+- **Authorization**: resource ownership and admin/manager permissions enforced for pitches, templates, routing, assignments, revenue and coaching
+- **API Keys**: raw keys replaced with SHA-256 hashes, read/write scopes enforced, and extension integration endpoint added
+- **Pipeline Customization**: administrator-defined deal stages now drive both the board and lead editor
+- **Reliable Jobs**: scheduled sends and sequence steps use database claims and transactional state updates
+- **Webhook Safety**: signed Resend events receive durable replay protection and bounded receipt retention
+- **Production Hardening**: Tailwind is bundled locally, generated HTML previews are sandboxed, and server artifacts are kept outside public static files
+- **Calendar Safety**: validated slot intervals, timezone-aware past-slot checks, ownership checks and transactional cancellation
 
 ### Stage 1 — AI Lead Intelligence (2026-07-21)
 - **AI Lead Score**: 0-100 conversion probability calculated by Google Gemini with reasoning

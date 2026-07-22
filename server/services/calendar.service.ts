@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import type { LeadStage } from "@prisma/client";
 import { prisma } from "../db";
 import { badRequest, conflict, notFound } from "../utils/httpError";
 import { config } from "../config";
@@ -33,6 +32,23 @@ export function addDays(date: string, days: number): string {
   const parsed = new Date(`${date}T00:00:00.000Z`);
   parsed.setUTCDate(parsed.getUTCDate() + days);
   return parsed.toISOString().slice(0, 10);
+}
+
+export function currentDateTimeInZone(timezone: string, now = new Date()): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    time: `${value("hour")}:${value("minute")}`,
+  };
 }
 
 export function generateAvailabilitySlots(input: {
@@ -69,7 +85,7 @@ export function generateAvailabilitySlots(input: {
   return slots;
 }
 
-export function getNextLeadStage(stage: LeadStage): LeadStage | null {
+export function getNextLeadStage(stage: string): string | null {
   if (stage === "DISCOVERED") return "CONTACTED";
   if (stage === "CONTACTED") return "NEGOTIATION";
   return null;
@@ -174,7 +190,10 @@ export async function bookMeetingSlot(input: {
     if (input.expectedAgentId && slot.agentId !== input.expectedAgentId) {
       throw badRequest("The selected time does not belong to this booking link.");
     }
-    if (slot.date < new Date().toISOString().slice(0, 10)) throw badRequest("Past time slots cannot be booked.");
+    const current = currentDateTimeInZone(slot.timezone);
+    if (slot.date < current.date || (slot.date === current.date && slot.startTime <= current.time)) {
+      throw badRequest("Past time slots cannot be booked.");
+    }
 
     const lead = await tx.lead.findUnique({ where: { id: input.leadId } });
     if (!lead) throw notFound("Lead not found");
@@ -219,5 +238,28 @@ export async function bookMeetingSlot(input: {
     }
 
     return { meeting, slot, lead, previousStage: lead.stage, nextStage };
+  });
+}
+
+export async function cancelMeeting(meetingId: string) {
+  return prisma.$transaction(async (tx) => {
+    const meeting = await tx.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) throw notFound("Meeting not found");
+    const slot = await tx.meetingSlot.findFirst({ where: { meetingId } });
+    const bookingLink = await tx.bookingLink.findUnique({ where: { meetingId } });
+    await tx.meeting.delete({ where: { id: meetingId } });
+    if (slot) {
+      await tx.meetingSlot.update({
+        where: { id: slot.id },
+        data: { isBooked: false, meetingId: null },
+      });
+    }
+    if (bookingLink && bookingLink.expiresAt > new Date()) {
+      await tx.bookingLink.update({
+        where: { id: bookingLink.id },
+        data: { meetingId: null, bookedAt: null },
+      });
+    }
+    return meeting;
   });
 }

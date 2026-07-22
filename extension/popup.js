@@ -3,12 +3,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveBtn = document.getElementById('saveBtn');
   const autoFillBtn = document.getElementById('autoFillBtn');
   const status = document.getElementById('status');
+  const apiUrlInput = document.getElementById('apiUrl');
+  const apiKeyInput = document.getElementById('apiKey');
+  const saveConfigBtn = document.getElementById('saveConfigBtn');
 
-  // Load saved API URL
-  chrome.storage.local.get(['apiUrl'], (result) => {
-    if (result.apiUrl) {
-      document.getElementById('apiUrl')?.remove();
+  chrome.storage.local.get(['apiUrl', 'apiKey'], (result) => {
+    apiUrlInput.value = result.apiUrl || 'http://localhost:3000';
+    apiKeyInput.value = result.apiKey || '';
+  });
+
+  saveConfigBtn.addEventListener('click', async () => {
+    const apiUrl = apiUrlInput.value.trim().replace(/\/$/, '');
+    const apiKey = apiKeyInput.value.trim();
+    if (!/^https?:\/\//i.test(apiUrl) || !apiKey.startsWith('lsp_')) {
+      status.textContent = 'Enter a valid API URL and LeadScout API key';
+      status.className = 'status error';
+      return;
     }
+    await chrome.storage.local.set({ apiUrl, apiKey });
+    status.textContent = 'Extension settings saved';
+    status.className = 'status success';
   });
 
   // Auto-fill from current page
@@ -19,16 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id! },
+        target: { tabId: tab.id },
         func: extractLeadFromPage,
       });
 
       const data = results[0]?.result;
       if (data) {
-        if (data.name) document.getElementById('name')!.value = data.name;
-        if (data.website) document.getElementById('website')!.value = data.website;
-        if (data.email) document.getElementById('email')!.value = data.email;
-        if (data.description) document.getElementById('description')!.value = data.description;
+        if (data.name) document.getElementById('name').value = data.name;
+        if (data.website) document.getElementById('website').value = data.website;
+        if (data.email) document.getElementById('email').value = data.email;
+        if (data.description) document.getElementById('description').value = data.description;
         status.textContent = `Found: ${data.name || 'company'}`;
         status.className = 'status success';
       } else {
@@ -69,17 +83,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const result = await chrome.storage.local.get(['apiUrl', 'authToken']);
+      const result = await chrome.storage.local.get(['apiUrl', 'apiKey']);
       const apiUrl = result.apiUrl || 'http://localhost:3000';
-      const authToken = result.authToken;
+      const apiKey = result.apiKey;
+      if (!apiKey) throw new Error('API key is not configured');
 
-      const response = await fetch(`${apiUrl}/api/leads`, {
+      const response = await fetch(`${apiUrl}/api/integrations/leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          'X-API-Key': apiKey,
         },
-        credentials: 'include',
         body: JSON.stringify(lead),
       });
 
@@ -92,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         status.className = 'status error';
       } else {
         const err = await response.json();
-        status.textContent = err.message || 'Failed to save';
+        status.textContent = err.error || 'Failed to save';
         status.className = 'status error';
       }
     } catch (err) {
@@ -107,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Extract lead info from current page
 function extractLeadFromPage() {
-  const result: any = {};
+  const result = {};
 
   // Try to get company name from various sources
   const title = document.querySelector('h1')?.textContent?.trim();

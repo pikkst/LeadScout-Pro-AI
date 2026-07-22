@@ -20,18 +20,19 @@ import { getOrCreateBookingLink } from "./server/services/calendar.service";
 
 async function startServer() {
   const app = express();
-  app.set("trust proxy", 1);
+  if (config.trustProxy !== false) app.set("trust proxy", config.trustProxy);
 
   // --- Security & parsing middleware ---
   const helmetConfig: Parameters<typeof helmet>[0] = {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com"],
-        styleSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        scriptSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'"],
+        styleSrcAttr: ["'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: config.isProduction ? ["'self'"] : ["'self'", `ws://localhost:${config.port}`],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        fontSrc: ["'self'"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
         formAction: ["'self'"],
@@ -181,6 +182,10 @@ async function startServer() {
     if (!dbConnected) return;
     try {
       const now = new Date();
+      await prisma.pitch.updateMany({
+        where: { status: "SENDING", updatedAt: { lt: new Date(now.getTime() - 15 * 60 * 1000) } },
+        data: { status: "FAILED" },
+      });
       const due = await prisma.pitch.findMany({
         where: {
           status: "DRAFT",
@@ -202,7 +207,7 @@ async function startServer() {
               status: "DRAFT",
               scheduledSendAt: { lte: now, not: null },
             },
-            data: { scheduledSendAt: null },
+            data: { scheduledSendAt: null, status: "SENDING" },
           });
           if (claimed.count !== 1) continue;
 
@@ -228,26 +233,24 @@ async function startServer() {
               bookingUrl: bookingLink.url,
             });
 
-            await prisma.pitch.update({
-              where: { id: pitch.id },
-              data: {
-                status: "SENT",
-                sentAt: now,
-                sentFromName: sender.name,
-                sentFromEmail: sender.email,
-                replyToEmail: config.inboundEmailAddress,
-                sentMessageId: result.messageId,
-              } as any,
-            });
-
-            await prisma.pitchEvent.create({
-              data: { pitchId: pitch.id, type: "SENT" },
-            });
-
-            await prisma.lead.updateMany({
-              where: { id: pitch.leadId, stage: "DISCOVERED" },
-              data: { stage: "CONTACTED", lastContactedAt: new Date() },
-            });
+            await prisma.$transaction([
+              prisma.pitch.update({
+                where: { id: pitch.id },
+                data: {
+                  status: "SENT",
+                  sentAt: now,
+                  sentFromName: sender.name,
+                  sentFromEmail: sender.email,
+                  replyToEmail: config.inboundEmailAddress,
+                  sentMessageId: result.messageId,
+                } as any,
+              }),
+              prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "SENT" } }),
+              prisma.lead.updateMany({
+                where: { id: pitch.leadId, stage: "DISCOVERED" },
+                data: { stage: "CONTACTED", lastContactedAt: now },
+              }),
+            ]);
 
             await logActivity({
             action: "PITCH_SENT",
@@ -280,129 +283,206 @@ async function startServer() {
     setInterval(runPitchScheduler, 30 * 1000);
   }
 
-// --- Sequence execution engine (simple in-memory scheduler) ---
+// --- Sequence execution engine ---
+const escapeHtml = (value: string) => value
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+
 const runSequenceEngine = async () => {
-    if (!dbConnected) return;
-    try {
-      const now = new Date();
-      const dueExecutions = await prisma.sequenceExecution.findMany({
-        where: {
-          status: "ACTIVE",
-          nextRunAt: { lte: now },
-        },
-        include: {
-          sequence: { include: { steps: { orderBy: { order: "asc" } } } },
-          lead: true,
-        },
+  if (!dbConnected) return;
+  try {
+    const now = new Date();
+    const staleBefore = new Date(now.getTime() - 15 * 60 * 1000);
+    await prisma.sequenceExecution.updateMany({
+      where: { status: "ACTIVE", processingStartedAt: { lt: staleBefore } },
+      data: { status: "PAUSED" },
+    });
+
+    const dueExecutions = await prisma.sequenceExecution.findMany({
+      where: { status: "ACTIVE", nextRunAt: { lte: now }, processingStep: null },
+      include: {
+        sequence: { include: { steps: { orderBy: { order: "asc" } } } },
+        lead: { include: { assignedAgent: true, createdBy: true } },
+      },
+    });
+
+    for (const execution of dueExecutions) {
+      const steps = execution.sequence.steps;
+      const stepIndex = execution.currentStep;
+      const step = steps[stepIndex];
+      if (!step) {
+        await prisma.sequenceExecution.update({
+          where: { id: execution.id },
+          data: { status: "COMPLETED", completedAt: now, nextRunAt: null },
+        });
+        continue;
+      }
+
+      const claimed = await prisma.sequenceExecution.updateMany({
+        where: { id: execution.id, status: "ACTIVE", currentStep: stepIndex, processingStep: null },
+        data: { processingStep: stepIndex, processingStartedAt: now },
       });
+      if (claimed.count !== 1) continue;
 
-    for (const exec of dueExecutions) {
-      const sequence = exec.sequence;
-      const steps = sequence.steps;
-      const currentStepIndex = exec.currentStep;
-
-      if (currentStepIndex >= steps.length) {
-        await prisma.sequenceExecution.update({
-          where: { id: exec.id },
-          data: { status: "COMPLETED", completedAt: new Date(), lastEventCheckedAt: now },
-        });
-        continue;
-      }
-
-      const step = steps[currentStepIndex];
-      if (!step?.isActive) {
-        await prisma.sequenceExecution.update({
-          where: { id: exec.id },
-          data: { currentStep: currentStepIndex + 1, lastEventCheckedAt: now },
-        });
-        continue;
-      }
-
-      let shouldAdvance = true;
-      let nextRun = new Date();
-
-      // Event-driven step handling
-      if (step.triggerEvent && exec.leadId) {
-        const since = exec.lastEventCheckedAt || exec.startedAt;
-        const matchingEvents = await prisma.pitchEvent.findMany({
-          where: {
-            pitch: {
-              leadId: exec.leadId,
+      try {
+        if (!step.isActive) {
+          const next = steps[stepIndex + 1];
+          const nextRunAt = next ? new Date(now.getTime() + next.delayDays * 86_400_000) : null;
+          await prisma.sequenceExecution.update({
+            where: { id: execution.id },
+            data: {
+              currentStep: stepIndex + 1,
+              status: next ? "ACTIVE" : "COMPLETED",
+              completedAt: next ? null : now,
+              nextRunAt,
+              processingStep: null,
+              processingStartedAt: null,
+              triggeredStep: null,
             },
-            type: step.triggerEvent,
-            createdAt: { gt: since },
-          },
-          take: 1,
-        });
+          });
+          continue;
+        }
 
-        if (matchingEvents.length > 0) {
-          if (step.stopOnEvent) {
+        if (step.triggerEvent && execution.triggeredStep !== stepIndex) {
+          const since = execution.lastEventCheckedAt || execution.startedAt;
+          const matchingEvent = await prisma.pitchEvent.findFirst({
+            where: { pitch: { leadId: execution.leadId }, type: step.triggerEvent, createdAt: { gt: since } },
+            orderBy: { createdAt: "asc" },
+          });
+          if (!matchingEvent) {
             await prisma.sequenceExecution.update({
-              where: { id: exec.id },
-              data: { status: "COMPLETED", completedAt: new Date(), lastEventCheckedAt: now },
+              where: { id: execution.id },
+              data: {
+                lastEventCheckedAt: now,
+                nextRunAt: new Date(now.getTime() + 5 * 60 * 1000),
+                processingStep: null,
+                processingStartedAt: null,
+              },
             });
             continue;
           }
-          const delay = step.eventDelayDays ?? step.delayDays ?? 0;
-          nextRun.setDate(nextRun.getDate() + delay);
-          shouldAdvance = true;
-        } else {
-          const delay = step.delayDays ?? 0;
-          nextRun.setDate(nextRun.getDate() + delay);
-          shouldAdvance = true;
+          if (step.stopOnEvent) {
+            await prisma.sequenceExecution.update({
+              where: { id: execution.id },
+              data: {
+                status: "COMPLETED",
+                completedAt: now,
+                nextRunAt: null,
+                lastEventCheckedAt: now,
+                processingStep: null,
+                processingStartedAt: null,
+              },
+            });
+            continue;
+          }
+          const eventDelay = step.eventDelayDays ?? 0;
+          if (eventDelay > 0) {
+            await prisma.sequenceExecution.update({
+              where: { id: execution.id },
+              data: {
+                triggeredStep: stepIndex,
+                lastEventCheckedAt: now,
+                nextRunAt: new Date(now.getTime() + eventDelay * 86_400_000),
+                processingStep: null,
+                processingStartedAt: null,
+              },
+            });
+            continue;
+          }
         }
-      } else {
-        const delay = step.delayDays ?? 0;
-        nextRun.setDate(nextRun.getDate() + delay);
-        shouldAdvance = true;
-      }
 
-      if (!shouldAdvance) {
+        if (step.actionType === "TASK" && step.taskName) {
+          await prisma.followUpTask.upsert({
+            where: { leadId: execution.leadId },
+            update: { taskName: step.taskName, dueDate: now, notes: `Auto-created by sequence: ${execution.sequence.name}` },
+            create: { leadId: execution.leadId, taskName: step.taskName, dueDate: now, notes: `Auto-created by sequence: ${execution.sequence.name}` },
+          });
+        } else if (step.actionType === "EMAIL" && step.subject && step.body) {
+          const sender = execution.lead.assignedAgent || execution.lead.createdBy;
+          if (!sender) throw new Error("Sequence email has no available sender");
+          const pitch = await prisma.pitch.create({
+            data: {
+              leadId: execution.lead.id,
+              leadName: execution.lead.name,
+              leadEmail: execution.lead.email,
+              subject: step.subject,
+              htmlContent: `<p>${escapeHtml(step.body).replace(/\n/g, "<br>")}</p>`,
+              textContent: step.body,
+              language: "English",
+              status: "DRAFT",
+              createdById: sender.id,
+            },
+          });
+          try {
+            const bookingLink = await getOrCreateBookingLink({
+              pitchId: pitch.id,
+              leadId: pitch.leadId,
+              agentId: sender.id,
+            });
+            const sent = await sendPitchEmail({
+              to: pitch.leadEmail,
+              subject: pitch.subject,
+              html: pitch.htmlContent,
+              text: pitch.textContent,
+              replyTo: sender.email,
+              pitchId: pitch.id,
+              bookingUrl: bookingLink.url,
+            });
+            await prisma.$transaction([
+              prisma.pitch.update({
+                where: { id: pitch.id },
+                data: {
+                  status: "SENT",
+                  sentAt: new Date(),
+                  sentFromName: sender.name,
+                  sentFromEmail: sender.email,
+                  replyToEmail: sender.email,
+                  sentMessageId: sent.messageId,
+                },
+              }),
+              prisma.pitchEvent.create({ data: { pitchId: pitch.id, type: "SENT" } }),
+              prisma.lead.updateMany({
+                where: { id: pitch.leadId, stage: "DISCOVERED" },
+                data: { stage: "CONTACTED", lastContactedAt: new Date() },
+              }),
+            ]);
+          } catch (error) {
+            await prisma.pitch.update({ where: { id: pitch.id }, data: { status: "FAILED" } });
+            throw error;
+          }
+        } else {
+          throw new Error(`Sequence step ${step.id} is incomplete or unsupported`);
+        }
+
+        const nextStep = steps[stepIndex + 1];
         await prisma.sequenceExecution.update({
-          where: { id: exec.id },
-          data: { lastEventCheckedAt: now },
-        });
-        continue;
-      }
-
-      // Execute step action
-      if (step.actionType === "TASK" && step.taskName) {
-        await prisma.followUpTask.upsert({
-          where: { leadId: exec.leadId },
-          update: {
-            taskName: step.taskName,
-            dueDate: new Date(),
-            notes: `Auto-created by sequence: ${sequence.name}`,
+          where: { id: execution.id },
+          data: {
+            currentStep: stepIndex + 1,
+            status: nextStep ? "ACTIVE" : "COMPLETED",
+            completedAt: nextStep ? null : new Date(),
+            nextRunAt: nextStep ? new Date(Date.now() + nextStep.delayDays * 86_400_000) : null,
+            lastEventCheckedAt: now,
+            triggeredStep: null,
+            processingStep: null,
+            processingStartedAt: null,
           },
-          create: {
-            leadId: exec.leadId,
-            taskName: step.taskName,
-            dueDate: new Date(),
-            notes: `Auto-created by sequence: ${sequence.name}`,
-          },
         });
-      } else if (step.actionType === "EMAIL" && step.subject && step.body) {
-        console.log(`[Sequence] Would send email to lead ${exec.leadId}: ${step.subject}`);
-      }
-
-      // Advance to next step
-      const nextStepIndex = currentStepIndex + 1;
-      if (nextStepIndex >= steps.length) {
+      } catch (error) {
         await prisma.sequenceExecution.update({
-          where: { id: exec.id },
-          data: { status: "COMPLETED", completedAt: new Date(), lastEventCheckedAt: now },
+          where: { id: execution.id },
+          data: { status: "PAUSED", processingStep: null, processingStartedAt: null },
         });
-      } else {
-        await prisma.sequenceExecution.update({
-          where: { id: exec.id },
-          data: { currentStep: nextStepIndex, nextRunAt: nextRun, lastEventCheckedAt: now },
-        });
+        console.error(`[SequenceEngine] Paused execution ${execution.id}:`, error);
       }
     }
-    } catch (err) {
-      console.error("[SequenceEngine] Error:", err);
-    }
-  };
+  } catch (err) {
+    console.error("[SequenceEngine] Error:", err);
+  }
+};
 
   // Run immediately on start, then every 5 minutes
   if (dbConnected) {

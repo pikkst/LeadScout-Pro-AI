@@ -3,7 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { notFound } from "../utils/httpError";
+import { conflict, notFound } from "../utils/httpError";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { param } from "../utils/param";
@@ -114,14 +114,21 @@ dealStagesRouter.patch("/:id", canWrite, validate({ body: stageSchema.partial() 
     if (body[key] !== undefined) data[key] = body[key];
   }
 
-  const stage = await prisma.dealStage.update({
-    where: { id: param(req, "id") },
-    data,
+  const stage = await prisma.$transaction(async (tx) => {
+    const updated = await tx.dealStage.update({ where: { id: param(req, "id") }, data });
+    if (body.key && body.key !== existing.key) {
+      await tx.lead.updateMany({ where: { stage: existing.key }, data: { stage: body.key } });
+    }
+    return updated;
   });
   res.json(stage);
 }));
 
 dealStagesRouter.delete("/:id", canWrite, asyncHandler(async (req, res) => {
-  await prisma.dealStage.delete({ where: { id: param(req, "id") } });
+  const stage = await prisma.dealStage.findUnique({ where: { id: param(req, "id") } });
+  if (!stage) throw notFound("Stage not found");
+  const leadsUsingStage = await prisma.lead.count({ where: { stage: stage.key } });
+  if (leadsUsingStage > 0) throw conflict("Move leads out of this stage before deleting it.");
+  await prisma.dealStage.delete({ where: { id: stage.id } });
   res.json({ ok: true });
 }));

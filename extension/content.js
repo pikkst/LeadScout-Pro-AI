@@ -36,7 +36,7 @@
 
   // Extract lead data from page
   function extractLeadFromPage() {
-    const result: any = {};
+    const result = {};
 
     if (window.location.hostname === 'www.linkedin.com' || window.location.hostname.endsWith('.linkedin.com')) {
       // LinkedIn company page
@@ -62,8 +62,8 @@
     return result;
   }
 
-  function mapIndustryToCategory(industry: string): string {
-    const lower = industry.toLowerCase();
+  function mapIndustryToCategory(industry) {
+    const lower = String(industry || '').toLowerCase();
     if (lower.includes('telecom') || lower.includes('voip') || lower.includes('voice')) return 'voip_carriers';
     if (lower.includes('sms') || lower.includes('messaging')) return 'sms_aggregators';
     if (lower.includes('fintech') || lower.includes('financial')) return 'fintech';

@@ -7,6 +7,7 @@ import { prisma } from "../db";
 import { pitchStatusToDb } from "../utils/serializers";
 import { getEmailSettings } from "../services/settings.service";
 import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook";
+import { claimWebhookEvent } from "../services/webhookReceipt.service";
 
 export const webhookRouter = Router();
 
@@ -30,6 +31,12 @@ webhookRouter.post("/resend", async (req: RawBodyRequest, res) => {
     evt = verifyResendWebhook(req, webhookSecret) as typeof evt;
   } catch {
     return res.status(401).json({ error: "Invalid signature", code: "BAD_SIGNATURE" });
+  }
+
+  const providerEventId = req.header("svix-id");
+  if (!providerEventId) return res.status(400).json({ error: "Missing webhook event id", code: "BAD_WEBHOOK" });
+  if (!(await claimWebhookEvent("resend-delivery", providerEventId))) {
+    return res.status(200).json({ ok: true, duplicate: true });
   }
 
   const type = evt?.type;

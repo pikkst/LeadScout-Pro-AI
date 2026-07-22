@@ -13,6 +13,19 @@
       <p class="subtitle">Quick Add Lead</p>
     </header>
 
+    <details class="configuration">
+      <summary>Connection settings</summary>
+      <div class="form-group">
+        <label for="apiUrl">LeadScout URL</label>
+        <input type="url" id="apiUrl" placeholder="http://localhost:3000">
+      </div>
+      <div class="form-group">
+        <label for="apiKey">API Key (write scope)</label>
+        <input type="password" id="apiKey" placeholder="lsp_...">
+      </div>
+      <button type="button" id="saveConfigBtn" class="btn-secondary config-save">Save Connection</button>
+    </details>
+
     <form id="leadForm">
       <div class="form-group">
         <label for="name">Company Name *</label>
@@ -20,13 +33,13 @@
       </div>
 
       <div class="form-group">
-        <label for="website">Website</label>
-        <input type="text" id="website" name="website" placeholder="acme.com">
+        <label for="website">Website *</label>
+        <input type="text" id="website" name="website" placeholder="acme.com" required>
       </div>
 
       <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" placeholder="info@acme.com">
+        <label for="email">Email *</label>
+        <input type="email" id="email" name="email" placeholder="info@acme.com" required>
       </div>
 
       <div class="form-group">

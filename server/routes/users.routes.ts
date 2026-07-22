@@ -16,7 +16,7 @@ usersRouter.use(requireAuth, requireRole("ADMIN"));
 const createUserSchema = z.object({
   email: z.string().email().transform((v) => v.toLowerCase().trim()),
   name: z.string().min(2, "Name is required").max(120),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must be at most 128 characters"),
   role: z.enum(["ADMIN", "MANAGER", "AGENT"]).default("AGENT"),
   isActive: z.boolean().default(true),
 });
@@ -26,7 +26,7 @@ const updateUserSchema = z.object({
   email: z.string().email().transform((v) => v.toLowerCase().trim()).optional(),
   role: z.enum(["ADMIN", "MANAGER", "AGENT"]).optional(),
   isActive: z.boolean().optional(),
-  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must be at most 128 characters").optional(),
 });
 
 usersRouter.get("/", asyncHandler(async (_req, res) => {
@@ -105,13 +105,16 @@ usersRouter.delete("/:id", asyncHandler(async (req, res) => {
   const existing = await prisma.user.findUnique({ where: { id: userId } });
   if (!existing) throw notFound("User not found.");
 
-  await prisma.user.delete({ where: { id: userId } });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { isActive: false } }),
+    prisma.apiKey.updateMany({ where: { userId }, data: { isRevoked: true } }),
+  ]);
 
   await logActivity({
-    action: "USER_DELETED_BY_ADMIN",
+    action: "USER_DEACTIVATED_BY_ADMIN",
     detail: `${existing.email} (${existing.role})`,
     userId: currentUserId,
   });
 
-  res.json({ ok: true });
+  res.json({ ok: true, deactivated: true });
 }));

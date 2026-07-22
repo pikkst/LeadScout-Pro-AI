@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateAvailabilitySlots, getNextLeadStage } from "./calendar.service";
+import { currentDateTimeInZone, generateAvailabilitySlots, getNextLeadStage } from "./calendar.service";
 import { appendBookingCallToAction, buildIcsEvent } from "./email.service";
 
 describe("weekly calendar availability", () => {
@@ -38,6 +38,12 @@ describe("weekly calendar availability", () => {
 });
 
 describe("booking workflow", () => {
+  it("compares booking times in the slot timezone", () => {
+    const instant = new Date("2026-07-22T21:30:00.000Z");
+    expect(currentDateTimeInZone("Europe/Tallinn", instant)).toEqual({ date: "2026-07-23", time: "00:30" });
+    expect(currentDateTimeInZone("America/New_York", instant)).toEqual({ date: "2026-07-22", time: "17:30" });
+  });
+
   it("advances early pipeline stages after a booking", () => {
     expect(getNextLeadStage("DISCOVERED")).toBe("CONTACTED");
     expect(getNextLeadStage("CONTACTED")).toBe("NEGOTIATION");
