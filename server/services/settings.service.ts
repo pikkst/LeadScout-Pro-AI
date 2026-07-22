@@ -11,7 +11,8 @@ export function normalizePublicBookingBaseUrl(input: string): string {
   try { parsed = new URL(input); }
   catch { throw badRequest("Enter a valid public booking URL, for example https://book.example.com."); }
   if (parsed.username || parsed.password) throw badRequest("The public booking URL cannot contain credentials.");
-  const isLocal = ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname.toLowerCase());
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const isLocal = ["localhost", "127.0.0.1", "::1"].includes(hostname);
   if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLocal)) {
     throw badRequest("Use HTTPS for a public booking URL. HTTP is allowed only for localhost.");
   }
@@ -19,6 +20,10 @@ export function normalizePublicBookingBaseUrl(input: string): string {
     throw badRequest("Enter only the public origin without a path, query, or fragment.");
   }
   return parsed.origin;
+}
+
+export function resolvePublicBookingBaseUrl(environmentValue: string | undefined, fallback: string): string {
+  return normalizePublicBookingBaseUrl(environmentValue?.trim() || fallback);
 }
 
 function toAbsoluteUrl(input: string): string {
@@ -168,7 +173,7 @@ export const SETTING_DEFS: SettingDef[] = [
     label: "Public Booking URL",
     group: "email",
     type: "string",
-    envDefault: () => process.env.PUBLIC_BOOKING_BASE_URL || config.baseUrl,
+    envDefault: () => resolvePublicBookingBaseUrl(process.env.PUBLIC_BOOKING_BASE_URL, config.baseUrl),
     placeholder: "https://book.example.com",
     help: "Public origin used for booking and unsubscribe links. DNS and HTTPS must already route this address to LeadScout.",
   },
@@ -330,7 +335,7 @@ export async function getEmailSettings() {
 
 export async function getPublicBookingBaseUrl(): Promise<string> {
   const value = (await getSetting("PUBLIC_BOOKING_BASE_URL")).trim();
-  return (value || config.baseUrl).replace(/\/$/, "");
+  return resolvePublicBookingBaseUrl(value, config.baseUrl);
 }
 
 export async function getInternalSetting(key: string): Promise<string> {
