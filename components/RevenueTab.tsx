@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, Users, Award, Calendar, Filter } from 'lucide-react';
+import { api } from '../services/apiClient';
 
 interface Deal {
   id: string;
@@ -46,15 +47,10 @@ const RevenueTab: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsRes, dealsRes, leaderboardRes] = await Promise.all([
-        fetch('/api/revenue/stats'),
-        fetch(`/api/revenue/deals${filterAgent ? `?agentId=${filterAgent}` : ''}`),
-        fetch('/api/revenue/leaderboard'),
-      ]);
       const [statsData, dealsData, leaderboardData] = await Promise.all([
-        statsRes.json(),
-        dealsRes.json(),
-        leaderboardRes.json(),
+        api<Stats>('/revenue/stats'),
+        api<Deal[]>(`/revenue/deals${filterAgent ? `?agentId=${filterAgent}` : ''}`),
+        api<AgentStats[]>('/revenue/leaderboard'),
       ]);
       setStats(statsData);
       setDeals(dealsData);

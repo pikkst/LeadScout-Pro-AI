@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, BarChart3, Users, Target, DollarSign, Activity, Brain, Zap, Lightbulb, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { api } from '../services/apiClient';
 
 interface ForecastData {
   current: {
@@ -78,19 +79,12 @@ const AnalyticsTab: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [forecastRes, conversionRes, agentRes, aiForecastRes, coachingRes] = await Promise.all([
-        fetch('/api/stats/forecast'),
-        fetch('/api/stats/conversion'),
-        fetch('/api/stats/agent-performance'),
-        fetch('/api/stats/forecast/ai'),
-        fetch('/api/optimization/coaching/me'),
-      ]);
       const [forecastData, conversionData, agentData, aiForecastData, coachingData] = await Promise.all([
-        forecastRes.json() as Promise<ForecastData>,
-        conversionRes.json() as Promise<ConversionData[]>,
-        agentRes.json() as Promise<AgentPerformance[]>,
-        aiForecastRes.json() as Promise<AiForecast>,
-        coachingRes.json() as Promise<CoachingInsight[]>,
+        api<ForecastData>('/stats/forecast'),
+        api<ConversionData[]>('/stats/conversion'),
+        api<AgentPerformance[]>('/stats/agent-performance'),
+        api<AiForecast>('/stats/forecast/ai'),
+        api<CoachingInsight[]>('/optimization/coaching/me'),
       ]);
       setForecast(forecastData);
       setConversion(conversionData);

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { CompanyLead, SearchState, AgentTask, LeadFocus, OutreachPitch } from './types';
 import { findLeads, findMajorCities, verifyEmailAuthenticity } from './services/geminiService';
 import * as crm from './services/crmService';
-import { ApiError } from './services/apiClient';
+import { api, ApiError } from './services/apiClient';
 import { useAuth } from './context/AuthContext';
 import { downloadLeadsAsCSV } from './utils/csvExport';
 import AgentTerminal from './components/AgentTerminal';
@@ -135,7 +135,7 @@ const App: React.FC = () => {
       const [serverLeads, serverPitches, serverUsers] = await Promise.all([
         crm.listLeads(),
         crm.listPitches(),
-        fetch('/api/auth/users', { credentials: 'include' }).then(r => r.ok ? r.json() : []).catch(() => []),
+        api<Array<{ id: string; name: string; email: string }>>('/auth/users').catch(() => []),
       ]);
       setLeads(serverLeads);
       setPitches(serverPitches);
