@@ -4,6 +4,22 @@
 import { prisma } from "../db";
 import { config } from "../config";
 import { encryptSecret, decryptSecret } from "../utils/crypto";
+import { badRequest } from "../utils/httpError";
+
+export function normalizePublicBookingBaseUrl(input: string): string {
+  let parsed: URL;
+  try { parsed = new URL(input); }
+  catch { throw badRequest("Enter a valid public booking URL, for example https://book.example.com."); }
+  if (parsed.username || parsed.password) throw badRequest("The public booking URL cannot contain credentials.");
+  const isLocal = ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname.toLowerCase());
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLocal)) {
+    throw badRequest("Use HTTPS for a public booking URL. HTTP is allowed only for localhost.");
+  }
+  if ((parsed.pathname && parsed.pathname !== "/") || parsed.search || parsed.hash) {
+    throw badRequest("Enter only the public origin without a path, query, or fragment.");
+  }
+  return parsed.origin;
+}
 
 function toAbsoluteUrl(input: string): string {
   if (!input) return "";
@@ -146,6 +162,15 @@ export const SETTING_DEFS: SettingDef[] = [
     envDefault: () => process.env.EMAIL_COMPLAINT_THRESHOLD_PERCENT || "0.3",
     placeholder: "0.3",
     help: "Pause outreach when the 30-day complaint rate reaches this percentage after at least 20 sends.",
+  },
+  {
+    key: "PUBLIC_BOOKING_BASE_URL",
+    label: "Public Booking URL",
+    group: "email",
+    type: "string",
+    envDefault: () => process.env.PUBLIC_BOOKING_BASE_URL || config.baseUrl,
+    placeholder: "https://book.example.com",
+    help: "Public origin used for booking and unsubscribe links. DNS and HTTPS must already route this address to LeadScout.",
   },
 
   // --- Security ---
@@ -292,6 +317,11 @@ export async function getEmailSettings() {
   };
 }
 
+export async function getPublicBookingBaseUrl(): Promise<string> {
+  const value = (await getSetting("PUBLIC_BOOKING_BASE_URL")).trim();
+  return (value || config.baseUrl).replace(/\/$/, "");
+}
+
 export async function getInternalSetting(key: string): Promise<string> {
   const row = await prisma.appSetting.findUnique({ where: { key } });
   return row?.value ?? "";
@@ -344,7 +374,10 @@ export async function updateSettings(
   for (const [key, rawValue] of entries) {
     const def = DEF_BY_KEY.get(key)!;
     const isSecret = def.type === "secret";
-    const value = isSecret ? encryptSecret(String(rawValue)) : String(rawValue);
+    const normalizedValue = key === "PUBLIC_BOOKING_BASE_URL"
+      ? normalizePublicBookingBaseUrl(String(rawValue))
+      : String(rawValue);
+    const value = isSecret ? encryptSecret(normalizedValue) : normalizedValue;
     await prisma.appSetting.upsert({
       where: { key },
       update: { value, isSecret, updatedById },

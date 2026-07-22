@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "../db";
 import { badRequest, conflict, notFound } from "../utils/httpError";
-import { config } from "../config";
+import { getPublicBookingBaseUrl } from "./settings.service";
 
 export interface AvailabilityDay {
   weekday: number;
@@ -161,7 +161,8 @@ export async function getOrCreateBookingLink(input: { pitchId: string; leadId: s
     },
   });
 
-  return { ...link, url: `${config.baseUrl.replace(/\/$/, "")}/book/${link.token}` };
+  const publicBaseUrl = await getPublicBookingBaseUrl();
+  return { ...link, url: `${publicBaseUrl}/book/${link.token}` };
 }
 
 export async function bookMeetingSlot(input: {

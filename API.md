@@ -85,6 +85,7 @@ Every outgoing pitch includes a workspace booking link when available and a uniq
 | GET | `/compliance/status` | Signed in | Sender health, rates, thresholds, pauses, and guidance |
 | GET/POST/DELETE | `/compliance/suppressions[/:email]` | Admin/manager | Manage the recipient do-not-contact list |
 | PUT | `/compliance/policy` | Admin/manager | Update daily, bounce, and complaint safety limits |
+| PUT | `/compliance/public-booking-url` | Admin/manager | Set the validated HTTPS origin used for booking and unsubscribe links |
 | GET/POST | `/public/unsubscribe/:token` | Public capability | Inspect or apply a one-click recipient opt-out |
 
 ## Calendar and public booking

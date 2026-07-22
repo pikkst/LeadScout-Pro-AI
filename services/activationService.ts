@@ -39,6 +39,7 @@ export interface DeliverabilityStatus {
   complaintThresholdPercent: number;
   suppressionCount: number;
   sender: { email: string; domain: string };
+  publicBooking: { url: string; domain: string; isLocal: boolean; domainsAligned: boolean };
   guidance: Array<{ id: string; ok: boolean; label: string }>;
 }
 
@@ -69,3 +70,4 @@ export const fetchSuppressions = () => api<SuppressionEntry[]>('/compliance/supp
 export const addSuppression = (email: string, reason: string) => api<SuppressionEntry>('/compliance/suppressions', { method: 'POST', body: JSON.stringify({ email, reason }) });
 export const deleteSuppression = (email: string) => api<{ ok: boolean }>(`/compliance/suppressions/${encodeURIComponent(email)}`, { method: 'DELETE' });
 export const saveCompliancePolicy = (policy: { dailySendLimit: number; bounceThresholdPercent: number; complaintThresholdPercent: number }) => api<DeliverabilityStatus>('/compliance/policy', { method: 'PUT', body: JSON.stringify(policy) });
+export const savePublicBookingUrl = (url: string) => api<DeliverabilityStatus>('/compliance/public-booking-url', { method: 'PUT', body: JSON.stringify({ url }) });

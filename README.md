@@ -157,6 +157,7 @@ See [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) for the product thesis, honest curr
 - Mandatory one-click unsubscribe links and recipient-level suppression enforced across manual, scheduled, and sequence sends
 - Automatic suppression after bounces, complaints, or unsubscribe requests
 - Configurable rolling daily limit, bounce threshold, complaint threshold, sender verification, and domain-health guidance
+- Admin-editable public booking origin with local-development guidance and explicit DNS/HTTPS instructions
 - Activation and meeting funnel events for product and workspace analytics
 - Accessible public unsubscribe flow, skip navigation, route loading states, and render recovery
 - Route-level frontend code splitting for settings, calendar, revenue, documents, analytics, and team management
@@ -260,6 +261,7 @@ Sign in with the seeded admin:
 | Variable | Description |
 |----------|-------------|
 | `PORT` | Server port (default: `3000`) |
+| `PUBLIC_BOOKING_BASE_URL` | Optional booking/unsubscribe origin; editable in Settings and falls back to `BASE_URL` |
 | `NODE_ENV` | `development` or `production` |
 | `JWT_EXPIRES_IN` | Token expiry (default: `7d`) |
 | `ALLOW_PUBLIC_REGISTRATION` | `true` to allow self-registration |
@@ -271,7 +273,7 @@ Sign in with the seeded admin:
 | `RESEND_WEBHOOK_SECRET` | Resend signing secret for webhook verification |
 | `INBOUND_EMAIL_ADDRESS` | Mailbox address used for reply tracking (default: `replies@eventnexus.eu`) |
 
-> **Security note:** Secret values are masked in API responses and encrypted at rest. `DATABASE_URL`, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `CORS_ORIGIN`, and `BASE_URL` remain bootstrap environment configuration.
+> **Security note:** Secret values are masked in API responses and encrypted at rest. `DATABASE_URL`, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `CORS_ORIGIN`, and the application `BASE_URL` remain bootstrap environment configuration. The separate origin used in generated booking/unsubscribe links can be changed by an admin in Settings.
 
 ---
 

@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { config } from "../config";
 import { HttpError } from "../utils/httpError";
 import { normalizeEmail } from "../utils/normalize";
-import { getEmailSettings, getInternalSetting, setInternalSetting } from "./settings.service";
+import { getEmailSettings, getInternalSetting, getPublicBookingBaseUrl, setInternalSetting } from "./settings.service";
 
 export async function suppressEmail(input: {
   email: string;
@@ -34,7 +34,8 @@ export async function getOrCreateUnsubscribeLink(pitchId: string, email: string)
       token: crypto.randomBytes(32).toString("base64url"),
     },
   });
-  return { ...link, url: `${config.baseUrl.replace(/\/$/, "")}/unsubscribe/${link.token}` };
+  const publicBaseUrl = await getPublicBookingBaseUrl();
+  return { ...link, url: `${publicBaseUrl}/unsubscribe/${link.token}` };
 }
 
 export async function markSenderVerified(userId?: string) {
@@ -48,13 +49,14 @@ export async function getDeliverabilityStatus() {
   const now = new Date();
   const since24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const since30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const [sent24Hours, sent30Days, bouncedRows, complainedRows, suppressionCount, verifiedAt] = await Promise.all([
+  const [sent24Hours, sent30Days, bouncedRows, complainedRows, suppressionCount, verifiedAt, publicBaseUrl] = await Promise.all([
     prisma.pitch.count({ where: { sentAt: { gte: since24Hours } } }),
     prisma.pitch.count({ where: { sentAt: { gte: since30Days } } }),
     prisma.pitchEvent.findMany({ where: { type: "BOUNCED", createdAt: { gte: since30Days } }, distinct: ["pitchId"], select: { pitchId: true } }),
     prisma.pitchEvent.findMany({ where: { type: "COMPLAINED", createdAt: { gte: since30Days } }, distinct: ["pitchId"], select: { pitchId: true } }),
     prisma.emailSuppression.count(),
     getInternalSetting("EMAIL_VERIFIED_AT"),
+    getPublicBookingBaseUrl(),
   ]);
 
   const bounceRate = sent30Days > 0 ? (bouncedRows.length / sent30Days) * 100 : 0;
@@ -69,8 +71,10 @@ export async function getDeliverabilityStatus() {
 
   const senderDomain = settings.fromEmail.split("@")[1]?.toLowerCase() || "";
   const baseDomain = (() => {
-    try { return new URL(config.baseUrl).hostname.toLowerCase(); } catch { return ""; }
+    try { return new URL(publicBaseUrl).hostname.toLowerCase(); } catch { return ""; }
   })();
+  const localBookingDomain = ["localhost", "127.0.0.1", "::1"].includes(baseDomain);
+  const domainsAligned = Boolean(senderDomain && baseDomain && (baseDomain === senderDomain || baseDomain.endsWith(`.${senderDomain}`)));
 
   return {
     configured: settings.configured,
@@ -88,11 +92,12 @@ export async function getDeliverabilityStatus() {
     complaintThresholdPercent: settings.complaintThresholdPercent,
     suppressionCount,
     sender: { email: settings.fromEmail, domain: senderDomain },
+    publicBooking: { url: publicBaseUrl, domain: baseDomain, isLocal: localBookingDomain, domainsAligned },
     guidance: [
       { id: "custom-domain", ok: Boolean(senderDomain && !/gmail\.com$|outlook\.com$|hotmail\.com$|yahoo\.com$/i.test(senderDomain)), label: "Use a dedicated business sending domain" },
-      { id: "domain-alignment", ok: Boolean(senderDomain && baseDomain && (baseDomain === senderDomain || baseDomain.endsWith(`.${senderDomain}`))), label: "Align the public booking domain with the sending domain" },
+      { id: "domain-alignment", ok: domainsAligned || localBookingDomain, label: localBookingDomain ? "Local booking URL (configure a public domain before production)" : "Align the public booking domain with the sending domain" },
       { id: "webhook", ok: Boolean(settings.webhookSecret), label: "Configure signed delivery and complaint webhooks" },
-      { id: "https", ok: config.baseUrl.startsWith("https://") || !config.isProduction, label: "Serve public links over HTTPS" },
+      { id: "https", ok: publicBaseUrl.startsWith("https://") || !config.isProduction, label: "Serve public links over HTTPS" },
       { id: "verified", ok: Boolean(verifiedAt), label: "Verify the SMTP connection after changing credentials" },
     ],
   };

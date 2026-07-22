@@ -50,3 +50,13 @@ complianceRouter.put(
     res.json(await getDeliverabilityStatus());
   }),
 );
+
+complianceRouter.put(
+  "/public-booking-url",
+  requireRole("ADMIN", "MANAGER"),
+  validate({ body: z.object({ url: z.string().url().max(500) }) }),
+  asyncHandler(async (req, res) => {
+    await updateSettings({ PUBLIC_BOOKING_BASE_URL: req.body.url }, req.user!.id);
+    res.json(await getDeliverabilityStatus());
+  }),
+);
