@@ -47,6 +47,14 @@ async function startServer() {
       credentials: true,
     }),
   );
+
+  // Chrome DevTools probes this URL when automatic workspace discovery is
+  // enabled. A deliberate empty response avoids Express/Vite's CSP-locked 404
+  // document, which browser extensions may otherwise try to modify.
+  app.get("/.well-known/appspecific/com.chrome.devtools.json", (_req, res) => {
+    res.status(204).end();
+  });
+
   // Webhook endpoints need the raw body for signature verification; parse them
   // as raw text and JSON-decode manually inside the route. Mounted before the
   // global JSON parser so the raw stream is still available.

@@ -41,6 +41,7 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Store only API-key hashes, validate scopes at both creation and use, and show raw keys only once
 - Keep backend bundles and source maps outside the frontend static directory
 - Every background worker must claim work atomically in the database before performing an external side effect
+- Handle browser tooling `.well-known` probes explicitly; do not weaken CSP to accommodate injected extension scripts
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility
