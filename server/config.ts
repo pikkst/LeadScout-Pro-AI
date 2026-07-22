@@ -36,6 +36,25 @@ export const config = {
     return secret;
   })(),
   jwtExpiresIn: optional(process.env.JWT_EXPIRES_IN, "7d"),
+  settingsEncryptionKey: isProduction
+    ? required("SETTINGS_ENCRYPTION_KEY", process.env.SETTINGS_ENCRYPTION_KEY)
+    : optional(
+        process.env.SETTINGS_ENCRYPTION_KEY,
+        process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 16
+          ? process.env.JWT_SECRET
+          : "dev-insecure-secret-change-me",
+      ),
+  settingsEncryptionPreviousKeys: (process.env.SETTINGS_ENCRYPTION_KEY_PREVIOUS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+  trustProxy: (() => {
+    const value = optional(process.env.TRUST_PROXY, "false").trim().toLowerCase();
+    if (value === "true") return 1;
+    if (value === "false") return false;
+    const hops = Number(value);
+    return Number.isInteger(hops) && hops >= 0 ? hops : false;
+  })(),
   // CORS
   corsOrigin: isProduction
     ? required("CORS_ORIGIN", process.env.CORS_ORIGIN)

@@ -1,27 +1,19 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { CompanyLead, SearchState, AgentTask, LeadFocus, OutreachPitch } from './types';
-import { findLeads, findMajorCities, verifyEmailAuthenticity } from './services/geminiService';
+import React, { lazy, Suspense, useState, useCallback, useMemo, useEffect } from 'react';
+import { CompanyLead, SearchState, AgentTask, LeadFocus, OutreachPitch, DealStage } from './types';
 import * as crm from './services/crmService';
-import { ApiError } from './services/apiClient';
+import { api, ApiError } from './services/apiClient';
 import { useAuth } from './context/AuthContext';
 import { downloadLeadsAsCSV } from './utils/csvExport';
 import AgentTerminal from './components/AgentTerminal';
 import { LeadCRMModal } from './components/LeadCRMModal';
-import { B2BPipelineBoard } from './components/B2BPipelineBoard';
-import { CRMStatsDashboard } from './components/CRMStatsDashboard';
-import { SettingsPage } from './components/SettingsPage';
-import { ScoutTab } from './components/ScoutTab';
-import { OutreachTab } from './components/OutreachTab';
 import { PitchPreviewModal } from './components/PitchPreviewModal';
 import { AppHeader } from './components/AppHeader';
 import { AppFooter } from './components/AppFooter';
 import { AppModals } from './components/AppModals';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import RevenueTab from './components/RevenueTab';
-import CalendarTab from './components/CalendarTab';
-import DocumentsTab from './components/DocumentsTab';
-import AnalyticsTab from './components/AnalyticsTab';
-import { TeamManagement } from './components/TeamManagement';
+import { SetupWizard } from './components/SetupWizard';
+import { CommandCenter } from './components/CommandCenter';
+import type { AppTab } from './services/activationService';
 import { 
   Globe, 
   Search, 
@@ -57,11 +49,22 @@ import {
 } from 'lucide-react';
 import { FOCUS_OPTIONS, LANGUAGE_OPTIONS } from './constants';
 
+const RevenueTab = lazy(() => import('./components/RevenueTab'));
+const CalendarTab = lazy(() => import('./components/CalendarTab'));
+const DocumentsTab = lazy(() => import('./components/DocumentsTab'));
+const AnalyticsTab = lazy(() => import('./components/AnalyticsTab'));
+const TeamManagement = lazy(() => import('./components/TeamManagement').then((module) => ({ default: module.TeamManagement })));
+const SettingsPage = lazy(() => import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })));
+const ScoutTab = lazy(() => import('./components/ScoutTab').then((module) => ({ default: module.ScoutTab })));
+const OutreachTab = lazy(() => import('./components/OutreachTab').then((module) => ({ default: module.OutreachTab })));
+const B2BPipelineBoard = lazy(() => import('./components/B2BPipelineBoard').then((module) => ({ default: module.B2BPipelineBoard })));
+const CRMStatsDashboard = lazy(() => import('./components/CRMStatsDashboard').then((module) => ({ default: module.CRMStatsDashboard })));
+
 const App: React.FC = () => {
   const { user, logout } = useAuth();
 
   // Navigation: scout, outreach, crm, dashboard, revenue, calendar, documents, analytics
-  const [activeTab, setActiveTab] = useState<'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings' | 'team'>('scout');
+  const [activeTab, setActiveTab] = useState<AppTab>('scout');
   const isAdmin = user?.role === 'ADMIN';
 
   // Lead Finder States
@@ -73,6 +76,7 @@ const App: React.FC = () => {
   const [leads, setLeads] = useState<CompanyLead[]>([]);
   const [pitches, setPitches] = useState<OutreachPitch[]>([]);
   const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [dealStages, setDealStages] = useState<DealStage[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Team activity feed
@@ -132,14 +136,16 @@ const App: React.FC = () => {
   // Load leads + pitches from the server on mount.
   const reloadData = useCallback(async () => {
     try {
-      const [serverLeads, serverPitches, serverUsers] = await Promise.all([
+      const [serverLeads, serverPitches, serverUsers, serverDealStages] = await Promise.all([
         crm.listLeads(),
         crm.listPitches(),
-        fetch('/api/auth/users', { credentials: 'include' }).then(r => r.ok ? r.json() : []).catch(() => []),
+        api<Array<{ id: string; name: string; email: string }>>('/auth/users').catch(() => []),
+        crm.listDealStages().catch(() => []),
       ]);
       setLeads(serverLeads);
       setPitches(serverPitches);
       setUsers(Array.isArray(serverUsers) ? serverUsers : []);
+      setDealStages(serverDealStages);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to load data from server';
       addLog(`[Critical] ${msg}`);
@@ -164,6 +170,11 @@ const App: React.FC = () => {
   useEffect(() => {
     reloadData();
   }, [reloadData]);
+
+  useEffect(() => {
+    if (activeTab !== 'crm') return;
+    crm.listDealStages().then(setDealStages).catch((error) => console.error('Failed to refresh deal stages:', error));
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -237,6 +248,7 @@ const App: React.FC = () => {
     });
 
     try {
+      const { findLeads, findMajorCities, verifyEmailAuthenticity } = await import('./services/geminiService');
       const selectedFocusLabel = FOCUS_OPTIONS.find(o => o.value === focus)?.label || focus;
       addLog(`[Strategic] Scouting geographic telecommunication hubs in "${location}" for sector: ${selectedFocusLabel}`);
       
@@ -800,6 +812,7 @@ Date().toISOString().split('T')[0]}.json`);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-12 text-slate-100 font-sans">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-sky-600 focus:px-4 focus:py-2 focus:text-white">Skip to main content</a>
       <AppHeader
         user={user}
         isAdmin={isAdmin}
@@ -810,6 +823,9 @@ Date().toISOString().split('T')[0]}.json`);
         onTabChange={setActiveTab}
         onLogout={logout}
       />
+
+      <main id="main-content" tabIndex={-1}>
+      <SetupWizard isAdmin={isAdmin} activeTab={activeTab} refreshKey={`${leads.length}:${pitches.length}`} onNavigate={setActiveTab} />
 
       {/* Main Container */}
       {activeTab !== 'settings' && (
@@ -1034,7 +1050,8 @@ Date().toISOString().split('T')[0]}.json`);
 
           {/* TAB 1: SCOUT & VERIFY LEADS */}
           {activeTab === 'scout' && (
-              <ScoutTab
+            <Suspense fallback={<RouteLoading />}>
+            <ScoutTab
                 location={location}
                 setLocation={setLocation}
                 intensity={intensity}
@@ -1065,10 +1082,12 @@ Date().toISOString().split('T')[0]}.json`);
                  totalLeadsCount={leads.length}
                  onUpdateLead={(updated) => setLeads(prev => prev.map(l => l.id === updated.id ? updated : l))}
                />
+            </Suspense>
           )}
 
           {/* TAB 2: AI CAMPAIGN BUILDER (DRAFTS & EMAIL DRAFT GENERATION) */}
           {activeTab === 'outreach' && (
+            <Suspense fallback={<RouteLoading />}>
             <OutreachTab
               pitches={pitches}
               sendingPitchIds={sendingPitchIds}
@@ -1083,11 +1102,13 @@ Date().toISOString().split('T')[0]}.json`);
               onMarkReplied={handleMarkReplied}
               onNavigateToScout={() => setActiveTab('scout')}
             />
+            </Suspense>
           )}
 
           {/* TAB 3: CRM CLIENT DATABASE (KANBAN BOARD & MANAGERS) */}
           {activeTab === 'crm' && (
             <div className="space-y-6">
+              <Suspense fallback={<RouteLoading />}>
               <B2BPipelineBoard 
                 leads={displayedLeads}
                 mineFilter={mineFilter}
@@ -1098,6 +1119,7 @@ Date().toISOString().split('T')[0]}.json`);
                 onBulkUpdateStage={handleBulkUpdateStage}
                 onBulkAssign={handleBulkAssign}
                 users={users}
+                dealStages={dealStages}
                 onUpdateStage={handleUpdateStage}
                 onEditLead={(lead) => { setSelectedCRMLead(lead); setIsCRMModalOpen(true); }}
                 onDeleteLead={handleDeleteLead}
@@ -1106,15 +1128,17 @@ Date().toISOString().split('T')[0]}.json`);
                 onImportBackup={handleImportBackup}
                 onUpdateFollowUpTask={handleUpdateFollowUpTask}
               />
+              </Suspense>
             </div>
           )}
 
           {/* TAB 4: EXECUTIVE ANALYTICS & COMMUNICATIONS TELEMETRY */}
           {activeTab === 'dashboard' && (
             <div className="space-y-8">
+              <CommandCenter onNavigate={setActiveTab} canManageCompliance={isAdmin} />
               
               {/* Performance Metrics & Visual Analytics Diagrams */}
-              <CRMStatsDashboard leads={leads} pitches={pitches} />
+              <Suspense fallback={<RouteLoading />}><CRMStatsDashboard leads={leads} pitches={pitches} /></Suspense>
 
               {/* Team Activity Feed */}
               <section className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl">
@@ -1279,27 +1303,27 @@ Date().toISOString().split('T')[0]}.json`);
 
           {/* TAB 5: REVENUE & COMMISSION TRACKING */}
           {activeTab === 'revenue' && (
-            <RevenueTab />
+            <Suspense fallback={<RouteLoading />}><RevenueTab /></Suspense>
           )}
 
           {/* TAB 6: CALENDAR & SCHEDULING */}
           {activeTab === 'calendar' && (
-            <CalendarTab />
+            <Suspense fallback={<RouteLoading />}><CalendarTab /></Suspense>
           )}
 
           {/* TAB 7: DOCUMENTS */}
           {activeTab === 'documents' && (
-            <DocumentsTab />
+            <Suspense fallback={<RouteLoading />}><DocumentsTab /></Suspense>
           )}
 
           {/* TAB 8: ADVANCED ANALYTICS */}
           {activeTab === 'analytics' && (
-            <AnalyticsTab />
+            <Suspense fallback={<RouteLoading />}><AnalyticsTab /></Suspense>
           )}
 
           {/* TAB 9: TEAM MANAGEMENT */}
           {activeTab === 'team' && (
-            <TeamManagement />
+            <Suspense fallback={<RouteLoading />}><TeamManagement /></Suspense>
           )}
 
         </div>
@@ -1309,9 +1333,10 @@ Date().toISOString().split('T')[0]}.json`);
       {/* Settings page (admin-only, full width) */}
       {activeTab === 'settings' && isAdmin && (
         <div className="mb-8">
-          <SettingsPage />
+          <Suspense fallback={<RouteLoading />}><SettingsPage /></Suspense>
         </div>
       )}
+      </main>
 
       <AppFooter />
 
@@ -1323,6 +1348,7 @@ Date().toISOString().split('T')[0]}.json`);
         isCRMModalOpen={isCRMModalOpen}
         selectedCRMLead={selectedCRMLead}
         focusOptions={FOCUS_OPTIONS}
+        dealStages={dealStages}
         onClosePitchPreview={() => setActivePitch(null)}
         onCloseCRMModal={() => { setIsCRMModalOpen(false); setSelectedCRMLead(null); }}
         onSavePitchChanges={handleSaveChanges}
@@ -1338,3 +1364,9 @@ Date().toISOString().split('T')[0]}.json`);
 };
 
 export default App;
+
+const RouteLoading: React.FC = () => (
+  <div className="flex min-h-48 items-center justify-center rounded-2xl border border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-500">
+    <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Loading workspace view…
+  </div>
+);

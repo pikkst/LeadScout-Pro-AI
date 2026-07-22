@@ -5,6 +5,8 @@ import { prisma } from "../db";
 import { logActivity } from "../utils/activity";
 import { getEmailSettings } from "../services/settings.service";
 import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook";
+import { claimWebhookEvent } from "../services/webhookReceipt.service";
+import { recordActivationEvent } from "../services/activation.service";
 
 export function extractHeaders(raw: string): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -85,6 +87,12 @@ inboundRouter.post("/resend", async (req: RawBodyRequest, res) => {
     return res.status(401).json({ error: "Invalid signature", code: "BAD_SIGNATURE" });
   }
 
+  const providerEventId = req.header("svix-id");
+  if (!providerEventId) return res.status(400).json({ error: "Missing webhook event id", code: "BAD_WEBHOOK" });
+  if (!(await claimWebhookEvent("resend-inbound", providerEventId))) {
+    return res.status(200).json({ ok: true, duplicate: true, matched: false });
+  }
+
   if (!event || event.type !== "email.received" || !event.data?.email_id) {
     return res.status(200).json({ ok: true, matched: false, reason: "ignored" });
   }
@@ -110,6 +118,12 @@ inboundRouter.post("/resend", async (req: RawBodyRequest, res) => {
       detail: `Inbound reply detected: ${pitch.leadName}`,
       userId: pitch.lead.createdById || pitch.createdById || "unknown",
       leadId: pitch.leadId,
+    });
+    await recordActivationEvent({
+      type: "REPLY_RECEIVED",
+      userId: pitch.lead.createdById || pitch.createdById || undefined,
+      leadId: pitch.leadId,
+      pitchId: pitch.id,
     });
   }
 

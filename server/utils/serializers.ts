@@ -1,6 +1,6 @@
 // Maps Prisma records to the shapes the frontend expects (types.ts),
 // and maps frontend enum-like strings to Prisma enums.
-import type { LeadStage, MeetingType, PitchStatus } from "@prisma/client";
+import type { MeetingType, PitchStatus } from "@prisma/client";
 
 const STAGE_TO_DB: Record<string, string> = {
   Discovered: "DISCOVERED",
@@ -26,6 +26,7 @@ const MEETING_TYPE_FROM_DB: Record<string, string> = Object.fromEntries(
 
 const PITCH_STATUS_TO_DB: Record<string, string> = {
   Draft: "DRAFT",
+  Sending: "SENDING",
   Sent: "SENT",
   Delivered: "DELIVERED",
   Replied: "REPLIED",
@@ -35,9 +36,8 @@ const PITCH_STATUS_FROM_DB: Record<string, string> = Object.fromEntries(
   Object.entries(PITCH_STATUS_TO_DB).map(([k, v]) => [v, k]),
 );
 
-export const stageToDb = (s?: string): LeadStage =>
-  (s ? STAGE_TO_DB[s] ?? "DISCOVERED" : "DISCOVERED") as LeadStage;
-export const stageFromDb = (s: string) => STAGE_FROM_DB[s] ?? "Discovered";
+export const stageToDb = (s?: string): string => s ? STAGE_TO_DB[s] ?? s : "DISCOVERED";
+export const stageFromDb = (s: string) => STAGE_FROM_DB[s] ?? s;
 export const meetingTypeToDb = (s?: string): MeetingType =>
   (s ? MEETING_TYPE_TO_DB[s] ?? "CALL" : "CALL") as MeetingType;
 export const meetingTypeFromDb = (s: string) => MEETING_TYPE_FROM_DB[s] ?? "Call";

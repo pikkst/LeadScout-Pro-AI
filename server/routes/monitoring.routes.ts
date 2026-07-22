@@ -10,6 +10,7 @@ import { validate } from "../middleware/validate";
 import { param } from "../utils/param";
 import * as ai from "../services/ai.service";
 import { logActivity } from "../utils/activity";
+import { expensiveOperationLimiter } from "../middleware/expensiveRateLimit";
 
 export const monitoringRouter = Router();
 monitoringRouter.use(requireAuth);
@@ -24,7 +25,7 @@ monitoringRouter.get("/lead/:leadId", asyncHandler(async (req, res) => {
   res.json(alerts);
 }));
 
-monitoringRouter.post("/lead/:leadId/check", canWrite, validate({
+monitoringRouter.post("/lead/:leadId/check", canWrite, expensiveOperationLimiter, validate({
   body: z.object({ leadId: z.string().min(1).optional() }),
 }), asyncHandler(async (req, res) => {
   const leadId = param(req, "leadId");

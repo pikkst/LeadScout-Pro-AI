@@ -28,20 +28,52 @@ export function signToken(user: { id: string }): string {
   });
 }
 
-function extractToken(req: Request): string | null {
-  const header = req.headers.authorization;
-  if (header && header.startsWith("Bearer ")) return header.slice(7);
+function cookieValue(req: Request, name: string): string | null {
+  const cookies = req.headers.cookie?.split(";") ?? [];
+  for (const cookie of cookies) {
+    const [key, ...value] = cookie.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
   return null;
+}
+
+function extractToken(req: Request): { token: string; source: "bearer" | "cookie" } | null {
+  const header = req.headers.authorization;
+  if (header && header.startsWith("Bearer ")) return { token: header.slice(7), source: "bearer" };
+  const token = cookieValue(req, "unitel_session");
+  return token ? { token, source: "cookie" } : null;
+}
+
+export function isSameHostBrowserOrigin(origin: string, host: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:")
+      && parsed.host.toLowerCase() === host.trim().toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+function assertCookieRequestOrigin(req: Request) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
+  const origin = req.get("origin");
+  const allowed = new Set([config.baseUrl, config.corsOrigin].map((value) => {
+    try { return new URL(value).origin; } catch { return value.replace(/\/$/, ""); }
+  }));
+  const host = req.get("host");
+  const matchesRequestHost = Boolean(origin && host && isSameHostBrowserOrigin(origin, host));
+  if (!origin || (!allowed.has(origin) && !matchesRequestHost)) throw forbidden("Invalid request origin");
 }
 
 /** Requires a valid token and an active user. Attaches req.user. */
 export const requireAuth = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
-  const token = extractToken(req);
-  if (!token) throw unauthorized();
+  const extracted = extractToken(req);
+  if (!extracted) throw unauthorized();
+  if (extracted.source === "cookie") assertCookieRequestOrigin(req);
 
   let payload: jwt.JwtPayload;
   try {
-    payload = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
+    payload = jwt.verify(extracted.token, config.jwtSecret) as jwt.JwtPayload;
   } catch {
     throw unauthorized("Invalid or expired session");
   }

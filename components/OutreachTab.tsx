@@ -137,6 +137,7 @@ export const OutreachTab: React.FC<OutreachTabProps> = ({
             {pitches.map((pitch) => (
               <div
                 key={pitch.id}
+                data-testid={`pitch-card-${pitch.id}`}
                 className="bg-slate-900/60 border border-slate-850 rounded-xl p-5 flex flex-col justify-between hover:border-slate-750 transition-all shadow-md hover:shadow-lg relative overflow-hidden"
               >
                 {pitch.status !== 'Draft' && (
@@ -228,6 +229,7 @@ export const OutreachTab: React.FC<OutreachTabProps> = ({
                         {schedulingPitchIds.has(pitch.id) ? 'Scheduling…' : 'Schedule'}
                       </button>
                       <button
+                        data-testid={`send-pitch-${pitch.id}`}
                         onClick={() => onSendPitch(pitch.id)}
                         disabled={sendingPitchIds.has(pitch.id)}
                         className="flex items-center gap-1.5 text-[10px] bg-sky-600/10 hover:bg-sky-600/25 disabled:opacity-50 text-sky-400 border border-sky-500/20 px-3 py-2 rounded-lg font-bold uppercase transition-all"

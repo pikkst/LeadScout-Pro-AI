@@ -86,21 +86,33 @@ sequencesRouter.patch("/:id", canWrite, validate({ body: sequenceSchema.partial(
   }
 
   if (body.steps) {
-    await prisma.sequenceStep.deleteMany({ where: { sequenceId: param(req, "id") } });
-    data.steps = {
-      create: body.steps.map(s => ({
-        order: s.order,
-        delayDays: s.delayDays,
-        actionType: s.actionType,
-        subject: s.subject ?? null,
-        body: s.body ?? null,
-        taskName: s.taskName ?? null,
-        isActive: s.isActive ?? true,
-        triggerEvent: s.triggerEvent ?? null,
-        eventDelayDays: s.eventDelayDays ?? null,
-        stopOnEvent: s.stopOnEvent ?? false,
-      })),
-    };
+    const steps = body.steps;
+    const scalarData = { ...data };
+    const sequence = await prisma.$transaction(async (tx) => {
+      await tx.sequenceStep.deleteMany({ where: { sequenceId: param(req, "id") } });
+      return tx.followUpSequence.update({
+        where: { id: param(req, "id") },
+        data: {
+          ...scalarData,
+          steps: {
+            create: steps.map(s => ({
+              order: s.order,
+              delayDays: s.delayDays,
+              actionType: s.actionType,
+              subject: s.subject ?? null,
+              body: s.body ?? null,
+              taskName: s.taskName ?? null,
+              isActive: s.isActive ?? true,
+              triggerEvent: s.triggerEvent ?? null,
+              eventDelayDays: s.eventDelayDays ?? null,
+              stopOnEvent: s.stopOnEvent ?? false,
+            })),
+          },
+        },
+        include: { steps: { orderBy: { order: "asc" } } },
+      });
+    });
+    return res.json(sequence);
   }
 
   const sequence = await prisma.followUpSequence.update({

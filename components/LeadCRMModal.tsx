@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CompanyLead, LeadFocus, ScheduledMeeting } from '../types';
+import { CompanyLead, DealStage, LeadFocus, ScheduledMeeting } from '../types';
 import { 
   X, Save, Building, Mail, Globe, Phone, DollarSign, User, FileText, 
   Calendar, Clock, Video, Plus, Trash2, Edit3, ExternalLink, CalendarDays,
@@ -14,6 +14,7 @@ interface LeadCRMModalProps {
   onSave: (lead: CompanyLead) => void;
   lead: CompanyLead | null; // Null means adding a new lead
   focusOptions: { value: LeadFocus; label: string; icon: string }[];
+  dealStages?: DealStage[];
 }
 
 const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; color: string }[] = [
@@ -25,7 +26,7 @@ const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; color: 
   { value: 'Archived', label: 'Archived', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }
 ];
 
-export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onSave, lead, focusOptions }) => {
+export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onSave, lead, focusOptions, dealStages = [] }) => {
   const [name, setName] = useState('');
   const [website, setWebsite] = useState('');
   const [email, setEmail] = useState('');
@@ -133,11 +134,8 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/custom-fields', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          if (mounted) setCustomFields(data);
-        }
+        const data = await api<Array<{ id: string; name: string; key: string; type: string; options?: string; isRequired?: boolean }>>('/custom-fields');
+        if (mounted) setCustomFields(data);
       } catch { /* ignore */ }
     })();
     return () => { mounted = false; };
@@ -160,6 +158,24 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
   }, [isOpen, lead?.id]);
 
   if (!isOpen) return null;
+
+  const activeDealStages = dealStages.filter((item) => item.isActive !== false);
+  const customByDefault = new Map(activeDealStages.map((item) => [item.key.toLowerCase(), item]));
+  const defaultKeys = new Set(STAGES.map((item) => item.value.toLowerCase()));
+  const selectableStages = [
+    ...STAGES.map((item) => ({
+      value: item.value,
+      label: customByDefault.get(item.value.toLowerCase())?.name ?? item.label,
+      sortOrder: customByDefault.get(item.value.toLowerCase())?.sortOrder ?? STAGES.indexOf(item),
+    })),
+    ...activeDealStages
+      .filter((item) => !defaultKeys.has(item.key.toLowerCase()))
+      .map((item) => ({ value: item.key, label: item.name, sortOrder: item.sortOrder ?? STAGES.length })),
+  ].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  if (stage && !selectableStages.some((item) => item.value === stage)) {
+    selectableStages.push({ value: stage, label: stage, sortOrder: Number.MAX_SAFE_INTEGER });
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,7 +312,7 @@ export const LeadCRMModal: React.FC<LeadCRMModalProps> = ({ isOpen, onClose, onS
                 onChange={(e) => setStage(e.target.value as any)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/40 font-semibold"
               >
-                {STAGES.map(stg => (
+                {selectableStages.map(stg => (
                   <option key={stg.value} value={stg.value}>
                     {stg.label}
                   </option>

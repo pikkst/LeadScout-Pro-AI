@@ -3,13 +3,14 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { notFound } from "../utils/httpError";
+import { forbidden, notFound } from "../utils/httpError";
 import { requireAuth } from "../middleware/auth";
 import { requireRole } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { param } from "../utils/param";
 import * as ai from "../services/ai.service";
 import { logActivity } from "../utils/activity";
+import { expensiveOperationLimiter } from "../middleware/expensiveRateLimit";
 
 export const optimizationRouter = Router();
 optimizationRouter.use(requireAuth);
@@ -17,7 +18,7 @@ optimizationRouter.use(requireAuth);
 const canWrite = requireRole("ADMIN", "MANAGER");
 
 // ---- Send-time optimization ----
-optimizationRouter.post("/send-time/:leadId", validate({
+optimizationRouter.post("/send-time/:leadId", expensiveOperationLimiter, validate({
   body: z.object({ leadId: z.string().min(1).optional(), agentId: z.string().optional().nullable() }),
 }), asyncHandler(async (req, res) => {
   const leadId = param(req, "leadId");
@@ -61,7 +62,7 @@ optimizationRouter.get("/coaching/me", asyncHandler(async (req, res) => {
   res.json(insights);
 }));
 
-optimizationRouter.post("/coaching/generate", asyncHandler(async (req, res) => {
+optimizationRouter.post("/coaching/generate", expensiveOperationLimiter, asyncHandler(async (req, res) => {
   const agentId = req.user!.id;
   const agent = await prisma.user.findUnique({ where: { id: agentId } });
   if (!agent) throw notFound("Agent not found");
@@ -109,6 +110,11 @@ optimizationRouter.post("/coaching/generate", asyncHandler(async (req, res) => {
 }));
 
 optimizationRouter.patch("/coaching/:id/read", asyncHandler(async (req, res) => {
+  const existing = await prisma.agentCoaching.findUnique({ where: { id: param(req, "id") } });
+  if (!existing) throw notFound("Coaching insight not found");
+  if (existing.agentId !== req.user!.id && !["ADMIN", "MANAGER"].includes(req.user!.role)) {
+    throw forbidden("You cannot update another user's coaching insight.");
+  }
   const insight = await prisma.agentCoaching.update({
     where: { id: param(req, "id") },
     data: { isRead: true },
@@ -117,6 +123,11 @@ optimizationRouter.patch("/coaching/:id/read", asyncHandler(async (req, res) => 
 }));
 
 optimizationRouter.patch("/coaching/:id/resolve", asyncHandler(async (req, res) => {
+  const existing = await prisma.agentCoaching.findUnique({ where: { id: param(req, "id") } });
+  if (!existing) throw notFound("Coaching insight not found");
+  if (existing.agentId !== req.user!.id && !["ADMIN", "MANAGER"].includes(req.user!.role)) {
+    throw forbidden("You cannot update another user's coaching insight.");
+  }
   const insight = await prisma.agentCoaching.update({
     where: { id: param(req, "id") },
     data: { isResolved: true },

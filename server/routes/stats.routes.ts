@@ -5,6 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { requireAuth } from "../middleware/auth";
 import { stageFromDb } from "../utils/serializers";
 import * as ai from "../services/ai.service";
+import { expensiveOperationLimiter } from "../middleware/expensiveRateLimit";
 
 export const statsRouter = Router();
 statsRouter.use(requireAuth);
@@ -221,6 +222,7 @@ statsRouter.get(
 // AI-enhanced revenue forecast
 statsRouter.get(
   "/forecast/ai",
+  expensiveOperationLimiter,
   asyncHandler(async (_req, res) => {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);

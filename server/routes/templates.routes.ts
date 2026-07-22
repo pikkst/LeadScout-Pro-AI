@@ -4,7 +4,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { notFound } from "../utils/httpError";
+import { forbidden, notFound } from "../utils/httpError";
 import { requireAuth } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { serializeTemplate } from "../utils/serializers";
@@ -13,6 +13,11 @@ import { param } from "../utils/param";
 
 export const templatesRouter = Router();
 templatesRouter.use(requireAuth);
+
+function assertCanManageTemplate(user: NonNullable<Express.Request["user"]>, createdById: string | null) {
+  if (user.role === "ADMIN" || user.role === "MANAGER" || createdById === user.id) return;
+  throw forbidden("You cannot modify another user's template.");
+}
 
 const createSchema = z.object({
   name: z.string().min(1).max(200),
@@ -63,6 +68,7 @@ templatesRouter.patch(
     const body = req.body as z.infer<typeof updateSchema>;
     const existing = await prisma.pitchTemplate.findUnique({ where: { id: param(req, "id") } });
     if (!existing) throw notFound("Template not found");
+    assertCanManageTemplate(req.user!, existing.createdById);
 
     const data: Record<string, unknown> = {};
     for (const key of ["name", "subject", "htmlContent", "textContent", "focus"] as const) {
@@ -84,6 +90,7 @@ templatesRouter.delete(
   asyncHandler(async (req, res) => {
     const existing = await prisma.pitchTemplate.findUnique({ where: { id: param(req, "id") } });
     if (!existing) throw notFound("Template not found");
+    assertCanManageTemplate(req.user!, existing.createdById);
     await prisma.pitchTemplate.delete({ where: { id: param(req, "id") } });
     await logActivity({ action: "TEMPLATE_DELETED", detail: existing.name, userId: req.user!.id });
     res.json({ ok: true });

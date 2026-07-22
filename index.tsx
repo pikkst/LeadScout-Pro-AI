@@ -5,6 +5,10 @@ import App from './App';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { Globe } from 'lucide-react';
+import PublicBookingPage from './components/PublicBookingPage';
+import PublicUnsubscribePage from './components/PublicUnsubscribePage';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import './styles.css';
 
 const Gate: React.FC = () => {
   const { user, loading } = useAuth();
@@ -27,10 +31,20 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+const bookingMatch = window.location.pathname.match(/^\/book\/([A-Za-z0-9_-]+)\/?$/);
+const unsubscribeMatch = window.location.pathname.match(/^\/unsubscribe\/([A-Za-z0-9_-]+)\/?$/);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <Gate />
-    </AuthProvider>
+    <ErrorBoundary>
+    {bookingMatch ? (
+      <PublicBookingPage token={bookingMatch[1]} />
+    ) : unsubscribeMatch ? (
+      <PublicUnsubscribePage token={unsubscribeMatch[1]} />
+    ) : (
+      <AuthProvider>
+        <Gate />
+      </AuthProvider>
+    )}
+    </ErrorBoundary>
   </React.StrictMode>
 );

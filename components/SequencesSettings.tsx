@@ -187,7 +187,7 @@ export const SequencesSettings: React.FC = () => {
                       <select value={step.actionType} onChange={e => updateStep(idx, { actionType: e.target.value as any })} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/40">
                         <option value="TASK">Task</option>
                         <option value="EMAIL">Email</option>
-                        <option value="WEBHOOK">Webhook</option>
+                        <option value="WEBHOOK">Webhook (legacy)</option>
                       </select>
                     </div>
                     <div>

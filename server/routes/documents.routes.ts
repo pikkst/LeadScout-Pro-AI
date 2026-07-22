@@ -4,11 +4,12 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { notFound } from "../utils/httpError";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { param } from "../utils/param";
 
 export const documentsRouter = Router();
 documentsRouter.use(requireAuth);
+const canManageTemplates = requireRole("ADMIN", "MANAGER");
 
 const templateSchema = z.object({
   name: z.string().min(1),
@@ -34,14 +35,14 @@ documentsRouter.get("/templates", asyncHandler(async (_req, res) => {
 }));
 
 // ---- Create template ----
-documentsRouter.post("/templates", asyncHandler(async (req, res) => {
+documentsRouter.post("/templates", canManageTemplates, asyncHandler(async (req, res) => {
   const data = templateSchema.parse(req.body);
   const template = await prisma.documentTemplate.create({ data: data as any });
   res.json(template);
 }));
 
 // ---- Update template ----
-documentsRouter.put("/templates/:id", asyncHandler(async (req, res) => {
+documentsRouter.put("/templates/:id", canManageTemplates, asyncHandler(async (req, res) => {
   const data = templateSchema.parse(req.body);
   const template = await prisma.documentTemplate.update({
     where: { id: param(req, "id") },
@@ -51,7 +52,7 @@ documentsRouter.put("/templates/:id", asyncHandler(async (req, res) => {
 }));
 
 // ---- Delete template ----
-documentsRouter.delete("/templates/:id", asyncHandler(async (req, res) => {
+documentsRouter.delete("/templates/:id", canManageTemplates, asyncHandler(async (req, res) => {
   await prisma.documentTemplate.delete({ where: { id: param(req, "id") } });
   res.json({ success: true });
 }));

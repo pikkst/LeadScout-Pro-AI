@@ -61,34 +61,17 @@ export async function testEmailConnection(input: {
   });
 }
 
-// Logo upload/remove (multipart + DELETE). Uses a raw fetch because apiClient
-// forces JSON; the token is read from the same auth storage.
-async function authHeaders(): Promise<Record<string, string>> {
-  const token = localStorage.getItem('unitel_auth_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export async function uploadLogo(file: File): Promise<{ url: string; logoUrl: string }> {
   const form = new FormData();
   form.append('logo', file);
-  const res = await fetch('/api/settings/company-logo', {
+  return api<{ url: string; logoUrl: string }>('/settings/company-logo', {
     method: 'POST',
-    headers: await authHeaders(),
     body: form,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || 'Logo upload failed');
-  return data as { url: string; logoUrl: string };
 }
 
 export async function removeLogo(): Promise<{ ok: boolean; logoUrl: string }> {
-  const res = await fetch('/api/settings/company-logo', {
-    method: 'DELETE',
-    headers: await authHeaders(),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || 'Logo removal failed');
-  return data as { ok: boolean; logoUrl: string };
+  return api<{ ok: boolean; logoUrl: string }>('/settings/company-logo', { method: 'DELETE' });
 }
 
 // Convenient SMTP provider presets for the UI.

@@ -6,13 +6,14 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { requireAuth } from "../middleware/auth";
 import { param } from "../utils/param";
 import crypto from "crypto";
+import { API_KEY_SCOPES, hashApiKey, parseApiKeyScopes } from "../services/apiKey.service";
 
 export const apiKeysRouter = Router();
 apiKeysRouter.use(requireAuth);
 
 const apiKeySchema = z.object({
-  name: z.string().min(1),
-  scopes: z.array(z.string()).default([]),
+  name: z.string().min(1).max(120),
+  scopes: z.array(z.enum(API_KEY_SCOPES)).min(1).default(["read"]),
 });
 
 // ---- List API keys ----
@@ -28,7 +29,7 @@ apiKeysRouter.get("/", asyncHandler(async (req, res) => {
       createdAt: true,
     },
   });
-  res.json(keys);
+  res.json(keys.map((key) => ({ ...key, scopes: parseApiKeyScopes(key.scopes) })));
 }));
 
 // ---- Create API key ----
@@ -41,7 +42,7 @@ apiKeysRouter.post("/", asyncHandler(async (req, res) => {
   const key = await prisma.apiKey.create({
     data: {
       name: data.name,
-      key: rawKey,
+      keyHash: hashApiKey(rawKey),
       keyPrefix,
       userId: req.user!.id,
       scopes: JSON.stringify(data.scopes),
@@ -53,7 +54,7 @@ apiKeysRouter.post("/", asyncHandler(async (req, res) => {
     name: key.name,
     key: rawKey,
     keyPrefix: key.keyPrefix,
-    scopes: key.scopes,
+    scopes: parseApiKeyScopes(key.scopes),
     createdAt: key.createdAt,
   });
 }));
@@ -65,20 +66,3 @@ apiKeysRouter.delete("/:id", asyncHandler(async (req, res) => {
   });
   res.json({ success: true });
 }));
-
-// ---- Verify API key (for middleware) ----
-export async function verifyApiKey(key: string) {
-  const record = await prisma.apiKey.findFirst({
-    where: { key, isRevoked: false },
-    include: { user: true },
-  });
-
-  if (!record) return null;
-
-  await prisma.apiKey.update({
-    where: { id: record.id },
-    data: { lastUsedAt: new Date() },
-  });
-
-  return record;
-}

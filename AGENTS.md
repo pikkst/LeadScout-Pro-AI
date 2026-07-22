@@ -31,6 +31,19 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Scheduled external side effects need an atomic database claim before the provider call and a terminal failure state for permanent errors
 - Authorization must be checked against the target resource owner, not only at router level
 - Persist notification read state and expose a mutation endpoint before displaying unread counts
+- Public booking links must be unguessable, expiring capability tokens and must expose only masked attendee data
+- Slot booking must claim availability atomically inside the same transaction that creates the meeting
+- Calendar confirmations should use provider-neutral ICS invitations before adding vendor-specific OAuth integrations
+- Creation form visibility must use explicit UI state; never infer whether a form is open from initially blank required fields
+- Public registration must assign self-service roles on the server; never trust a client-supplied privileged role
+- Browser sessions belong in HttpOnly SameSite cookies, and cookie-authenticated mutations must validate their Origin
+- Never render generated or user-controlled HTML in the application document; use a sandboxed iframe without script permission
+- Store only API-key hashes, validate scopes at both creation and use, and show raw keys only once
+- Keep backend bundles and source maps outside the frontend static directory
+- Every background worker must claim work atomically in the database before performing an external side effect
+- Handle browser tooling `.well-known` probes explicitly; do not weaken CSP to accommodate injected extension scripts
+- Log `localhost` as the browser URL even when the server binds to `0.0.0.0`; bind addresses are not user navigation targets
+- The bundled `npm start` path must explicitly mount `dist`; a failed development middleware must mount the same static fallback before returning requests
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility
@@ -43,6 +56,7 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - [ ] Webhooks: raw-body signature verification, replay protection, and fail-closed secret configuration
 - [ ] Background jobs: atomic claim, crash behavior, and terminal failure handling
 - [ ] DB: migrations safe, indexes present, no N+1 queries, cascade rules correct
+- [ ] Calendar: recurring rules validated, slot uniqueness enforced, booking races tested, public tokens expire
 - [ ] Nesting: no deep callback hell, async/await used correctly
 - [ ] Duplicates: no repeated logic, shared utilities extracted
 - [ ] Best practices: error handling, logging, rate limiting, idempotency

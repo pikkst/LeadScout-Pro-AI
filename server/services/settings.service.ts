@@ -3,7 +3,28 @@
 // Secrets are encrypted at rest. Values are cached and invalidated on save.
 import { prisma } from "../db";
 import { config } from "../config";
-import { encryptSecret, decryptSecret } from "../utils/crypto";
+import { decryptSecretWithKeyring, encryptSecret } from "../utils/crypto";
+import { badRequest } from "../utils/httpError";
+
+export function normalizePublicBookingBaseUrl(input: string): string {
+  let parsed: URL;
+  try { parsed = new URL(input); }
+  catch { throw badRequest("Enter a valid public booking URL, for example https://book.example.com."); }
+  if (parsed.username || parsed.password) throw badRequest("The public booking URL cannot contain credentials.");
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const isLocal = ["localhost", "127.0.0.1", "::1"].includes(hostname);
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLocal)) {
+    throw badRequest("Use HTTPS for a public booking URL. HTTP is allowed only for localhost.");
+  }
+  if ((parsed.pathname && parsed.pathname !== "/") || parsed.search || parsed.hash) {
+    throw badRequest("Enter only the public origin without a path, query, or fragment.");
+  }
+  return parsed.origin;
+}
+
+export function resolvePublicBookingBaseUrl(environmentValue: string | undefined, fallback: string): string {
+  return normalizePublicBookingBaseUrl(environmentValue?.trim() || fallback);
+}
 
 function toAbsoluteUrl(input: string): string {
   if (!input) return "";
@@ -120,6 +141,42 @@ export const SETTING_DEFS: SettingDef[] = [
     placeholder: "whsec_...",
     help: "Required to verify Resend delivery and inbound webhook signatures.",
   },
+  {
+    key: "EMAIL_DAILY_SEND_LIMIT",
+    label: "Daily Outreach Limit",
+    group: "email",
+    type: "number",
+    envDefault: () => process.env.EMAIL_DAILY_SEND_LIMIT || "100",
+    placeholder: "100",
+    help: "Maximum outreach pitches sent across this workspace in a rolling 24-hour window.",
+  },
+  {
+    key: "EMAIL_BOUNCE_THRESHOLD_PERCENT",
+    label: "Bounce Pause Threshold (%)",
+    group: "email",
+    type: "number",
+    envDefault: () => process.env.EMAIL_BOUNCE_THRESHOLD_PERCENT || "5",
+    placeholder: "5",
+    help: "Pause outreach when the 30-day bounce rate reaches this percentage after at least 20 sends.",
+  },
+  {
+    key: "EMAIL_COMPLAINT_THRESHOLD_PERCENT",
+    label: "Complaint Pause Threshold (%)",
+    group: "email",
+    type: "number",
+    envDefault: () => process.env.EMAIL_COMPLAINT_THRESHOLD_PERCENT || "0.3",
+    placeholder: "0.3",
+    help: "Pause outreach when the 30-day complaint rate reaches this percentage after at least 20 sends.",
+  },
+  {
+    key: "PUBLIC_BOOKING_BASE_URL",
+    label: "Public Booking URL",
+    group: "email",
+    type: "string",
+    envDefault: () => resolvePublicBookingBaseUrl(process.env.PUBLIC_BOOKING_BASE_URL, config.baseUrl),
+    placeholder: "https://book.example.com",
+    help: "Public origin used for booking and unsubscribe links. DNS and HTTPS must already route this address to LeadScout.",
+  },
 
   // --- Security ---
   {
@@ -211,7 +268,18 @@ async function loadAll(): Promise<Record<string, string>> {
   const rows = await prisma.appSetting.findMany();
   const dbValues: Record<string, string> = {};
   for (const row of rows) {
-    dbValues[row.key] = row.isSecret ? decryptSecret(row.value) : row.value;
+    if (!row.isSecret) {
+      dbValues[row.key] = row.value;
+      continue;
+    }
+    const decrypted = decryptSecretWithKeyring(row.value);
+    dbValues[row.key] = decrypted.value;
+    if (decrypted.decrypted && decrypted.needsRotation) {
+      await prisma.appSetting.update({
+        where: { key: row.key },
+        data: { value: encryptSecret(decrypted.value) },
+      });
+    }
   }
   const resolved: Record<string, string> = {};
   for (const def of SETTING_DEFS) {
@@ -259,7 +327,28 @@ export async function getEmailSettings() {
     configured: Boolean(s.SMTP_HOST && s.SMTP_USER && s.SMTP_PASS),
     providerApiKey: s.RESEND_API_KEY || "",
     webhookSecret: s.RESEND_WEBHOOK_SECRET || "",
+    dailySendLimit: Math.max(1, parseInt(s.EMAIL_DAILY_SEND_LIMIT || "100", 10) || 100),
+    bounceThresholdPercent: Math.max(0, Number(s.EMAIL_BOUNCE_THRESHOLD_PERCENT || "5") || 5),
+    complaintThresholdPercent: Math.max(0, Number(s.EMAIL_COMPLAINT_THRESHOLD_PERCENT || "0.3") || 0.3),
   };
+}
+
+export async function getPublicBookingBaseUrl(): Promise<string> {
+  const value = (await getSetting("PUBLIC_BOOKING_BASE_URL")).trim();
+  return resolvePublicBookingBaseUrl(value, config.baseUrl);
+}
+
+export async function getInternalSetting(key: string): Promise<string> {
+  const row = await prisma.appSetting.findUnique({ where: { key } });
+  return row?.value ?? "";
+}
+
+export async function setInternalSetting(key: string, value: string, updatedById?: string): Promise<void> {
+  await prisma.appSetting.upsert({
+    where: { key },
+    update: { value, isSecret: false, updatedById },
+    create: { key, value, isSecret: false, updatedById },
+  });
 }
 
 export async function getAllowPublicRegistration(): Promise<boolean> {
@@ -301,7 +390,10 @@ export async function updateSettings(
   for (const [key, rawValue] of entries) {
     const def = DEF_BY_KEY.get(key)!;
     const isSecret = def.type === "secret";
-    const value = isSecret ? encryptSecret(String(rawValue)) : String(rawValue);
+    const normalizedValue = key === "PUBLIC_BOOKING_BASE_URL"
+      ? normalizePublicBookingBaseUrl(String(rawValue))
+      : String(rawValue);
+    const value = isSecret ? encryptSecret(normalizedValue) : normalizedValue;
     await prisma.appSetting.upsert({
       where: { key },
       update: { value, isSecret, updatedById },

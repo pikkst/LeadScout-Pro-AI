@@ -2,6 +2,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import rateLimit from "express-rate-limit";
 import { config } from "../config";
 import { prisma } from "../db";
 import { asyncHandler } from "../utils/asyncHandler";
@@ -14,9 +15,27 @@ import { getAllowPublicRegistration } from "../services/settings.service";
 
 export const authRouter = Router();
 
+function setSessionCookie(res: import("express").Response, token: string) {
+  const secure = config.isProduction ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `unitel_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/${secure}`);
+}
+
+function clearSessionCookie(res: import("express").Response) {
+  const secure = config.isProduction ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `unitel_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}`);
+}
+
+const credentialLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many authentication attempts. Please try again later.", code: "RATE_LIMITED" },
+});
+
 const credentialsSchema = z.object({
   email: z.string().email().transform((v) => v.toLowerCase().trim()),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must be at most 128 characters"),
 });
 
 const registerSchema = credentialsSchema.extend({
@@ -31,51 +50,52 @@ const registerSchema = credentialsSchema.extend({
  */
 authRouter.post(
   "/register",
+  credentialLimiter,
   validate({ body: registerSchema }),
   asyncHandler(async (req, res) => {
     const { email, password, name, role } = req.body as z.infer<typeof registerSchema>;
 
-    const userCount = await prisma.user.count();
-    const isFirstUser = userCount === 0;
-
-    if (!isFirstUser) {
-      // Determine whether the caller is an authenticated admin.
-      let callerIsAdmin = false;
-      const header = req.headers.authorization;
-      if (header?.startsWith("Bearer ")) {
-        try {
-          const jwt = (await import("jsonwebtoken")).default;
-          const token = header.slice(7);
-          const payload = jwt.verify(token, config.jwtSecret) as { sub?: string };
-          if (payload.sub) {
-            const caller = await prisma.user.findUnique({ where: { id: payload.sub } });
-            callerIsAdmin = caller?.role === "ADMIN" && caller.isActive;
-          }
-        } catch {
-          /* ignore invalid token */
+    let callerIsAdmin = false;
+    const header = req.headers.authorization;
+    if (header?.startsWith("Bearer ")) {
+      try {
+        const jwt = (await import("jsonwebtoken")).default;
+        const token = header.slice(7);
+        const payload = jwt.verify(token, config.jwtSecret) as { sub?: string };
+        if (payload.sub) {
+          const caller = await prisma.user.findUnique({ where: { id: payload.sub } });
+          callerIsAdmin = caller?.role === "ADMIN" && caller.isActive;
         }
-      }
-      if (!callerIsAdmin && !(await getAllowPublicRegistration())) {
-        throw forbidden("New accounts must be created by an administrator.");
+      } catch {
+        /* ignore invalid token */
       }
     }
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) throw conflict("An account with this email already exists.");
-
+    const publicRegistrationAllowed = await getAllowPublicRegistration();
     const passwordHash = await bcrypt.hash(password, 12);
-    const assignedRole = isFirstUser ? "ADMIN" : role ?? "AGENT";
-
-    const user = await prisma.user.create({
-      data: { email, name, passwordHash, role: assignedRole },
+    const result = await prisma.$transaction(async (tx) => {
+      // Serialize bootstrap registration so two concurrent requests cannot both
+      // observe an empty users table and create separate first administrators.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(847263519)`;
+      const isFirstUser = (await tx.user.count()) === 0;
+      if (!isFirstUser && !callerIsAdmin && !publicRegistrationAllowed) {
+        throw forbidden("New accounts must be created by an administrator.");
+      }
+      const existing = await tx.user.findUnique({ where: { email } });
+      if (existing) throw conflict("An account with this email already exists.");
+      const assignedRole = isFirstUser ? "ADMIN" : callerIsAdmin ? role ?? "AGENT" : "AGENT";
+      const user = await tx.user.create({ data: { email, name, passwordHash, role: assignedRole } });
+      return { user, isFirstUser, assignedRole };
     });
+    const { user, isFirstUser, assignedRole } = result;
 
     await logActivity({ action: "USER_REGISTERED", detail: `${email} (${assignedRole})`, userId: user.id });
 
     // Auto-login the first admin for a smooth setup experience.
     if (isFirstUser) {
       const token = signToken(user);
-      return res.status(201).json({ user: serializeUser(user), token });
+      if (req.get("x-auth-mode") === "bearer") return res.status(201).json({ user: serializeUser(user), token });
+      setSessionCookie(res, token);
+      return res.status(201).json({ user: serializeUser(user), autoLoggedIn: true });
     }
 
     res.status(201).json({ user: serializeUser(user) });
@@ -84,6 +104,7 @@ authRouter.post(
 
 authRouter.post(
   "/login",
+  credentialLimiter,
   validate({ body: credentialsSchema }),
   asyncHandler(async (req, res) => {
     const { email, password } = req.body as z.infer<typeof credentialsSchema>;
@@ -96,13 +117,16 @@ authRouter.post(
     const token = signToken(user);
     await logActivity({ action: "USER_LOGIN", detail: email, userId: user.id });
 
-    res.json({ user: serializeUser(user), token });
+    if (req.get("x-auth-mode") === "bearer") return res.json({ user: serializeUser(user), token });
+    setSessionCookie(res, token);
+    res.json({ user: serializeUser(user) });
   }),
 );
 
 authRouter.post(
   "/logout",
   asyncHandler(async (_req, res) => {
+    clearSessionCookie(res);
     res.json({ ok: true });
   }),
 );
@@ -120,7 +144,7 @@ authRouter.get(
 const updateMeSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   currentPassword: z.string().optional(),
-  newPassword: z.string().min(8).optional(),
+  newPassword: z.string().min(8).max(128).optional(),
 });
 
 authRouter.patch(

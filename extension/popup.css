@@ -35,6 +35,25 @@ h1 {
   margin-bottom: 12px;
 }
 
+.configuration {
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+.configuration summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.config-save {
+  width: 100%;
+}
+
 label {
   display: block;
   font-size: 10px;

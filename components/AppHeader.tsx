@@ -1,8 +1,9 @@
 import React from 'react';
 import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users } from 'lucide-react';
+import type { AppTab } from '../services/activationService';
 
 interface Tab {
-  id: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings' | 'team';
+  id: AppTab;
   label: string;
   icon: React.ReactNode;
   badge?: React.ReactNode;
@@ -11,7 +12,7 @@ interface Tab {
 interface AppHeaderProps {
   user: { name?: string; role?: string } | null;
   isAdmin: boolean;
-  activeTab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings' | 'team';
+  activeTab: AppTab;
   stats: {
     totalLeads: number;
     selectedLeadsCount: number;
@@ -22,7 +23,7 @@ interface AppHeaderProps {
   };
   pitchesCount: number;
   overdueLeadsCount: number;
-  onTabChange: (tab: 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 'calendar' | 'documents' | 'analytics' | 'settings' | 'team') => void;
+  onTabChange: (tab: AppTab) => void;
   onLogout: () => void;
 }
 
@@ -128,7 +129,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {tabs.map(tab => (
           <button
             key={tab.id}
+            data-testid={`nav-${tab.id}`}
             onClick={() => onTabChange(tab.id)}
+            aria-current={activeTab === tab.id ? 'page' : undefined}
             className={`px-5 py-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap relative ${
               activeTab === tab.id
                 ? 'border-sky-500 text-sky-400 bg-sky-500/5'

@@ -1,5 +1,5 @@
 import React from 'react';
-import { OutreachPitch, CompanyLead } from '../types';
+import { OutreachPitch, CompanyLead, DealStage } from '../types';
 import { LeadCRMModal } from './LeadCRMModal';
 import { PitchPreviewModal } from './PitchPreviewModal';
 
@@ -11,6 +11,7 @@ interface AppModalsProps {
   isCRMModalOpen: boolean;
   selectedCRMLead: CompanyLead | null;
   focusOptions: { value: string; label: string; icon: string; pitchType: string }[];
+  dealStages?: DealStage[];
   onClosePitchPreview: () => void;
   onCloseCRMModal: () => void;
   onSavePitchChanges: () => void;
@@ -29,6 +30,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   isCRMModalOpen,
   selectedCRMLead,
   focusOptions,
+  dealStages,
   onClosePitchPreview,
   onCloseCRMModal,
   onSavePitchChanges,
@@ -62,6 +64,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
           isOpen={isCRMModalOpen}
           lead={selectedCRMLead}
           focusOptions={focusOptions}
+          dealStages={dealStages}
           onClose={onCloseCRMModal}
           onSave={onSaveCRMLead}
         />

@@ -30,6 +30,8 @@ model User {
   commissions   Commission[]  @relation("AgentCommissions")
   routingRules  LeadRoutingRule[] @relation("RoutingAgent")
   meetingSlots  MeetingSlot[] @relation("MeetingSlots")
+  availabilityRules AvailabilityRule[] @relation("AvailabilityRules")
+  bookingLinks BookingLink[] @relation("BookingAgents")
   createdDocuments GeneratedDocument[] @relation("DocumentCreator")
   apiKeys ApiKey[] @relation("ApiKeys")
   sendTimeOptimizations SendTimeOptimization[] @relation("SendTimeOptimizations")
@@ -72,7 +74,7 @@ model Lead {
   focus          String? // LeadFocus segment (voip_carriers, sms_aggregators, ...)
   source         LeadSource @default(AI_SCOUT)
   isVerified     Boolean    @default(false)
-  stage          LeadStage  @default(DISCOVERED)
+  stage          String     @default("DISCOVERED")
   notes          String     @default("")
   estimatedValue Int        @default(0) // Potential monthly value in EUR
   aiScore        Int?       // AI-calculated conversion probability 0-100
@@ -98,6 +100,7 @@ model Lead {
   documents GeneratedDocument[]
   monitoringAlerts LeadMonitoring[]
   sendTimeOptimizations SendTimeOptimization[]
+  bookingLinks BookingLink[]
 
   @@unique([website, email])
   @@index([domain])
@@ -106,15 +109,6 @@ model Lead {
   @@index([assignedAgentId])
   @@index([focus])
   @@map("leads")
-}
-
-enum LeadStage {
-  DISCOVERED
-  CONTACTED
-  NEGOTIATION
-  SIGNED
-  ACTIVE
-  ARCHIVED
 }
 
 enum LeadSource {
@@ -151,6 +145,7 @@ model Meeting {
   type      MeetingType @default(CALL)
   agenda    String      @default("")
   link      String?
+  timezone  String      @default("Europe/Tallinn")
   createdAt DateTime    @default(now())
 
   leadId String
@@ -163,6 +158,7 @@ model Meeting {
   agent   User?   @relation("AgentMeetings", fields: [agentId], references: [id], onDelete: SetNull)
 
   slots MeetingSlot[]
+  bookingLink BookingLink?
 
   @@index([leadId])
   @@index([agentId])
@@ -175,6 +171,7 @@ model MeetingSlot {
   date        String   // YYYY-MM-DD
   startTime   String   // HH:MM
   endTime     String   // HH:MM
+  timezone    String   @default("Europe/Tallinn")
   isAvailable Boolean  @default(true)
   isBooked    Boolean  @default(false)
   agentId     String
@@ -184,7 +181,67 @@ model MeetingSlot {
 
   @@index([agentId])
   @@index([date])
+  @@index([agentId, date, isAvailable, isBooked])
+  @@unique([agentId, date, startTime])
   @@map("meeting_slots")
+}
+
+model WebhookReceipt {
+  id              String   @id @default(cuid())
+  provider        String
+  providerEventId String
+  receivedAt      DateTime @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([receivedAt])
+  @@map("webhook_receipts")
+}
+
+/// A recurring weekly availability window for an agent.
+model AvailabilityRule {
+  id           String   @id @default(cuid())
+  weekday      Int
+  startTime    String
+  endTime      String
+  slotDuration Int      @default(30)
+  timezone     String   @default("Europe/Tallinn")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agentId String
+  agent   User @relation("AvailabilityRules", fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, weekday])
+  @@index([agentId, isActive])
+  @@map("availability_rules")
+}
+
+/// Capability link included in outreach emails for public meeting booking.
+model BookingLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  bookedAt  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pitchId String @unique
+  pitch   Pitch  @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  agentId String
+  agent   User @relation("BookingAgents", fields: [agentId], references: [id], onDelete: Cascade)
+
+  meetingId String?  @unique
+  meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([leadId])
+  @@index([expiresAt])
+  @@map("booking_links")
 }
 
 enum MeetingType {
@@ -225,16 +282,20 @@ model Pitch {
   inReplyToId String? @unique
   replies Pitch[] @relation("ReplyChain")
   meetings Meeting[] @relation("MeetingPitches")
+  bookingLink BookingLink?
+  unsubscribeLink UnsubscribeLink?
 
   events PitchEvent[]
 
   @@index([leadId])
   @@index([status])
+  @@index([status, scheduledSendAt])
   @@map("pitches")
 }
 
 enum PitchStatus {
   DRAFT
+  SENDING
   SENT
   DELIVERED
   REPLIED
@@ -280,7 +341,52 @@ enum PitchEventType {
   CLICKED
   REPLIED
   BOUNCED
+  COMPLAINED
   FAILED
+}
+
+/// Recipient-level do-not-contact entry enforced before every outreach send.
+model EmailSuppression {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  reason      String
+  source      String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("email_suppressions")
+}
+
+/// Non-expiring capability included in an outreach footer so a recipient can opt out.
+model UnsubscribeLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  createdAt DateTime @default(now())
+
+  pitchId String @unique
+  pitch   Pitch  @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@map("unsubscribe_links")
+}
+
+/// Product funnel instrumentation for activation, outreach, and booking outcomes.
+model ActivationEvent {
+  id        String   @id @default(cuid())
+  type      String
+  userId    String?
+  leadId    String?
+  pitchId   String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+  @@index([leadId])
+  @@index([pitchId])
+  @@map("activation_events")
 }
 
 /// Saved pitch template for reuse across the team.
@@ -415,6 +521,9 @@ model SequenceExecution {
   completedAt DateTime?
   nextRunAt   DateTime?
   lastEventCheckedAt DateTime? // last time pitch events were checked for trigger events
+  triggeredStep Int?
+  processingStep Int?
+  processingStartedAt DateTime?
 
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -424,6 +533,7 @@ model SequenceExecution {
 
   @@index([leadId])
   @@index([sequenceId])
+  @@index([status, nextRunAt])
   @@map("sequence_executions")
 }
 
@@ -548,7 +658,7 @@ enum DocumentType {
 model ApiKey {
   id         String   @id @default(cuid())
   name       String
-  key        String   @unique
+  keyHash    String   @unique @map("key")
   keyPrefix  String
   scopes     String   @default("[]")
   isRevoked  Boolean  @default(false)

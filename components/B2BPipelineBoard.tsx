@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CompanyLead } from '../types';
+import { CompanyLead, DealStage } from '../types';
 import { 
   Building, 
   ArrowRight, 
@@ -44,9 +44,12 @@ interface B2BPipelineBoardProps {
   onBulkUpdateStage?: (stage: NonNullable<CompanyLead['stage']>) => void;
   onBulkAssign?: (assignedAgentId: string | null) => void;
   users?: Array<{ id: string; name: string; email: string }>;
+  dealStages?: DealStage[];
 }
 
-const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: string; bg: string; text: string; border: string; desc: string }[] = [
+type PipelineStage = { value: string; label: string; icon: string; bg: string; text: string; border: string; desc: string; color?: string; sortOrder: number };
+
+const DEFAULT_STAGES: PipelineStage[] = [
   { 
     value: 'Discovered', 
     label: 'Discovered', 
@@ -54,7 +57,7 @@ const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: s
     bg: 'bg-slate-500/10', 
     text: 'text-slate-300', 
     border: 'border-slate-800/80',
-    desc: 'Newly scouted carrier partners' 
+    desc: 'Newly scouted carrier partners', sortOrder: 0,
   },
   { 
     value: 'Contacted', 
@@ -63,7 +66,7 @@ const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: s
     bg: 'bg-sky-500/10', 
     text: 'text-sky-300', 
     border: 'border-sky-950/80',
-    desc: 'Personalized AI pitch sent' 
+    desc: 'Personalized AI pitch sent', sortOrder: 1,
   },
   { 
     value: 'Negotiation', 
@@ -72,7 +75,7 @@ const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: s
     bg: 'bg-amber-500/10', 
     text: 'text-amber-300', 
     border: 'border-amber-950/80',
-    desc: 'Price listing & tech discussion' 
+    desc: 'Price listing & tech discussion', sortOrder: 2,
   },
   { 
     value: 'Signed', 
@@ -81,7 +84,7 @@ const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: s
     bg: 'bg-purple-500/10', 
     text: 'text-purple-300', 
     border: 'border-purple-950/80',
-    desc: 'Interconnect agreement signed' 
+    desc: 'Interconnect agreement signed', sortOrder: 3,
   },
   { 
     value: 'Active', 
@@ -90,7 +93,7 @@ const STAGES: { value: NonNullable<CompanyLead['stage']>; label: string; icon: s
     bg: 'bg-emerald-500/10', 
     text: 'text-emerald-300', 
     border: 'border-emerald-950/80',
-    desc: 'Live traffic & billing active' 
+    desc: 'Live traffic & billing active', sortOrder: 4,
   }
 ];
 
@@ -111,7 +114,33 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
   onBulkUpdateStage,
   onBulkAssign,
   users,
+  dealStages = [],
 }) => {
+  const stages = useMemo<PipelineStage[]>(() => {
+    const activeCustom = dealStages.filter((stage) => stage.isActive !== false);
+    const customByDefault = new Map(activeCustom.map((stage) => [stage.key.toLowerCase(), stage]));
+    const defaults = DEFAULT_STAGES.map((stage) => {
+      const custom = customByDefault.get(stage.value.toLowerCase());
+      return custom
+        ? { ...stage, label: custom.name, color: custom.color, sortOrder: custom.sortOrder ?? stage.sortOrder }
+        : stage;
+    });
+    const defaultKeys = new Set(DEFAULT_STAGES.map((stage) => stage.value.toLowerCase()));
+    const extras = activeCustom
+      .filter((stage) => !defaultKeys.has(stage.key.toLowerCase()))
+      .map((stage) => ({
+        value: stage.key,
+        label: stage.name,
+        icon: '•',
+        bg: 'bg-slate-500/10',
+        text: 'text-slate-200',
+        border: 'border-slate-800/80',
+        desc: 'Custom pipeline stage',
+        color: stage.color,
+        sortOrder: stage.sortOrder ?? 100,
+      }));
+    return [...defaults, ...extras].sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [dealStages]);
   
   // Scheduler rescheduling states
   const [editingTaskLeadId, setEditingTaskLeadId] = useState<string | null>(null);
@@ -166,7 +195,7 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
   };
 
   const getNextStage = (current: NonNullable<CompanyLead['stage']>): NonNullable<CompanyLead['stage']> | null => {
-    const order: NonNullable<CompanyLead['stage']>[] = ['Discovered', 'Contacted', 'Negotiation', 'Signed', 'Active'];
+    const order = stages.map((stage) => stage.value);
     const idx = order.indexOf(current);
     if (idx !== -1 && idx < order.length - 1) {
       return order[idx + 1];
@@ -175,7 +204,7 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
   };
 
   const getPrevStage = (current: NonNullable<CompanyLead['stage']>): NonNullable<CompanyLead['stage']> | null => {
-    const order: NonNullable<CompanyLead['stage']>[] = ['Discovered', 'Contacted', 'Negotiation', 'Signed', 'Active'];
+    const order = stages.map((stage) => stage.value);
     const idx = order.indexOf(current);
     if (idx > 0) {
       return order[idx - 1];
@@ -237,7 +266,7 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
             </span>
           </div>
             <div className="flex items-center gap-2">
-              {STAGES.filter(s => s.value !== 'Archived').map(stage => (
+              {stages.filter(s => s.value !== 'Archived').map(stage => (
                 <button
                   key={stage.value}
                   onClick={() => onBulkUpdateStage && onBulkUpdateStage(stage.value)}
@@ -373,8 +402,8 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
       )}
 
       {/* Kanban Board Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
-        {STAGES.map(stage => {
+      <div className="grid grid-cols-1 lg:grid-flow-col lg:auto-cols-[minmax(240px,1fr)] gap-4 overflow-x-auto pb-4">
+        {stages.map(stage => {
           const { count, totalValue } = getStageStats(stage.value);
           const stageLeads = leads.filter(l => (l.stage || 'Discovered') === stage.value);
 
@@ -384,9 +413,9 @@ export const B2BPipelineBoard: React.FC<B2BPipelineBoardProps> = ({
               className={`flex flex-col bg-slate-950/40 border border-slate-900 rounded-xl min-w-[240px] max-h-[700px] overflow-hidden`}
             >
               {/* Column Header */}
-              <div className={`p-4 border-b border-slate-900 ${stage.bg} flex flex-col gap-1.5`}>
+              <div className={`p-4 border-b border-slate-900 ${stage.bg} flex flex-col gap-1.5`} style={stage.color ? { backgroundColor: `${stage.color}22` } : undefined}>
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${stage.text}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${stage.text}`} style={stage.color ? { color: stage.color } : undefined}>
                     <span className="text-sm">{stage.icon}</span>
                     {stage.label}
                   </span>

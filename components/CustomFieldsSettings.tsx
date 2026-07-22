@@ -3,11 +3,16 @@ import { CustomFieldDefinition, DealStage } from '../types';
 import * as crm from '../services/crmService';
 import { Plus, Trash2, Edit3, X, Check, Loader2, GripVertical } from 'lucide-react';
 
+export const shouldShowEditor = (editingId: string | null, creating: boolean): boolean =>
+  creating || editingId !== null;
+
 export const CustomFieldsSettings: React.FC = () => {
   const [fields, setFields] = useState<CustomFieldDefinition[]>([]);
   const [stages, setStages] = useState<DealStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creatingField, setCreatingField] = useState(false);
+  const [creatingStage, setCreatingStage] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [fieldForm, setFieldForm] = useState({ name: '', key: '', type: 'TEXT' as const, options: '', isRequired: false, sortOrder: 0 });
@@ -51,6 +56,7 @@ export const CustomFieldsSettings: React.FC = () => {
   };
 
   const handleEditField = (field: CustomFieldDefinition) => {
+    setCreatingField(false);
     setEditingFieldId(field.id);
     setFieldForm({
       name: field.name,
@@ -71,6 +77,7 @@ export const CustomFieldsSettings: React.FC = () => {
 
   const resetFieldForm = () => {
     setFieldForm({ name: '', key: '', type: 'TEXT', options: '', isRequired: false, sortOrder: 0 });
+    setCreatingField(false);
     setEditingFieldId(null);
     setError(null);
   };
@@ -97,6 +104,7 @@ export const CustomFieldsSettings: React.FC = () => {
   };
 
   const handleEditStage = (stage: DealStage) => {
+    setCreatingStage(false);
     setEditingStageId(stage.id);
     setStageForm({
       name: stage.name,
@@ -116,6 +124,7 @@ export const CustomFieldsSettings: React.FC = () => {
 
   const resetStageForm = () => {
     setStageForm({ name: '', key: '', color: '#64748b', sortOrder: 0, isActive: true });
+    setCreatingStage(false);
     setEditingStageId(null);
     setError(null);
   };
@@ -142,7 +151,11 @@ export const CustomFieldsSettings: React.FC = () => {
           </div>
           {!editingFieldId && (
             <button
-              onClick={() => setFieldForm({ name: '', key: '', type: 'TEXT', options: '', isRequired: false, sortOrder: fields.length })}
+              onClick={() => {
+                setFieldForm({ name: '', key: '', type: 'TEXT', options: '', isRequired: false, sortOrder: fields.length });
+                setCreatingField(true);
+                setError(null);
+              }}
               className="flex items-center gap-1.5 text-[10px] bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg font-bold uppercase transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -151,7 +164,7 @@ export const CustomFieldsSettings: React.FC = () => {
           )}
         </div>
 
-        {(editingFieldId || fieldForm.name) && (
+        {shouldShowEditor(editingFieldId, creatingField) && (
           <div className="bg-slate-900/60 border border-sky-500/20 rounded-xl p-5 space-y-4 mb-6">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">{editingFieldId ? 'Edit' : 'New'} Custom Field</h4>
@@ -232,7 +245,12 @@ export const CustomFieldsSettings: React.FC = () => {
           </div>
           {!editingStageId && (
             <button
-              onClick={() => setStageForm({ name: '', key: '', color: '#64748b', sortOrder: stages.length, isActive: true })}
+              data-testid="add-stage"
+              onClick={() => {
+                setStageForm({ name: '', key: '', color: '#64748b', sortOrder: stages.length, isActive: true });
+                setCreatingStage(true);
+                setError(null);
+              }}
               className="flex items-center gap-1.5 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold uppercase transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -241,7 +259,7 @@ export const CustomFieldsSettings: React.FC = () => {
           )}
         </div>
 
-        {(editingStageId || stageForm.name) && (
+        {shouldShowEditor(editingStageId, creatingStage) && (
           <div className="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-5 space-y-4 mb-6">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">{editingStageId ? 'Edit' : 'New'} Deal Stage</h4>
@@ -250,11 +268,11 @@ export const CustomFieldsSettings: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Stage Name</label>
-                <input type="text" value={stageForm.name} onChange={e => setStageForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Demo Scheduled" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                <input data-testid="stage-name" type="text" value={stageForm.name} onChange={e => setStageForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Demo Scheduled" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Stage Key (no spaces)</label>
-                <input type="text" value={stageForm.key} onChange={e => setStageForm(f => ({ ...f, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') }))} placeholder="e.g. demo_scheduled" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-mono" />
+                <input data-testid="stage-key" type="text" value={stageForm.key} onChange={e => setStageForm(f => ({ ...f, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') }))} placeholder="e.g. demo_scheduled" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-mono" />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -277,7 +295,7 @@ export const CustomFieldsSettings: React.FC = () => {
             {error && <p className="text-[10px] text-rose-400">{error}</p>}
             <div className="flex justify-end gap-2">
               <button onClick={resetStageForm} className="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white">Cancel</button>
-              <button onClick={handleSaveStage} disabled={saving} className="px-4 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+              <button data-testid="save-stage" onClick={handleSaveStage} disabled={saving} className="px-4 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 Save Stage
               </button>

@@ -92,6 +92,7 @@ export const PitchPreviewModal: React.FC<PitchPreviewModalProps> = ({
               <iframe
                 title="B2B Proposal Preview"
                 srcDoc={editedBody}
+                sandbox="allow-same-origin"
                 className="w-full h-[400px] border-none bg-white"
               />
             </div>
