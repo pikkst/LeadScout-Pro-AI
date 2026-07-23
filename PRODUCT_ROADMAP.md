@@ -101,14 +101,52 @@ Exit criteria: every prospect interaction is visible and actionable from one rec
 
 ### Phase 2 — Playbooks that learn (3–6 months)
 
-Goal: turn individual selling knowledge into repeatable team performance.
+Goal: turn individual selling knowledge into repeatable team performance by replacing ad-hoc outreach with governed, measurable, and improvable playbooks.
 
-- Build a visual trigger/condition/action workflow editor with test mode, versioning, execution logs, retry, and rollback.
-- Add sequence versions, A/B tests, delivery windows, recipient timezone, thread mode, sender rotation, approvals, and step-level analytics.
-- Attribute messages and sequence steps to positive replies, qualified meetings, stage velocity, wins, and revenue.
-- Add reusable qualification playbooks (BANT, MEDDPICC, SPICED, custom) and required exit criteria per stage.
-- Create shared queues and manager views for approvals, stalled deals, handoffs, workload, and SLA breaches.
-- Add outbound webhooks, Zapier/Make connectors, import mappings, and a versioned OpenAPI API.
+#### Visual workflow editor
+
+- Build a trigger/condition/action workflow editor for sequences and multipath cadences.
+- Support test mode with fake leads, sandbox execution, and step-by-step preview before publishing.
+- Add playbook versioning with diff, rollout, rollback, and approval gates.
+- Capture execution logs with replay, retry policy (exponential backoff with max attempts), and terminal failure states.
+- Allow branching on engagement signals: reply type, meeting booked, link clicked, form submitted, or stage change.
+
+#### Sequence optimization
+
+- Add sequence versioning so teams can experiment without breaking live automation.
+- Support A/B tests on subject lines, body copy, CTAs, and send times with statistical significance tracking.
+- Add delivery windows and recipient timezone detection to respect working hours and local best-practice send times.
+- Introduce thread mode to keep follow-ups in existing email threads when appropriate.
+- Add sender rotation across verified team inboxes to improve deliverability and avoid spam-filter clustering.
+- Require manager approval for high-volume or high-risk sequence changes before they go live.
+- Surface step-level analytics: drop-off rate, reply rate, positive reply rate, and conversion to next stage per step.
+
+#### Attribution and learning
+
+- Attribute messages and sequence steps to downstream outcomes: positive reply, qualified meeting, stage velocity, win, and revenue.
+- Connect playbook performance to account, contact, and opportunity records in a single attribution graph.
+- Learn at playbook and step level without leaking customer data between tenants.
+- Highlight top-performing steps and playbooks with confidence intervals and sample-size warnings.
+
+#### Qualification playbooks
+
+- Add reusable qualification frameworks: BANT, MEDDPICC, SPICED, and a custom builder.
+- Model required exit criteria per stage so deals cannot advance without captured evidence.
+- Tie qualification data to sequence branching and routing rules automatically.
+- Let managers audit how well each playbook is being followed and where deals stall.
+
+#### Manager visibility and queue governance
+
+- Create shared queues and manager dashboards for approvals, stalled deals, handoffs, team workload, and SLA breaches.
+- Add workload balancing across owners with configurable caps and alerts.
+- Provide deal desk views for stalled opportunities, missing qualification data, and overdue next actions.
+
+#### Integrations and API
+
+- Add outbound webhooks for playbook events, stage changes, attribution updates, and approval actions.
+- Release Zapier and Make connectors with pre-built actions and triggers for common sales workflows.
+- Add import mappings for playbooks, sequences, and qualification data from CSV and external CRMs.
+- Publish a versioned OpenAPI contract scoped to authenticated API keys.
 
 Exit criteria: a manager can identify the playbook and step producing qualified pipeline, then roll it out safely to the team.
 
