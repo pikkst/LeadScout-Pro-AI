@@ -170,6 +170,15 @@ See [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) for the product thesis, honest curr
 - **Workspace learning**: learn at workspace and vertical-playbook level without leaking customer data between tenants
 - **Audit trails**: agent runs, approvals, costs, and errors tracked for human oversight
 
+### 15. Defensible Differentiation (Phase 4)
+- **Outcome graph**: unified queryable graph connecting accounts, people, messages, meetings, tasks, stages, and revenue
+- **Evidence review**: gate AI recommendations with timestamped sources, confidence scores, and freshness before approval into sequences or pitches
+- **Automation audit**: full inspectable audit trail for every automated action with actor type, budget/token usage, previous/new state, and errors
+- **Workspace thresholds**: solo-to-team auto-promotion based on configurable user, lead, and automation volume thresholds
+- **Signal decay**: automatic relevance decay for aging signals and account rankings to prevent stale recommendations
+- **Revenue-weighted learning**: step analytics now track minimum detectable effect and revenue-weighted scores for statistically sound optimization
+- **Vertical playbook extensions**: ICP signals, disqualification rules, objection handling, pricing models, and compliance requirements per pack
+
 ---
 
 ## Tech Stack

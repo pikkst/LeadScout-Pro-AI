@@ -19,6 +19,8 @@ import { logActivity } from "./server/utils/activity";
 import { getOrCreateBookingLink } from "./server/services/calendar.service";
 import { getOrCreateUnsubscribeLink } from "./server/services/compliance.service";
 import { recordActivationEvent } from "./server/services/activation.service";
+import { decayAccountSignals, decayAccountRanks } from "./server/services/signalDecay.service";
+import { decayStaleEvidenceReviews } from "./server/services/evidenceReview.service";
 
 async function startServer() {
   const app = express();
@@ -512,6 +514,23 @@ const runSequenceEngine = async () => {
   if (dbConnected) {
     runSequenceEngine();
     setInterval(runSequenceEngine, 5 * 60 * 1000);
+  }
+
+  // --- Phase 4: Signal decay and evidence review maintenance ---
+  const runPhase4Maintenance = async () => {
+    if (!dbConnected) return;
+    try {
+      await decayAccountSignals();
+      await decayAccountRanks();
+      await decayStaleEvidenceReviews();
+    } catch (err) {
+      console.error("[Phase4Maintenance] Error:", err);
+    }
+  };
+
+  if (dbConnected) {
+    runPhase4Maintenance();
+    setInterval(runPhase4Maintenance, 60 * 60 * 1000);
   }
 
   // --- Graceful shutdown ---

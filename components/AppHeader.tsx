@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users, Building2, GitBranch, ShieldCheck, RefreshCw, Signal, Cpu, Package } from 'lucide-react';
+import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users, Building2, GitBranch, ShieldCheck, RefreshCw, Signal, Cpu, Package, GitGraph, FileSearch, SlidersHorizontal } from 'lucide-react';
 import type { AppTab } from '../services/activationService';
 
 interface Tab {
@@ -69,6 +69,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     { id: 'marketplace', label: 'Marketplace', icon: <Package className="w-4 h-4 text-cyan-400" /> },
     { id: 'rankings', label: 'Rankings', icon: <TrendingUp className="w-4 h-4 text-fuchsia-400" /> },
     { id: 'play-generation', label: 'Play Generator', icon: <Sparkles className="w-4 h-4 text-violet-400" /> },
+    { id: 'graph', label: 'Outcome Graph', icon: <GitGraph className="w-4 h-4 text-teal-400" /> },
+    { id: 'evidence', label: 'Evidence', icon: <FileSearch className="w-4 h-4 text-orange-400" /> },
+    { id: 'automation-audit', label: 'Automation Audit', icon: <SlidersHorizontal className="w-4 h-4 text-rose-400" /> },
+    { id: 'workspace-thresholds', label: 'Workspace', icon: <Users className="w-4 h-4 text-cyan-400" /> },
   ];
 
   if (isAdmin) {

@@ -291,3 +291,57 @@ Agent runs exceeding `approvalThreshold` enter `AWAITING_APPROVAL` status. Appro
 | POST | `/marketplace/packs/:slug/apply` | Admin/manager | Apply a pack to the current workspace |
 
 Pack visibility: `PRIVATE` (team-only) and `CURATED` (vertical marketplace). Packs can carry a `vertical` tag for marketplace discovery.
+
+## Phase 4 — Defensible differentiation
+
+### Outcome graph
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET | `/graph` | Signed in | Query the unified outcome graph with optional `centerNodeType`, `centerNodeId`, and `depth` (1-3) |
+| POST | `/graph/nodes` | Signed in | Upsert a graph node |
+| POST | `/graph/edges` | Signed in | Create a typed graph edge |
+| POST | `/graph/sync/account/:accountId` | Signed in | Sync an account and its contacts, opportunities, and relationships into the graph |
+
+Graph node types: `ACCOUNT`, `CONTACT`, `LEAD`, `OPPORTUNITY`, `RELATIONSHIP`, `PITCH`, `MEETING`, `TASK`, `STAGE`, `REVENUE`, `SIGNAL`, `CONVERSATION`, `DOCUMENT`.
+
+Graph edge types: `OWNS`, `SENDS`, `ATTENDS`, `CREATES`, `ATTRIBUTES_TO`, `LEADS_TO`, `PART_OF`, `REFERENCES`.
+
+### Evidence review
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| POST | `/evidence` | Signed in | Create an evidence review gate for an AI recommendation |
+| GET | `/evidence` | Signed in | List evidence reviews with optional filters |
+| PATCH | `/evidence/:id/approve` | Signed in | Approve a pending evidence review |
+| PATCH | `/evidence/:id/reject` | Signed in | Reject a pending evidence review |
+| POST | `/evidence/decay` | Signed in | Manually trigger decay of stale pending reviews (older than 72 hours) |
+
+Evidence reviews are tied to `ACCOUNT_RANK`, `PLAYBOOK_STEP`, `SEQUENCE_VARIANT`, `PITCH`, `AGENT_RUN`, or `SIGNAL` entities. Only `PENDING` reviews can be approved or rejected. Aging evidence decays confidence automatically.
+
+### Automation audit
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET | `/automation-audit` | Signed in | List automation audit logs with optional filters |
+| GET | `/automation-audit/entity/:entityType/:entityId` | Signed in | List audit logs for a specific entity |
+
+Audit logs capture `SEQUENCE_STEP_EXECUTED`, `PITCH_SENT`, `PITCH_SCHEDULED`, `LEAD_STAGE_CHANGED`, `OPPORTUNITY_CREATED`, `MEETING_BOOKED`, `AGENT_RUN_STARTED`, `AGENT_RUN_COMPLETED`, `CRM_UPDATE`, and `CONTACT_EXPORT` actions. Each log records actor type (`USER`, `AGENT`, `SCHEDULER`, `SYSTEM`), budget/token usage, previous and new state, and any errors.
+
+### Workspace thresholds (solo-to-team)
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET | `/workspace-thresholds` | Signed in | Read or auto-create the current workspace's solo/team thresholds |
+| PUT | `/workspace-thresholds` | Signed in | Update auto-promotion thresholds and current counts |
+| GET | `/workspace-thresholds/evaluate` | Signed in | Evaluate whether the workspace should promote from solo to team mode |
+
+Thresholds control automatic introduction of shared ownership, queue governance, manager dashboards, and approval rules when the workspace exceeds `autoPromoteUsers`, `autoPromoteLeads`, or `autoPromoteAutomation` limits.
+
+### Vertical-specific playbooks (marketplace extensions)
+
+Playbook packs now support vertical-specific ICP signals, disqualification rules, objection handling scripts, pricing models, and compliance requirements. These fields are editable via the existing marketplace pack endpoints and are surfaced to the AI pitch generator and playbook templates.
+
+### Revenue-based learning
+
+Step-level analytics now include `minimumDetectableEffect` and `revenueWeightedScore`. Rankings reflect decayed composite scores when signals age. The signal decay service runs hourly and reduces `AccountSignal.relevance` exponentially; ranks decay by 1% per hour until reaching 50% of the original score.

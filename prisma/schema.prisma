@@ -60,6 +60,9 @@ model User {
   createdAgentDefinitions AgentDefinition[] @relation("AgentCreator")
   createdPacks           PlaybookPack[] @relation("PackCreator")
   agentApprovalsReviewed  AgentApproval[] @relation("AgentApprover")
+  evidenceReviewsCreated EvidenceReview[] @relation("EvidenceReviewCreator")
+  evidenceReviewsReviewed EvidenceReview[] @relation("EvidenceReviewer")
+  workspaceThresholds    WorkspaceThreshold[] @relation("UserWorkspaceThresholds")
 
   @@index([role])
   @@map("users")
@@ -1395,21 +1398,23 @@ model PlaybookApproval {
 }
 
 model StepLevelAnalytics {
-  id                String   @id @default(cuid())
-  stepId            String   @unique
-  step              PlaybookStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  executions         Int      @default(0)
-  positiveReplies    Int      @default(0)
-  qualifiedMeetings  Int      @default(0)
-  stageChanges       Int      @default(0)
-  wins               Int      @default(0)
-  revenue            Int      @default(0)
-  dropoffRate        Float    @default(0)
-  replyRate          Float    @default(0)
-  conversionRate     Float    @default(0)
-  confidenceInterval Float    @default(0)
-  sampleSizeWarning  Boolean  @default(false)
-  lastCalculatedAt   DateTime @default(now())
+  id                        String   @id @default(cuid())
+  stepId                    String   @unique
+  step                      PlaybookStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  executions                Int      @default(0)
+  positiveReplies           Int      @default(0)
+  qualifiedMeetings         Int      @default(0)
+  stageChanges              Int      @default(0)
+  wins                      Int      @default(0)
+  revenue                   Int      @default(0)
+  dropoffRate               Float    @default(0)
+  replyRate                 Float    @default(0)
+  conversionRate            Float    @default(0)
+  confidenceInterval        Float    @default(0)
+  sampleSizeWarning         Boolean  @default(false)
+  minimumDetectableEffect   Float    @default(0)
+  revenueWeightedScore      Float    @default(0)
+  lastCalculatedAt          DateTime @default(now())
 
   @@index([stepId])
   @@map("step_level_analytics")
@@ -1703,6 +1708,11 @@ model PlaybookPack {
   visibility    PackVisibility  @default(PRIVATE)
   vertical      String?         @default("")
   isActive      Boolean         @default(true)
+  icpSignals    String          @default("[]")
+  disqualificationRules String  @default("[]")
+  objectionHandling      String @default("[]")
+  pricingModel           String @default("{}")
+  complianceRequirements String @default("[]")
   createdById   String
   createdBy     User            @relation("PackCreator", fields: [createdById], references: [id], onDelete: Cascade)
   items         PackItem[]
@@ -1787,17 +1797,20 @@ model AgentApproval {
 }
 
 model AccountRank {
-  id              String   @id @default(cuid())
-  accountId       String   @unique
-  account         Account  @relation("AccountRanks", fields: [accountId], references: [id], onDelete: Cascade)
-  fitScore        Int      @default(0)
-  timingScore     Int      @default(0)
-  relationshipScore Int    @default(0)
-  valueScore      Int      @default(0)
-  compositeScore  Int      @default(0)
-  explanation     String   @default("")
-  evidence        String   @default("[]")
-  calculatedAt    DateTime @default(now())
+  id                       String   @id @default(cuid())
+  accountId                String   @unique
+  account                  Account  @relation("AccountRanks", fields: [accountId], references: [id], onDelete: Cascade)
+  fitScore                 Int      @default(0)
+  timingScore              Int      @default(0)
+  relationshipScore        Int      @default(0)
+  valueScore               Int      @default(0)
+  compositeScore           Int      @default(0)
+  explanation              String   @default("")
+  evidence                 String   @default("[]")
+  calculatedAt             DateTime @default(now())
+  lastDecayedAt            DateTime?
+  decayedCompositeScore    Int      @default(0)
+  isDecayed                Boolean  @default(false)
 
   @@index([compositeScore, calculatedAt])
   @@map("account_ranks")
@@ -1825,8 +1838,10 @@ model AccountSignal {
   signalId    String
   relevance   Float     @default(0)
   freshness   Int       @default(0)
+  decayRate   Float     @default(0.1)
   context     String?   @default("")
   createdAt   DateTime  @default(now())
+  decayedAt   DateTime?
 
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   signal    Signal  @relation(fields: [signalId], references: [id], onDelete: Cascade)
@@ -1844,6 +1859,182 @@ model WorkspaceLearningProfile {
 
   @@index([workspaceKey])
   @@map("workspace_learning_profiles")
+}
+
+/// Solo-to-team threshold configuration per workspace.
+model WorkspaceThreshold {
+  id                    String   @id @default(cuid())
+  workspaceKey          String   @unique
+  soloMode              Boolean  @default(true)
+  autoPromoteUsers      Int      @default(3)
+  autoPromoteLeads      Int      @default(50)
+  autoPromoteAutomation Int      @default(20)
+  currentUserCount      Int      @default(1)
+  currentLeadCount      Int      @default(0)
+  currentAutomationCount Int     @default(0)
+  promotedAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  owner   User? @relation("UserWorkspaceThresholds", fields: [id], references: [id], onDelete: Cascade)
+
+  @@index([workspaceKey])
+  @@map("workspace_thresholds")
+}
+
+/// Evidence review gate for AI recommendations before they can be approved into sequences, pitches, or tasks.
+model EvidenceReview {
+  id              String              @id @default(cuid())
+  entityType      EvidenceEntityType
+  entityId        String
+  recommendation  String
+  sources         Json                @default("[]")
+  confidence      Float
+  freshness       Int                 @default(0)
+  status          EvidenceReviewStatus @default(PENDING)
+  reviewedById    String?
+  reviewedBy      User?                @relation("EvidenceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  comment         String               @default("")
+  reviewedAt      DateTime?
+  createdById     String
+  createdBy       User                  @relation("EvidenceReviewCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  decayedAt       DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([entityType, entityId, status])
+  @@index([createdById])
+  @@map("evidence_reviews")
+}
+
+/// Full audit trail for automated actions (sequences, agents, pitches, CRM updates).
+model AutomationAuditLog {
+  id              String               @id @default(cuid())
+  actionType      AutomationActionType
+  entityType      AutomationEntityType
+  entityId        String
+  actorType       AutomationActorType
+  actorId         String
+  previousState   Json?
+  newState        Json?
+  budgetUsed      Int                  @default(0)
+  tokenUsed       Int                  @default(0)
+  approvalId      String?
+  error           String?
+  executedAt      DateTime?
+  createdAt       DateTime              @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorType, actorId])
+  @@index([createdAt])
+  @@map("automation_audit_logs")
+}
+
+/// Outcome graph node for unified querying across accounts, people, messages, meetings, tasks, stages, and revenue.
+model OutcomeGraphNode {
+  id            String            @id @default(cuid())
+  nodeType      GraphNodeType
+  nodeId        String
+  workspaceKey  String
+  title         String
+  metadata      Json              @default("{}")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([nodeType, nodeId, workspaceKey])
+  @@index([workspaceKey, nodeType, createdAt])
+  @@map("outcome_graph_nodes")
+}
+
+/// Outcome graph edge connecting nodes with typed relationships.
+model OutcomeGraphEdge {
+  id            String          @id @default(cuid())
+  workspaceKey  String
+  sourceType    GraphNodeType
+  sourceId      String
+  targetType    GraphNodeType
+  targetId      String
+  edgeType      GraphEdgeType
+  weight        Float           @default(1)
+  metadata      Json            @default("{}")
+  createdAt     DateTime        @default(now())
+
+  @@index([workspaceKey, sourceType, targetType])
+  @@index([sourceType, sourceId, targetType, targetId])
+  @@map("outcome_graph_edges")
+}
+
+enum EvidenceEntityType {
+  ACCOUNT_RANK
+  PLAYBOOK_STEP
+  SEQUENCE_VARIANT
+  PITCH
+  AGENT_RUN
+  SIGNAL
+}
+
+enum EvidenceReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DECAYED
+}
+
+enum AutomationActionType {
+  SEQUENCE_STEP_EXECUTED
+  PITCH_SENT
+  PITCH_SCHEDULED
+  LEAD_STAGE_CHANGED
+  OPPORTUNITY_CREATED
+  MEETING_BOOKED
+  AGENT_RUN_STARTED
+  AGENT_RUN_COMPLETED
+  CRM_UPDATE
+  CONTACT_EXPORT
+}
+
+enum AutomationEntityType {
+  SEQUENCE_EXECUTION
+  PITCH
+  LEAD
+  OPPORTUNITY
+  MEETING
+  AGENT_RUN
+  PLAYBOOK_VERSION
+}
+
+enum AutomationActorType {
+  USER
+  AGENT
+  SCHEDULER
+  SYSTEM
+}
+
+enum GraphNodeType {
+  ACCOUNT
+  CONTACT
+  LEAD
+  OPPORTUNITY
+  RELATIONSHIP
+  PITCH
+  MEETING
+  TASK
+  STAGE
+  REVENUE
+  SIGNAL
+  CONVERSATION
+  DOCUMENT
+}
+
+enum GraphEdgeType {
+  OWNS
+  SENDS
+  ATTENDS
+  CREATES
+  ATTRIBUTES_TO
+  LEADS_TO
+  PART_OF
+  REFERENCES
 }
 
 enum SignalType {
