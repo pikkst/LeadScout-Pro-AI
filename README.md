@@ -802,6 +802,24 @@ Integration requests use `X-API-Key: <your-api-key>` and the scoped `/api/integr
 - **Reliable Startup**: `npm start` mounts the built frontend explicitly, prints a browser-safe localhost URL, and handles Chrome DevTools probes without weakening CSP
 - **Calendar Safety**: validated slot intervals, timezone-aware past-slot checks, ownership checks and transactional cancellation
 
+### Phase 2 — Playbooks that Learn (2026-07-23)
+- **Playbook Versioning**: create, publish, rollback, and diff-governed versions of outreach playbooks
+- **Test Mode**: sandbox execution of playbook versions with step-by-step logs before publishing
+- **Manager Approvals**: high-volume playbook changes require manager approval before going live
+- **Step-Level Analytics**: drop-off, reply, and conversion rates with confidence intervals per step
+- **Attribution Graph**: link messages and steps to positive replies, qualified meetings, wins, and revenue
+- **Qualification Playbooks**: reusable BANT, MEDDPICC, SPICED, and custom frameworks with required exit criteria
+- **Shared Manager Queues**: govern approvals, stalled deals, handoffs, and SLA breaches with priority and SLO tracking
+- **Workload Caps**: configurable lead/deal/queue limits with alert thresholds per agent
+- **Outbound Webhooks**: fire-and-forget event delivery for playbook publish, stage changes, attributions, and approvals
+- **Integration Mappings**: JSON-based import mappings for Zapier, Make, and custom connectors
+- **Sequence Versioning**: experiment with sequence changes without breaking live automation
+- **A/B Tests**: subject, body, CTA, and send-time experiments with statistical significance thresholds
+- **Delivery Windows**: weekday/hours restrictions with recipient timezone detection
+- **Sender Rotation**: round-robin, random, and performance-based rotation across verified team inboxes
+- New endpoints: `/api/playbooks`, `/api/qualification`, `/api/queues`, `/api/attribution`, `/api/webhooks/mappings`
+- New Prisma models added: `Playbook`, `PlaybookVersion`, `PlaybookStep`, `PlaybookCondition`, `PlaybookAction`, `PlaybookBranch`, `PlaybookTestRun`, `PlaybookApproval`, `StepLevelAnalytics`, `PlaybookAttribution`, `SequenceVersion`, `SequenceABTest`, `ABTestVariant`, `SequenceDeliveryWindow`, `SequenceSenderRotation`, `SequenceExecutionLog`, `QualificationPlaybook`, `QualificationStage`, `QualificationCriterion`, `DealQualification`, `DealQueue`, `QueueItem`, `WorkloadCap`, `OutboundWebhook`, `IntegrationMapping`
+
 ### Stage 1 — AI Lead Intelligence (2026-07-21)
 - **AI Lead Score**: 0-100 conversion probability calculated by Google Gemini with reasoning
 - **AI Enrichment**: company size, tech stack, recent news, and decision-maker names

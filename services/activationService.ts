@@ -1,7 +1,8 @@
 import { api } from './apiClient';
 
 export type AppTab = 'scout' | 'outreach' | 'relationships' | 'crm' | 'dashboard' | 'revenue' | 
-'calendar' | 'documents' | 'analytics' | 'settings' | 'team' | 'conversations';
+'calendar' | 'documents' | 'analytics' | 'settings' | 'team' | 'conversations' |
+'playbooks' | 'qualification' | 'queues';
 
 export interface ActivationStep {
   id: string;

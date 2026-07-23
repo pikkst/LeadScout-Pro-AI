@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users, Building2 } from 'lucide-react';
+import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users, Building2, GitBranch, ShieldCheck, RefreshCw } from 'lucide-react';
 import type { AppTab } from '../services/activationService';
 
 interface Tab {
@@ -61,6 +61,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     { id: 'calendar', label: '7. Calendar', icon: <Calendar className="w-4 h-4 text-purple-400" /> },
     { id: 'documents', label: '8. Documents', icon: <FileText className="w-4 h-4 text-amber-400" /> },
     { id: 'analytics', label: '9. Analytics', icon: <Activity className="w-4 h-4 text-rose-400" /> },
+    { id: 'playbooks', label: 'Playbooks', icon: <GitBranch className="w-4 h-4 text-violet-400" /> },
+    { id: 'qualification', label: 'Qualification', icon: <ShieldCheck className="w-4 h-4 text-emerald-400" /> },
+    { id: 'queues', label: 'Queues', icon: <RefreshCw className="w-4 h-4 text-amber-400" /> },
   ];
 
   if (isAdmin) {

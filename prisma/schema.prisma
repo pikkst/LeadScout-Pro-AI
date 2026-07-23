@@ -45,6 +45,17 @@ model User {
   ownedConversations     Conversation[]          @relation("ConversationOwner")
   timelineEntries        TimelineEntry[]         @relation("TimelineActor")
   teamBookingMemberships TeamBookingMember[]
+  createdPlaybooks         Playbook[]                     @relation("PlaybookCreator")
+  createdQualificationPlaybooks QualificationPlaybook[]      @relation("QualificationCreator")
+  createdQueues            DealQueue[]                     @relation("QueueCreator")
+  createdWebhooks          OutboundWebhook[]                @relation("WebhookCreator")
+  createdIntegrationMappings IntegrationMapping[]            @relation("IntegrationMappingCreator")
+  playbookTestRuns         PlaybookTestRun[]                @relation("PlaybookTestCreator")
+  playbookApprovalsRequested PlaybookApproval[]             @relation("PlaybookApprovalRequester")
+  playbookApprovalsReviewed PlaybookApproval[]             @relation("PlaybookApprover")
+  checkedQualifications    DealQualification[]              @relation("QualificationChecker")
+  queueItemAssignments     QueueItem[]                      @relation("QueueItemAssignee")
+  workloadCaps             WorkloadCap[]                    @relation("UserWorkload")
 
   @@index([role])
   @@map("users")
@@ -147,7 +158,7 @@ model Account {
   opportunities          Opportunity[]
   relationships          Relationship[]
   conversations          Conversation[]
-  timelineEntries        TimelineEntry[]
+  timelineEntries TimelineEntry[]
   externalCalendarEvents ExternalCalendarEvent[]
 
   @@unique([domain])
@@ -1174,3 +1185,505 @@ model AgentCoaching {
 }
 
 // Update User model to include relations
+
+// === Phase 2: Playbooks that learn ===
+
+enum PlaybookType {
+  OUTREACH
+  QUALIFICATION
+  NURTURING
+  CUSTOM
+}
+
+enum PlaybookStatus {
+  DRAFT
+  TESTING
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PlaybookVersionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PUBLISHED
+  ROLLED_BACK
+}
+
+enum TestModeStatus {
+  IDLE
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AttributionOutcome {
+  POSITIVE_REPLY
+  QUALIFIED_MEETING
+  STAGE_CHANGE
+  WIN
+  REVENUE
+}
+
+enum QualificationFramework {
+  BANT
+  MEDDPICC
+  SPICED
+  CUSTOM
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WebhookEventType {
+  PLAYBOOK_PUBLISHED
+  STAGE_CHANGED
+  ATTRIBUTION_UPDATED
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
+  DEAL_STALLED
+  SLA_BREACHED
+}
+
+enum RetryPolicy {
+  NONE
+  LINEAR
+  EXPONENTIAL
+}
+
+model Playbook {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  type        PlaybookType @default(OUTREACH)
+  status      PlaybookStatus @default(DRAFT)
+  isActive    Boolean  @default(true)
+  createdById String
+  createdBy   User     @relation("PlaybookCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  versions    PlaybookVersion[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([createdById])
+  @@map("playbooks")
+}
+
+model PlaybookVersion {
+  id                    String             @id @default(cuid())
+  version               Int
+  changelog             String             @default("")
+  status                PlaybookVersionStatus @default(DRAFT)
+  isActive              Boolean            @default(false)
+  rolledBackFromVersionId String?
+  playbookId            String
+  playbook              Playbook           @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  steps                 PlaybookStep[]
+  conditions             PlaybookCondition[]
+  actions                PlaybookAction[]
+  branches               PlaybookBranch[]
+  testRuns               PlaybookTestRun[]
+  approvals              PlaybookApproval[]
+  attributions           PlaybookAttribution[]
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@unique([playbookId, version])
+  @@index([playbookId, status])
+  @@map("playbook_versions")
+}
+
+model PlaybookStep {
+  id          String   @id @default(cuid())
+  order       Int
+  name        String
+  description String   @default("")
+  isActive    Boolean  @default(true)
+  versionId   String
+  version     PlaybookVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  analytics   StepLevelAnalytics?
+
+  @@index([versionId, order])
+  @@map("playbook_steps")
+}
+
+model PlaybookCondition {
+  id          String   @id @default(cuid())
+  operator    String
+  value       String
+  field       String
+  description String   @default("")
+  versionId   String
+  version     PlaybookVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@map("playbook_conditions")
+}
+
+model PlaybookAction {
+  id          String   @id @default(cuid())
+  type        String
+  config      String   @default("{}")
+  description String   @default("")
+  retryPolicy RetryPolicy @default(NONE)
+  maxAttempts Int      @default(3)
+  versionId   String
+  version     PlaybookVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@map("playbook_actions")
+}
+
+model PlaybookBranch {
+  id              String   @id @default(cuid())
+  name            String
+  condition       String
+  targetStepOrder Int
+  versionId       String
+  version         PlaybookVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@map("playbook_branches")
+}
+
+model PlaybookTestRun {
+  id            String        @id @default(cuid())
+  status        TestModeStatus @default(IDLE)
+  fakeLeadId    String?
+  executionLog  String        @default("[]")
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  createdById   String
+  createdBy     User           @relation("PlaybookTestCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  versionId     String
+  version       PlaybookVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@index([createdById])
+  @@map("playbook_test_runs")
+}
+
+model PlaybookApproval {
+  id              String         @id @default(cuid())
+  status          ApprovalStatus @default(PENDING)
+  comment         String         @default("")
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewedBy      User?           @relation("PlaybookApprover", fields: [reviewedById], references: [id], onDelete: SetNull)
+  versionId       String
+  version         PlaybookVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  requestedById   String
+  requestedBy     User            @relation("PlaybookApprovalRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+
+  @@index([versionId, status])
+  @@index([requestedById])
+  @@map("playbook_approvals")
+}
+
+model StepLevelAnalytics {
+  id                String   @id @default(cuid())
+  stepId            String   @unique
+  step              PlaybookStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  executions         Int      @default(0)
+  positiveReplies    Int      @default(0)
+  qualifiedMeetings  Int      @default(0)
+  stageChanges       Int      @default(0)
+  wins               Int      @default(0)
+  revenue            Int      @default(0)
+  dropoffRate        Float    @default(0)
+  replyRate          Float    @default(0)
+  conversionRate     Float    @default(0)
+  confidenceInterval Float    @default(0)
+  sampleSizeWarning  Boolean  @default(false)
+  lastCalculatedAt   DateTime @default(now())
+
+  @@index([stepId])
+  @@map("step_level_analytics")
+}
+
+model PlaybookAttribution {
+  id             String   @id @default(cuid())
+  outcome        AttributionOutcome
+  outcomeValue   Int?
+  metadata       String   @default("{}")
+  accountId      String?
+  contactId      String?
+  opportunityId  String?
+  leadId         String?
+  pitchId        String?
+  stepId         String?
+  versionId      String
+  version        PlaybookVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  attributedAt   DateTime @default(now())
+
+  @@index([versionId, outcome])
+  @@index([leadId])
+  @@index([opportunityId])
+  @@index([accountId])
+  @@map("playbook_attributions")
+}
+
+model SequenceVersion {
+  id                     String   @id @default(cuid())
+  sequenceId             String
+  version                Int
+  changelog              String   @default("")
+  isActive               Boolean  @default(false)
+  rolledBackFromVersionId String?
+  stepsJson              String
+  abTests                SequenceABTest[]
+  executionLogs          SequenceExecutionLog[]
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@unique([sequenceId, version])
+  @@index([sequenceId, isActive])
+  @@map("sequence_versions")
+}
+
+model SequenceABTest {
+  id             String   @id @default(cuid())
+  name           String
+  status         String   @default("DRAFT")
+  metric         String
+  minSampleSize  Int      @default(100)
+  confidenceLevel Float  @default(0.95)
+  versionId      String
+  version        SequenceVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  variants       ABTestVariant[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([versionId])
+  @@map("sequence_ab_tests")
+}
+
+model ABTestVariant {
+  id         String   @id @default(cuid())
+  name       String
+  config     String   @default("{}")
+  impressions Int     @default(0)
+  conversions Int     @default(0)
+  isControl  Boolean  @default(false)
+  abTestId   String
+  abTest     SequenceABTest @relation(fields: [abTestId], references: [id], onDelete: Cascade)
+
+  @@index([abTestId])
+  @@map("ab_test_variants")
+}
+
+model SequenceDeliveryWindow {
+  id                        String   @id @default(cuid())
+  sequenceId                String?
+  playbookId                String?
+  weekdays                  Int[]
+  startTime                 String
+  endTime                   String
+  timezone                  String   @default("UTC")
+  respectRecipientTimezone  Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@index([sequenceId])
+  @@map("sequence_delivery_windows")
+}
+
+model SequenceSenderRotation {
+  id            String   @id @default(cuid())
+  sequenceId    String?
+  playbookId    String?
+  senderIds     String[]
+  rotationMode  String   @default("ROUND_ROBIN")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("sequence_sender_rotations")
+}
+
+model SequenceExecutionLog {
+  id          String   @id @default(cuid())
+  executionId String
+  versionId   String
+  version     SequenceVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  status      String
+  retryCount  Int      @default(0)
+  maxRetries  Int      @default(3)
+  retryPolicy String   @default("exponential")
+  error       String?
+  executedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([versionId])
+  @@index([executionId])
+  @@map("sequence_execution_logs")
+}
+
+model QualificationPlaybook {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  framework   QualificationFramework
+  isActive    Boolean  @default(true)
+  isCustom    Boolean  @default(false)
+  createdById String
+  createdBy   User     @relation("QualificationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  stages      QualificationStage[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([framework])
+  @@index([createdById])
+  @@map("qualification_playbooks")
+}
+
+model QualificationStage {
+  id            String   @id @default(cuid())
+  name          String
+  key           String
+  description   String   @default("")
+  sortOrder     Int      @default(0)
+  isRequired    Boolean  @default(true)
+  playbookId    String
+  playbook      QualificationPlaybook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  criterions    QualificationCriterion[]
+  dealQualifications DealQualification[]
+
+  @@unique([playbookId, key])
+  @@index([playbookId, sortOrder])
+  @@map("qualification_stages")
+}
+
+model QualificationCriterion {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  evidenceType String
+  options     String?
+  isRequired  Boolean  @default(false)
+  stageId     String
+  stage       QualificationStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([stageId])
+  @@map("qualification_criterions")
+}
+
+model DealQualification {
+  id            String   @id @default(cuid())
+  dealId        String
+  stageId       String
+  stage         QualificationStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  evidence      String   @default("")
+  isMet         Boolean  @default(false)
+  checkedById   String?
+  checkedBy     User?    @relation("QualificationChecker", fields: [checkedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([dealId, stageId])
+  @@index([dealId])
+  @@index([isMet])
+  @@map("deal_qualifications")
+}
+
+model DealQueue {
+  id            String   @id @default(cuid())
+  name          String
+  description   String   @default("")
+  type          String
+  isActive      Boolean  @default(true)
+  createdById   String
+  createdBy     User     @relation("QueueCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  items         QueueItem[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([type])
+  @@index([createdById])
+  @@map("deal_queues")
+}
+
+model QueueItem {
+  id            String   @id @default(cuid())
+  queueId       String
+  queue         DealQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  leadId        String?
+  dealId        String?
+  opportunityId String?
+  status        String   @default("OPEN")
+  priority      String   @default("MEDIUM")
+  notes         String   @default("")
+  assignedToId  String?
+  assignedTo    User?    @relation("QueueItemAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  slaDueAt      DateTime?
+  resolvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([queueId, status])
+  @@index([assignedToId])
+  @@index([slaDueAt])
+  @@map("queue_items")
+}
+
+model WorkloadCap {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  maxActiveLeads Int
+  maxActiveDeals Int
+  maxQueueItems  Int
+  currentLoad    Int      @default(0)
+  alertThreshold Float    @default(0.8)
+  user           User     @relation("UserWorkload", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@map("workload_caps")
+}
+
+model OutboundWebhook {
+  id            String   @id @default(cuid())
+  name          String
+  url           String
+  secret        String?
+  events        String[]
+  isActive      Boolean  @default(true)
+  retryCount    Int      @default(3)
+  timeoutMs     Int      @default(5000)
+  lastError     String?
+  lastSuccessAt DateTime?
+  createdById   String
+  createdBy     User     @relation("WebhookCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdById])
+  @@index([isActive])
+  @@map("outbound_webhooks")
+}
+
+model IntegrationMapping {
+  id            String   @id @default(cuid())
+  provider      String
+  mappingType   String
+  mapping       String   @default("{}")
+  isActive      Boolean  @default(true)
+  createdById   String
+  createdBy     User     @relation("IntegrationMappingCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([provider])
+  @@index([createdById])
+  @@map("integration_mappings")
+}

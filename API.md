@@ -150,3 +150,90 @@ Send integration keys as `X-API-Key: lsp_...`; `Authorization: Bearer lsp_...` i
 `POST /webhooks/resend` and `POST /inbound/resend` require a valid Resend/Svix signature over the exact raw request body and a unique `svix-id`. Missing configuration fails closed. Duplicate event IDs return success without reprocessing, and replay receipts older than 90 days are cleaned periodically. Bounce and complaint events are recorded separately and automatically suppress the recipient; matched inbound replies advance the lead and the activation funnel.
 
 `GET /health` returns only `{ status, time }`. Chrome's `/.well-known/appspecific/com.chrome.devtools.json` probe is outside `/api` and intentionally returns `204 No Content`.
+
+## Phase 2 — Playbooks that learn
+
+### Playbooks
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET/POST | `/playbooks` | Signed in | List or create governed playbooks |
+| GET/PATCH/DELETE | `/playbooks/:id` | Signed in / admin-manager write | Read, update, or archive a playbook |
+| GET | `/playbooks/:id/versions` | Signed in | List all versions of a playbook |
+| POST | `/playbooks/:id/versions` | Admin/manager | Create a new playbook version with steps, conditions, actions, and branches |
+| POST | `/playbooks/:id/versions/:versionId/publish` | Admin/manager | Publish a version and set it as active |
+| POST | `/playbooks/:id/versions/:versionId/rollback` | Admin/manager | Rollback to a previous version |
+| POST | `/playbooks/:id/versions/:versionId/test` | Signed in | Start a sandbox test run |
+| PATCH | `/playbooks/:id/versions/:versionId/test-runs/:runId` | Signed in | Update test run status or log |
+| GET | `/playbooks/:id/versions/:versionId/test-runs` | Signed in | List test runs for a version |
+| POST | `/playbooks/:id/versions/:versionId/approve` | Admin/manager | Approve a version for publication |
+| POST | `/playbooks/:id/versions/:versionId/reject` | Admin/manager | Reject a version with a comment |
+| GET | `/playbooks/:id/versions/:versionId/approvals` | Signed in | List approval history |
+
+Playbook versioning uses `playbookId` + `version` integer uniqueness. Publishing a version deactivates all other active versions for the same playbook atomically.
+
+### Qualification playbooks
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET/POST | `/qualification/playbooks` | Signed in / admin-manager write | List or create qualification frameworks |
+| GET/PATCH/DELETE | `/qualification/playbooks/:id` | Signed in / admin-manager write | Manage playbooks (BANT, MEDDPICC, SPICED, CUSTOM) |
+| POST | `/qualification/playbooks/:id/stages` | Admin/manager | Add a stage to a playbook |
+| PATCH/DELETE | `/qualification/stages/:stageId` | Admin/manager | Update or remove a stage |
+| POST | `/qualification/stages/:stageId/criterions` | Admin/manager | Add an evidence criterion to a stage |
+| PATCH/DELETE | `/qualification/criterions/:criterionId` | Admin/manager | Manage criteria |
+| GET | `/qualification/deals/:dealId` | Signed in | Read deal qualification state |
+| POST | `/qualification/deals/:dealId` | Admin/manager | Upsert deal qualification evidence |
+
+Exit criteria per deal stage are enforced by the `isRequired` flag on `QualificationStage`. Deals cannot advance through automated routing if required qualification data is missing.
+
+### Manager queues and workload
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET/POST | `/queues/queues` | Signed in / admin-manager write | List or create shared queues (approvals, stalled, handoffs, SLA breaches) |
+| GET/PATCH/DELETE | `/queues/queues/:id` | Signed in / admin-manager write | Manage a queue |
+| GET | `/queues/items` | Signed in | List queue items with optional filters |
+| POST | `/queues/items` | Admin/manager | Add an item to a queue |
+| PATCH/DELETE | `/queues/items/:itemId` | Admin/manager | Update or remove a queue item |
+| GET | `/queues/workload` | Admin/manager | Read all workload caps |
+| GET | `/queues/workload/me` | Signed in | Read or auto-create current user's cap |
+| POST/PATCH | `/queues/workload` | Admin/manager | Upsert workload caps with configurable thresholds |
+
+Queue items support priority levels `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL`. SLA due dates and resolution timestamps are tracked.
+
+### Attribution
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| POST | `/attribution` | Signed in | Record a playbook outcome (positive reply, qualified meeting, stage change, win, revenue) |
+| GET | `/attribution/playbook/:playbookId` | Signed in | Read aggregated attributions and summary for a playbook |
+| GET | `/attribution/step/:stepId` | Signed in | Read attributions for a specific step |
+
+Attribution records link outcomes to `accountId`, `contactId`, `opportunityId`, `leadId`, `pitchId`, and `stepId`. When no active playbook version exists, attribution POST returns `400`.
+
+### Outbound webhooks and integrations
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET/POST | `/webhooks/webhooks` | Signed in / admin-manager write | List or create outbound webhooks |
+| GET/PATCH/DELETE | `/webhooks/webhooks/:id` | Signed in / admin-manager write | Manage webhooks (events, retry, timeout) |
+| GET/POST | `/webhooks/mappings` | Signed in / admin-manager write | List or create import mappings for Zapier, Make, and custom integrations |
+
+Webhook delivery uses configurable retry with exponential backoff, up to `retryCount` attempts and a `timeoutMs` ceiling. Failed deliveries are surfaced via `lastError`.
+
+### Sequence enhancements
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/sequences/:id/versions` | List sequence versions |
+| POST | `/sequences/:id/versions` | Create a new version from a steps snapshot |
+| POST | `/sequences/:id/versions/:version/publish` | Publish a version (deactivates others atomically) |
+| POST | `/sequences/:id/versions/:version/rollback` | Rollback to a previous version |
+| GET | `/sequences/:id/versions/:version/ab-tests` | List A/B tests for a sequence version |
+| POST | `/sequences/:id/versions/:version/ab-tests` | Create an A/B test with variants |
+| PATCH | `/sequences/:id/versions/:version/ab-tests/:abTestId` | Update A/B test status |
+| GET/POST/DELETE | `/sequences/:id/delivery-windows` | Manage timezone-aware delivery windows and recipient local send-time respect |
+| GET/POST | `/sequences/:id/sender-rotation` | Manage verified sender inbox rotation (round-robin, random, performance) |
+
+A/B tests track `impressions` and `conversions` per variant with configurable `minSampleSize` and `confidenceLevel`. Delivery windows support per-recipient timezone detection and weekday restrictions.

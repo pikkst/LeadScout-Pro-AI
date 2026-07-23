@@ -187,3 +187,270 @@ sequencesRouter.get("/lead/:leadId", asyncHandler(async (req, res) => {
   });
   res.json(executions);
 }));
+
+// Sequence versioning
+sequencesRouter.get("/:id/versions", asyncHandler(async (req, res) => {
+  const versions = await prisma.sequenceVersion.findMany({
+    where: { sequenceId: param(req, "id") },
+    orderBy: { version: "desc" },
+  });
+  res.json(versions);
+}));
+
+sequencesRouter.post("/:id/versions", canWrite, validate({
+  body: z.object({
+    changelog: z.string().optional().default(""),
+    stepsJson: z.string().min(1),
+  }),
+}), asyncHandler(async (req, res) => {
+  const sequenceId = param(req, "id");
+  const body = req.body as { changelog?: string; stepsJson: string };
+
+  const lastVersion = await prisma.sequenceVersion.findFirst({
+    where: { sequenceId },
+    orderBy: { version: "desc" },
+  });
+
+  const maxVersion = lastVersion?.version ?? 0;
+
+  const version = await prisma.sequenceVersion.create({
+    data: {
+      version: maxVersion + 1,
+      changelog: body.changelog,
+      sequenceId,
+      stepsJson: body.stepsJson,
+    },
+  });
+
+  res.status(201).json(version);
+}));
+
+sequencesRouter.post("/:id/versions/:version/rollback", canWrite, asyncHandler(async (req, res) => {
+  const version = await prisma.sequenceVersion.findFirst({
+    where: { sequenceId: param(req, "id"), version: parseInt(param(req, "version")) },
+  });
+  if (!version) throw notFound("Version not found");
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.sequenceVersion.updateMany({
+      where: { sequenceId: param(req, "id"), isActive: true },
+      data: { isActive: false },
+    });
+    return tx.sequenceVersion.update({
+      where: { id: version.id },
+      data: { isActive: true, rolledBackFromVersionId: version.id },
+    });
+  });
+
+  res.json(updated);
+}));
+
+sequencesRouter.post("/:id/versions/:version/publish", canWrite, asyncHandler(async (req, res) => {
+  const version = await prisma.sequenceVersion.findFirst({
+    where: { sequenceId: param(req, "id"), version: parseInt(param(req, "version")) },
+  });
+  if (!version) throw notFound("Version not found");
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.sequenceVersion.updateMany({
+      where: { sequenceId: param(req, "id"), isActive: true },
+      data: { isActive: false },
+    });
+    return tx.sequenceVersion.update({
+      where: { id: version.id },
+      data: { isActive: true },
+    });
+  });
+
+  res.json(updated);
+}));
+
+// A/B tests
+sequencesRouter.get("/:id/versions/:version/ab-tests", asyncHandler(async (req, res) => {
+  const version = await prisma.sequenceVersion.findFirst({
+    where: { sequenceId: param(req, "id"), version: parseInt(param(req, "version")) },
+  });
+  if (!version) throw notFound("Version not found");
+
+  const abTests = await prisma.sequenceABTest.findMany({
+    where: { versionId: version.id },
+    include: { variants: true },
+  });
+  res.json(abTests);
+}));
+
+sequencesRouter.post("/:id/versions/:version/ab-tests", canWrite, validate({
+  body: z.object({
+    name: z.string().min(1).max(200),
+    metric: z.string().min(1),
+    minSampleSize: z.number().int().nonnegative().default(100),
+    confidenceLevel: z.number().min(0).max(1).default(0.95),
+    variants: z.array(z.object({
+      name: z.string().min(1).max(100),
+      config: z.record(z.unknown()).default({}),
+      isControl: z.boolean().default(false),
+    })).min(2),
+  }),
+}), asyncHandler(async (req, res) => {
+  const version = await prisma.sequenceVersion.findFirst({
+    where: { sequenceId: param(req, "id"), version: parseInt(param(req, "version")) },
+  });
+  if (!version) throw notFound("Version not found");
+
+  const body = req.body as {
+    name: string;
+    metric: string;
+    minSampleSize: number;
+    confidenceLevel: number;
+    variants: Array<{ name: string; config: Record<string, unknown>; isControl: boolean }>;
+  };
+
+  const abTest = await prisma.sequenceABTest.create({
+    data: {
+      name: body.name,
+      metric: body.metric,
+      minSampleSize: body.minSampleSize,
+      confidenceLevel: body.confidenceLevel,
+      versionId: version.id,
+      variants: {
+        create: body.variants.map((v) => ({
+          name: v.name,
+          config: JSON.stringify(v.config),
+          isControl: v.isControl,
+        })),
+      },
+    },
+    include: { variants: true },
+  });
+
+  res.status(201).json(abTest);
+}));
+
+sequencesRouter.patch("/:id/versions/:version/ab-tests/:abTestId", canWrite, validate({
+  body: z.object({
+    status: z.string().optional(),
+  }),
+}), asyncHandler(async (req, res) => {
+  const abTest = await prisma.sequenceABTest.findFirst({
+    where: {
+      id: param(req, "abTestId"),
+      version: {
+        sequenceId: param(req, "id"),
+        version: parseInt(param(req, "version")),
+      },
+    },
+  });
+  if (!abTest) throw notFound("A/B test not found");
+
+  const body = req.body as { status?: string };
+  const data: Record<string, unknown> = {};
+  if (body.status) data.status = body.status;
+
+  const updated = await prisma.sequenceABTest.update({
+    where: { id: abTest.id },
+    data,
+    include: { variants: true },
+  });
+  res.json(updated);
+}));
+
+// Delivery windows
+sequencesRouter.get("/:id/delivery-windows", asyncHandler(async (req, res) => {
+  const windows = await prisma.sequenceDeliveryWindow.findMany({
+    where: { sequenceId: param(req, "id") },
+  });
+  res.json(windows);
+}));
+
+sequencesRouter.post("/:id/delivery-windows", canWrite, validate({
+  body: z.object({
+    playbookId: z.string().optional().nullable(),
+    weekdays: z.array(z.number().int().min(0).max(6)).min(1),
+    startTime: z.string().max(5),
+    endTime: z.string().max(5),
+    timezone: z.string().optional().default("UTC"),
+    respectRecipientTimezone: z.boolean().optional().default(true),
+  }),
+}), asyncHandler(async (req, res) => {
+  const body = req.body as {
+    playbookId?: string | null;
+    weekdays: number[];
+    startTime: string;
+    endTime: string;
+    timezone: string;
+    respectRecipientTimezone: boolean;
+  };
+
+  const window = await prisma.sequenceDeliveryWindow.create({
+    data: {
+      sequenceId: param(req, "id"),
+      playbookId: body.playbookId,
+      weekdays: body.weekdays,
+      startTime: body.startTime,
+      endTime: body.endTime,
+      timezone: body.timezone,
+      respectRecipientTimezone: body.respectRecipientTimezone,
+    },
+  });
+  res.status(201).json(window);
+}));
+
+sequencesRouter.delete("/:id/delivery-windows/:windowId", canWrite, asyncHandler(async (req, res) => {
+  await prisma.sequenceDeliveryWindow.deleteMany({
+    where: { id: param(req, "windowId"), sequenceId: param(req, "id") },
+  });
+  res.json({ ok: true });
+}));
+
+// Sender rotation
+sequencesRouter.get("/:id/sender-rotation", asyncHandler(async (req, res) => {
+  const rotation = await prisma.sequenceSenderRotation.findFirst({
+    where: { sequenceId: param(req, "id") },
+  });
+  res.json(rotation || {});
+}));
+
+sequencesRouter.post("/:id/sender-rotation", canWrite, validate({
+  body: z.object({
+    playbookId: z.string().optional().nullable(),
+    senderIds: z.array(z.string().min(1)).min(1),
+    rotationMode: z.string().optional().default("ROUND_ROBIN"),
+    isActive: z.boolean().optional().default(true),
+  }),
+}), asyncHandler(async (req, res) => {
+  const body = req.body as {
+    playbookId?: string | null;
+    senderIds: string[];
+    rotationMode: string;
+    isActive: boolean;
+  };
+
+  const existing = await prisma.sequenceSenderRotation.findFirst({
+    where: { sequenceId: param(req, "id") },
+  });
+
+  let rotation;
+  if (existing) {
+    rotation = await prisma.sequenceSenderRotation.update({
+      where: { id: existing.id },
+      data: {
+        playbookId: body.playbookId,
+        senderIds: body.senderIds,
+        rotationMode: body.rotationMode,
+        isActive: body.isActive,
+      },
+    });
+  } else {
+    rotation = await prisma.sequenceSenderRotation.create({
+      data: {
+        sequenceId: param(req, "id"),
+        playbookId: body.playbookId,
+        senderIds: body.senderIds,
+        rotationMode: body.rotationMode,
+        isActive: body.isActive,
+      },
+    });
+  }
+
+  res.json(rotation);
+}));
