@@ -237,3 +237,57 @@ Webhook delivery uses configurable retry with exponential backoff, up to `retryC
 | GET/POST | `/sequences/:id/sender-rotation` | Manage verified sender inbox rotation (round-robin, random, performance) |
 
 A/B tests track `impressions` and `conversions` per variant with configurable `minSampleSize` and `confidenceLevel`. Delivery windows support per-recipient timezone detection and weekday restrictions.
+
+## Phase 3 — Signal-driven revenue agents
+
+### Signal ingestion
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| POST | `/signals` | Signed in | Ingest a verified revenue signal |
+| GET | `/signals` | Signed in | List signals with optional filters (`accountId`, `type`, `isVerified`, `limit`) |
+| POST | `/signals/:id/verify` | Signed in | Mark a signal as verified or unverified |
+| DELETE | `/signals/:id` | Signed in | Remove a signal and its account associations |
+| GET | `/signals/accounts/:accountId` | Signed in | List signals linked to an account |
+| POST | `/signals/accounts/:accountId` | Signed in | Attach a manual signal to an account |
+
+Supported signal types: `HIRING`, `FUNDING`, `LEADERSHIP_CHANGE`, `TECHNOLOGY`, `INTENT`, `PRODUCT_USAGE`, `RENEWAL`, `RELATIONSHIP_ACTIVITY`.
+
+### Account ranking
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET | `/rankings` | Signed in | List account rankings ordered by composite score |
+| POST | `/rankings/accounts/:accountId/recalculate` | Signed in | Recalculate rank for a specific account |
+| GET | `/rankings/accounts/:accountId` | Signed in | Read a single account's ranking and evidence |
+
+Composite score weights: fit (35%), timing (25%), relationship (25%), value (15%). Evidence includes freshness, confidence, relevance, and context snippets.
+
+### Revenue agents
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET | `/agents/definitions` | Signed in | List agent definitions |
+| POST | `/agents/definitions` | Admin/manager | Create a research, routing, briefing, follow-up, or CRM-hygiene agent |
+| PATCH | `/agents/definitions/:id` | Admin/manager | Update agent config, budget, permissions, or threshold |
+| DELETE | `/agents/definitions/:id` | Admin/manager | Remove an agent definition |
+| POST | `/agents/definitions/:id/run` | Admin/manager | Execute an agent with optional input payload |
+| GET | `/agents/definitions/:id/runs` | Signed in | List recent runs for an agent |
+| POST | `/agents/runs/:runId/approve` | Admin/manager | Approve or reject an agent run awaiting human review |
+
+Agent runs exceeding `approvalThreshold` enter `AWAITING_APPROVAL` status. Approval records store reviewer, comment, and timestamp. Budget consumption is tracked per definition.
+
+### Playbook marketplace
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| GET | `/marketplace/packs` | Signed in | List marketplace packs with optional `visibility` and `vertical` filters |
+| POST | `/marketplace/packs` | Admin/manager | Create a private or curated pack |
+| GET | `/marketplace/packs/:slug` | Signed in | Read a pack with its playbook items |
+| PATCH | `/marketplace/packs/:slug` | Admin/manager | Update pack metadata |
+| POST | `/marketplace/packs/:slug/items` | Admin/manager | Add a playbook to a pack |
+| DELETE | `/marketplace/packs/:slug/items/:playbookId` | Admin/manager | Remove a playbook from a pack |
+| DELETE | `/marketplace/packs/:slug` | Admin/manager | Delete a pack |
+| POST | `/marketplace/packs/:slug/apply` | Admin/manager | Apply a pack to the current workspace |
+
+Pack visibility: `PRIVATE` (team-only) and `CURATED` (vertical marketplace). Packs can carry a `vertical` tag for marketplace discovery.

@@ -7,7 +7,7 @@ import { getAiSettings, getCompanyProfile } from "./settings.service";
 let client: GoogleGenAI | null = null;
 let clientKey = "";
 
-async function getAI(): Promise<{ ai: GoogleGenAI; model: string }> {
+export async function getAI(): Promise<{ ai: GoogleGenAI; model: string }> {
   const { apiKey, model } = await getAiSettings();
   if (!apiKey) {
     throw new HttpError(

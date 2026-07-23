@@ -32,6 +32,10 @@ import { qualificationRouter } from "./qualification.routes";
 import { queuesRouter } from "./queues.routes";
 import { attributionRouter } from "./attribution.routes";
 import { outboundWebhooksRouter } from "./outbound-webhooks.routes";
+import { signalsRouter } from "./signals.routes";
+import { agentsRouter } from "./agents.routes";
+import { marketplaceRouter } from "./marketplace.routes";
+import { rankingsRouter } from "./rankings.routes";
 
 export const apiRouter = Router();
 
@@ -75,3 +79,7 @@ apiRouter.use("/qualification", qualificationRouter);
 apiRouter.use("/queues", queuesRouter);
 apiRouter.use("/attribution", attributionRouter);
 apiRouter.use("/webhooks", outboundWebhooksRouter);
+apiRouter.use("/signals", signalsRouter);
+apiRouter.use("/agents", agentsRouter);
+apiRouter.use("/marketplace", marketplaceRouter);
+apiRouter.use("/rankings", rankingsRouter);

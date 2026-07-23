@@ -64,6 +64,10 @@ const CRMStatsDashboard = lazy(() => import('./components/CRMStatsDashboard').th
 const PlaybooksTab = lazy(() => import('./components/PlaybooksTab').then((module) => ({ default: module.PlaybooksTab })));
 const QualificationTab = lazy(() => import('./components/QualificationTab').then((module) => ({ default: module.QualificationTab })));
 const QueuesTab = lazy(() => import('./components/QueuesTab').then((module) => ({ default: module.QueuesTab })));
+const SignalsTab = lazy(() => import('./components/SignalsTab').then((module) => ({ default: module.SignalsTab })));
+const AgentsTab = lazy(() => import('./components/AgentsTab').then((module) => ({ default: module.AgentsTab })));
+const MarketplaceTab = lazy(() => import('./components/MarketplaceTab').then((module) => ({ default: module.MarketplaceTab })));
+const RankingsTab = lazy(() => import('./components/RankingsTab').then((module) => ({ default: module.RankingsTab })));
 
 const App: React.FC = () => {
   const { user, logout } = useAuth();
@@ -209,6 +213,10 @@ const App: React.FC = () => {
     'ctrl+9': () => setActiveTab('documents'),
     'ctrl+0': () => setActiveTab('analytics'),
     'ctrl+minus': () => setActiveTab('team'),
+    'ctrl+shift+s': () => setActiveTab('signals'),
+    'ctrl+shift+a': () => setActiveTab('agents'),
+    'ctrl+shift+m': () => setActiveTab('marketplace'),
+    'ctrl+shift+r': () => setActiveTab('rankings'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1356,6 +1364,18 @@ Date().toISOString().split('T')[0]}.json`);
           )}
           {activeTab === 'queues' && (
             <Suspense fallback={<RouteLoading />}><QueuesTab /></Suspense>
+          )}
+          {activeTab === 'signals' && (
+            <Suspense fallback={<RouteLoading />}><SignalsTab /></Suspense>
+          )}
+          {activeTab === 'agents' && (
+            <Suspense fallback={<RouteLoading />}><AgentsTab /></Suspense>
+          )}
+          {activeTab === 'marketplace' && (
+            <Suspense fallback={<RouteLoading />}><MarketplaceTab /></Suspense>
+          )}
+          {activeTab === 'rankings' && (
+            <Suspense fallback={<RouteLoading />}><RankingsTab /></Suspense>
           )}
 
         </div>

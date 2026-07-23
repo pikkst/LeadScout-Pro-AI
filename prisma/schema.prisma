@@ -57,6 +57,10 @@ model User {
   queueItemAssignments     QueueItem[]                      @relation("QueueItemAssignee")
   workloadCaps             WorkloadCap[]                    @relation("UserWorkload")
 
+  createdAgentDefinitions AgentDefinition[] @relation("AgentCreator")
+  createdPacks           PlaybookPack[] @relation("PackCreator")
+  agentApprovalsReviewed  AgentApproval[] @relation("AgentApprover")
+
   @@index([role])
   @@map("users")
 }
@@ -160,6 +164,8 @@ model Account {
   conversations          Conversation[]
   timelineEntries TimelineEntry[]
   externalCalendarEvents ExternalCalendarEvent[]
+  signals AccountSignal[]
+  ranks   AccountRank[] @relation("AccountRanks")
 
   @@unique([domain])
   @@index([ownerId])
@@ -1265,6 +1271,7 @@ model Playbook {
   createdById String
   createdBy   User     @relation("PlaybookCreator", fields: [createdById], references: [id], onDelete: Cascade)
   versions    PlaybookVersion[]
+  packItems   PackItem[] @relation("PackItems")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1686,4 +1693,188 @@ model IntegrationMapping {
   @@index([provider])
   @@index([createdById])
   @@map("integration_mappings")
+}
+
+model PlaybookPack {
+  id            String          @id @default(cuid())
+  name          String
+  slug          String          @unique
+  description   String          @default("")
+  visibility    PackVisibility  @default(PRIVATE)
+  vertical      String?         @default("")
+  isActive      Boolean         @default(true)
+  createdById   String
+  createdBy     User            @relation("PackCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  items         PackItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([visibility, vertical])
+  @@index([createdById])
+  @@map("playbook_packs")
+}
+
+model PackItem {
+  id        String     @id @default(cuid())
+  packId    String
+  playbookId String
+  sortOrder Int        @default(0)
+
+  pack      PlaybookPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  playbook  Playbook     @relation("PackItems", fields: [playbookId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, playbookId])
+  @@index([packId, sortOrder])
+  @@map("pack_items")
+}
+
+model AgentDefinition {
+  id              String       @id @default(cuid())
+  name            String
+  type            AgentType
+  description     String       @default("")
+  config          Json         @default("{}")
+  budget          Int          @default(0)
+  spentBudget     Int          @default(0)
+  permissions     Json         @default("{}")
+  approvalThreshold Int       @default(0)
+  isActive        Boolean      @default(true)
+  createdById     String
+  createdBy       User         @relation("AgentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  runs            AgentRun[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([type, isActive])
+  @@index([createdById])
+  @@map("agent_definitions")
+}
+
+model AgentRun {
+  id            String       @id @default(cuid())
+  definitionId  String
+  status        AgentStatus  @default(IDLE)
+  input         Json         @default("{}")
+  output        Json         @default("{}")
+  cost          Int          @default(0)
+  errors        String       @default("[]")
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+
+  definition    AgentDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  approvals     AgentApproval[]
+
+  @@index([definitionId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("agent_runs")
+}
+
+model AgentApproval {
+  id            String           @id @default(cuid())
+  status        ApprovalStatus   @default(PENDING)
+  comment       String           @default("")
+  reviewedAt    DateTime?
+  reviewedById  String?
+  reviewedBy    User?             @relation("AgentApprover", fields: [reviewedById], references: [id], onDelete: SetNull)
+  runId         String
+  run           AgentRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  createdAt     DateTime         @default(now())
+
+  @@index([runId, status])
+  @@index([createdAt])
+  @@map("agent_approvals")
+}
+
+model AccountRank {
+  id              String   @id @default(cuid())
+  accountId       String   @unique
+  account         Account  @relation("AccountRanks", fields: [accountId], references: [id], onDelete: Cascade)
+  fitScore        Int      @default(0)
+  timingScore     Int      @default(0)
+  relationshipScore Int    @default(0)
+  valueScore      Int      @default(0)
+  compositeScore  Int      @default(0)
+  explanation     String   @default("")
+  evidence        String   @default("[]")
+  calculatedAt    DateTime @default(now())
+
+  @@index([compositeScore, calculatedAt])
+  @@map("account_ranks")
+}
+
+model Signal {
+  id           String      @id @default(cuid())
+  type         SignalType
+  source       String
+  evidence     String      @default("")
+  confidence   Float       @default(0)
+  isVerified   Boolean     @default(false)
+  rawPayload   Json?
+  ingestedAt   DateTime    @default(now())
+  verifiedAt   DateTime?
+  accountSignals AccountSignal[]
+
+  @@index([type, isVerified, ingestedAt])
+  @@map("signals")
+}
+
+model AccountSignal {
+  id          String    @id @default(cuid())
+  accountId   String
+  signalId    String
+  relevance   Float     @default(0)
+  freshness   Int       @default(0)
+  context     String?   @default("")
+  createdAt   DateTime  @default(now())
+
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  signal    Signal  @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, relevance])
+  @@index([signalId])
+  @@map("account_signals")
+}
+
+model WorkspaceLearningProfile {
+  id           String   @id @default(cuid())
+  workspaceKey String   @unique
+  profile      Json     @default("{}")
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceKey])
+  @@map("workspace_learning_profiles")
+}
+
+enum SignalType {
+  HIRING
+  FUNDING
+  LEADERSHIP_CHANGE
+  TECHNOLOGY
+  INTENT
+  PRODUCT_USAGE
+  RENEWAL
+  RELATIONSHIP_ACTIVITY
+}
+
+enum AgentType {
+  RESEARCH
+  ROUTING
+  BRIEFING
+  FOLLOW_UP
+  CRM_HYGIENE
+}
+
+enum AgentStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  AWAITING_APPROVAL
+}
+
+enum PackVisibility {
+  PRIVATE
+  CURATED
 }
