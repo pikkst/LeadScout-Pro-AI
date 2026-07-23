@@ -176,3 +176,18 @@ export async function deletePack(slug: string) {
 export async function applyPack(slug: string, targetPlaybookIds?: string[]) {
   return api<{ applied: number; playbookIds: string[]; packName: string }>(`/marketplace/packs/${encodeURIComponent(slug)}/apply`, { method: "POST", body: JSON.stringify({ playbookIds: targetPlaybookIds }) });
 }
+
+export interface GeneratedPlayPayload {
+  id?: string;
+  name: string;
+  description: string;
+  targetAudience: string;
+  steps: Array<{ order: number; name: string; type: string; template: string; successCriteria: string }>;
+  messages: Array<{ subject?: string; body: string; tone: string }>;
+  successCriteria: { targetMetric: string; targetValue: number; timeframe: string };
+  vertical: string;
+}
+
+export async function generatePlay(prompt: string, vertical: string) {
+  return api<GeneratedPlayPayload>("/ai/generate-play", { method: "POST", body: JSON.stringify({ prompt, vertical }) });
+}

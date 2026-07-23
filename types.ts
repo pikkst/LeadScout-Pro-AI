@@ -724,3 +724,34 @@ export interface Phase3Pack {
   items?: Phase3PackItem[];
   createdBy?: { id: string; name: string; email: string };
 }
+
+export interface GeneratedPlayStep {
+  order: number;
+  name: string;
+  type: "EMAIL" | "TASK" | "WEBHOOK" | "MEETING";
+  template: string;
+  successCriteria: string;
+}
+
+export interface GeneratedPlayMessage {
+  subject?: string;
+  body: string;
+  tone: string;
+}
+
+export interface GeneratedPlaySuccessCriteria {
+  targetMetric: string;
+  targetValue: number;
+  timeframe: string;
+}
+
+export interface GeneratedPlay {
+  id?: string;
+  name: string;
+  description: string;
+  targetAudience: string;
+  steps: GeneratedPlayStep[];
+  messages: GeneratedPlayMessage[];
+  successCriteria: GeneratedPlaySuccessCriteria;
+  vertical: string;
+}

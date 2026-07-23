@@ -136,22 +136,23 @@ describe('Phase 3 Agent Routes', () => {
 });
 
 describe('Phase 3 Marketplace Routes', () => {
+  const unique = Date.now().toString(36);
   it('creates a pack', async () => {
     const res = await request(app)
       .post('/api/marketplace/packs')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ name: 'SaaS Pack', slug: 'saas', visibility: 'CURATED', vertical: 'enterprise_saas' })
+      .send({ name: 'SaaS Pack', slug: `saas-${unique}`, visibility: 'CURATED', vertical: 'enterprise_saas' })
       .expect(201);
 
     expect(res.body.id).toBeDefined();
-    expect(res.body.slug).toBe('saas');
+    expect(res.body.slug).toBe(`saas-${unique}`);
   });
 
   it('lists packs', async () => {
     await request(app)
       .post('/api/marketplace/packs')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ name: 'Finance Pack', slug: 'finance', visibility: 'PRIVATE' });
+      .send({ name: 'Finance Pack', slug: `finance-${unique}`, visibility: 'PRIVATE' });
 
     const res = await request(app)
       .get('/api/marketplace/packs')
@@ -166,14 +167,14 @@ describe('Phase 3 Marketplace Routes', () => {
     await request(app)
       .post('/api/marketplace/packs')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ name: 'Retail Pack', slug: 'retail' });
+      .send({ name: 'Retail Pack', slug: `retail-${unique}` });
 
     const res = await request(app)
-      .get('/api/marketplace/packs/retail')
+      .get(`/api/marketplace/packs/retail-${unique}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(res.body.slug).toBe('retail');
+    expect(res.body.slug).toBe(`retail-${unique}`);
   });
 });
 

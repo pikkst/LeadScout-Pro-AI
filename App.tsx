@@ -68,6 +68,7 @@ const SignalsTab = lazy(() => import('./components/SignalsTab').then((module) =>
 const AgentsTab = lazy(() => import('./components/AgentsTab').then((module) => ({ default: module.AgentsTab })));
 const MarketplaceTab = lazy(() => import('./components/MarketplaceTab').then((module) => ({ default: module.MarketplaceTab })));
 const RankingsTab = lazy(() => import('./components/RankingsTab').then((module) => ({ default: module.RankingsTab })));
+const PlayGenerationTab = lazy(() => import('./components/PlayGenerationTab').then((module) => ({ default: module.PlayGenerationTab })));
 
 const App: React.FC = () => {
   const { user, logout } = useAuth();
@@ -217,6 +218,7 @@ const App: React.FC = () => {
     'ctrl+shift+a': () => setActiveTab('agents'),
     'ctrl+shift+m': () => setActiveTab('marketplace'),
     'ctrl+shift+r': () => setActiveTab('rankings'),
+    'ctrl+shift+p': () => setActiveTab('play-generation'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1376,6 +1378,9 @@ Date().toISOString().split('T')[0]}.json`);
           )}
           {activeTab === 'rankings' && (
             <Suspense fallback={<RouteLoading />}><RankingsTab /></Suspense>
+          )}
+          {activeTab === 'play-generation' && (
+            <Suspense fallback={<RouteLoading />}><PlayGenerationTab /></Suspense>
           )}
 
         </div>
