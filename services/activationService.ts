@@ -1,6 +1,6 @@
 import { api } from './apiClient';
 
-export type AppTab = 'scout' | 'outreach' | 'crm' | 'dashboard' | 'revenue' | 
+export type AppTab = 'scout' | 'outreach' | 'relationships' | 'crm' | 'dashboard' | 'revenue' | 
 'calendar' | 'documents' | 'analytics' | 'settings' | 'team' | 'conversations';
 
 export interface ActivationStep {
