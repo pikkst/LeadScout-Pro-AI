@@ -582,3 +582,129 @@ export async function sendGmailReplyApi(payload: { to: string; subject: string; 
 export async function stopSequencesForLead(leadId: string, event: string): Promise<void> {
   await api(`/pitches/stop-sequences`, { method: "POST", body: JSON.stringify({ leadId, event }) });
 }
+
+// ---- Playbooks ----
+export async function listPlaybooks(): Promise<import("../types").Playbook[]> {
+  return api<import("../types").Playbook[]>("/playbooks");
+}
+
+export async function createPlaybook(playbook: Partial<import("../types").Playbook>): Promise<import("../types").Playbook> {
+  return api<import("../types").Playbook>("/playbooks", { method: "POST", body: JSON.stringify(playbook) });
+}
+
+export async function updatePlaybook(id: string, changes: Partial<import("../types").Playbook>): Promise<import("../types").Playbook> {
+  return api<import("../types").Playbook>(`/playbooks/${id}`, { method: "PATCH", body: JSON.stringify(changes) });
+}
+
+export async function deletePlaybook(id: string): Promise<void> {
+  await api(`/playbooks/${id}`, { method: "DELETE" });
+}
+
+export async function getPlaybookVersions(playbookId: string): Promise<import("../types").PlaybookVersion[]> {
+  return api<import("../types").PlaybookVersion[]>(`/playbooks/${playbookId}/versions`);
+}
+
+export async function createPlaybookVersion(playbookId: string, version: { changelog?: string; steps: import("../types").PlaybookStep[]; conditions?: import("../types").PlaybookCondition[]; actions?: import("../types").PlaybookAction[]; branches?: import("../types").PlaybookBranch[] }): Promise<import("../types").PlaybookVersion> {
+  return api<import("../types").PlaybookVersion>(`/playbooks/${playbookId}/versions`, { method: "POST", body: JSON.stringify(version) });
+}
+
+export async function publishPlaybookVersion(playbookId: string, versionId: string): Promise<import("../types").PlaybookVersion> {
+  return api<import("../types").PlaybookVersion>(`/playbooks/${playbookId}/versions/${versionId}/publish`, { method: "POST" });
+}
+
+export async function rollbackPlaybookVersion(playbookId: string, versionId: string): Promise<import("../types").PlaybookVersion> {
+  return api<import("../types").PlaybookVersion>(`/playbooks/${playbookId}/versions/${versionId}/rollback`, { method: "POST" });
+}
+
+export async function startPlaybookTest(playbookId: string, versionId: string): Promise<import("../types").PlaybookTestRun> {
+  return api<import("../types").PlaybookTestRun>(`/playbooks/${playbookId}/versions/${versionId}/test`, { method: "POST" });
+}
+
+export async function updatePlaybookTestRun(playbookId: string, versionId: string, runId: string, data: { status?: string; executionLog?: unknown[]; error?: string }): Promise<import("../types").PlaybookTestRun> {
+  return api<import("../types").PlaybookTestRun>(`/playbooks/${playbookId}/versions/${versionId}/test-runs/${runId}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export async function approvePlaybookVersion(playbookId: string, versionId: string, comment?: string): Promise<import("../types").PlaybookApproval> {
+  return api<import("../types").PlaybookApproval>(`/playbooks/${playbookId}/versions/${versionId}/approve`, { method: "POST", body: JSON.stringify({ comment }) });
+}
+
+export async function rejectPlaybookVersion(playbookId: string, versionId: string, comment: string): Promise<import("../types").PlaybookApproval> {
+  return api<import("../types").PlaybookApproval>(`/playbooks/${playbookId}/versions/${versionId}/reject`, { method: "POST", body: JSON.stringify({ comment }) });
+}
+
+// ---- Qualification ----
+export async function listQualificationPlaybooks(): Promise<import("../types").QualificationPlaybook[]> {
+  return api<import("../types").QualificationPlaybook[]>("/qualification/playbooks");
+}
+
+export async function createQualificationPlaybook(playbook: Partial<import("../types").QualificationPlaybook>): Promise<import("../types").QualificationPlaybook> {
+  return api<import("../types").QualificationPlaybook>("/qualification/playbooks", { method: "POST", body: JSON.stringify(playbook) });
+}
+
+export async function deleteQualificationPlaybook(id: string): Promise<void> {
+  await api(`/qualification/playbooks/${id}`, { method: "DELETE" });
+}
+
+export async function getDealQualifications(dealId: string): Promise<import("../types").DealQualification[]> {
+  return api<import("../types").DealQualification[]>(`/qualification/deals/${dealId}`);
+}
+
+export async function upsertDealQualification(dealId: string, data: { stageId: string; evidence?: string; isMet?: boolean }): Promise<import("../types").DealQualification> {
+  return api<import("../types").DealQualification>(`/qualification/deals/${dealId}`, { method: "POST", body: JSON.stringify(data) });
+}
+
+// ---- Queues ----
+export async function listDealQueues(): Promise<import("../types").DealQueue[]> {
+  return api<import("../types").DealQueue[]>("/queues/queues");
+}
+
+export async function createDealQueue(queue: Partial<import("../types").DealQueue>): Promise<import("../types").DealQueue> {
+  return api<import("../types").DealQueue>("/queues/queues", { method: "POST", body: JSON.stringify(queue) });
+}
+
+export async function listQueueItems(filters: { queueId?: string; status?: string; assigneeId?: string } = {}): Promise<import("../types").QueueItem[]> {
+  const params = new URLSearchParams();
+  if (filters.queueId) params.set("queueId", filters.queueId);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.assigneeId) params.set("assigneeId", filters.assigneeId);
+  const qs = params.toString();
+  return api<import("../types").QueueItem[]>(`/queues/items${qs ? `?${qs}` : ""}`);
+}
+
+export async function createQueueItem(item: Partial<import("../types").QueueItem>): Promise<import("../types").QueueItem> {
+  return api<import("../types").QueueItem>("/queues/items", { method: "POST", body: JSON.stringify(item) });
+}
+
+export async function updateQueueItem(itemId: string, changes: Partial<import("../types").QueueItem>): Promise<import("../types").QueueItem> {
+  return api<import("../types").QueueItem>(`/queues/items/${itemId}`, { method: "PATCH", body: JSON.stringify(changes) });
+}
+
+export async function getMyWorkloadCap(): Promise<import("../types").WorkloadCap> {
+  return api<import("../types").WorkloadCap>("/queues/workload/me");
+}
+
+// ---- Attribution ----
+export async function recordAttribution(data: { outcome: string; outcomeValue?: number; metadata?: Record<string, unknown>; accountId?: string; contactId?: string; opportunityId?: string; leadId?: string; pitchId?: string; stepId?: string }): Promise<import("../types").PlaybookAttribution> {
+  return api<import("../types").PlaybookAttribution>("/attribution", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function getPlaybookAttributions(playbookId: string): Promise<{ attributions: import("../types").PlaybookAttribution[]; summary: { total: number; byOutcome: Record<string, number>; revenue: number } }> {
+  return api(`/attribution/playbook/${playbookId}`);
+}
+
+// ---- Webhooks ----
+export async function listOutboundWebhooks(): Promise<import("../types").OutboundWebhook[]> {
+  return api<import("../types").OutboundWebhook[]>("/webhooks/webhooks");
+}
+
+export async function createOutboundWebhook(webhook: Partial<import("../types").OutboundWebhook>): Promise<import("../types").OutboundWebhook> {
+  return api<import("../types").OutboundWebhook>("/webhooks/webhooks", { method: "POST", body: JSON.stringify(webhook) });
+}
+
+export async function listIntegrationMappings(): Promise<import("../types").IntegrationMapping[]> {
+  return api<import("../types").IntegrationMapping[]>("/webhooks/mappings");
+}
+
+export async function createIntegrationMapping(mapping: Partial<import("../types").IntegrationMapping>): Promise<import("../types").IntegrationMapping> {
+  return api<import("../types").IntegrationMapping>("/webhooks/mappings", { method: "POST", body: JSON.stringify(mapping) });
+}

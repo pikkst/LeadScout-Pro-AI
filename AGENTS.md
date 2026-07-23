@@ -44,6 +44,10 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Handle browser tooling `.well-known` probes explicitly; do not weaken CSP to accommodate injected extension scripts
 - Log `localhost` as the browser URL even when the server binds to `0.0.0.0`; bind addresses are not user navigation targets
 - The bundled `npm start` path must explicitly mount `dist`; a failed development middleware must mount the same static fallback before returning requests
+- Route mount prefixes shadow sub-routers: a parent router prefix can intercept child paths before they reach a later-mounted router
+- Prisma optional ID fields that are not meant to form relations must not have reverse-relation arrays added on the pointing model; use plain string scalars instead
+- When extending a model with new many-to-one relations, add matching named relation arrays on the one side or the schema validator will fail
+- Every new Phase 2 tab should be declared in `AppTab`, added to `AppHeader`, and rendered with the same `Suspense` pattern as existing tabs
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility

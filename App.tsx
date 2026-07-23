@@ -61,6 +61,9 @@ const ScoutTab = lazy(() => import('./components/ScoutTab').then((module) => ({ 
 const OutreachTab = lazy(() => import('./components/OutreachTab').then((module) => ({ default: module.OutreachTab })));
 const B2BPipelineBoard = lazy(() => import('./components/B2BPipelineBoard').then((module) => ({ default: module.B2BPipelineBoard })));
 const CRMStatsDashboard = lazy(() => import('./components/CRMStatsDashboard').then((module) => ({ default: module.CRMStatsDashboard })));
+const PlaybooksTab = lazy(() => import('./components/PlaybooksTab').then((module) => ({ default: module.PlaybooksTab })));
+const QualificationTab = lazy(() => import('./components/QualificationTab').then((module) => ({ default: module.QualificationTab })));
+const QueuesTab = lazy(() => import('./components/QueuesTab').then((module) => ({ default: module.QueuesTab })));
 
 const App: React.FC = () => {
   const { user, logout } = useAuth();
@@ -1342,6 +1345,17 @@ Date().toISOString().split('T')[0]}.json`);
           {/* TAB 9: TEAM MANAGEMENT */}
           {activeTab === 'team' && (
             <Suspense fallback={<RouteLoading />}><TeamManagement /></Suspense>
+          )}
+
+          {/* PHASE 2: PLAYBOOKS THAT LEARN */}
+          {activeTab === 'playbooks' && (
+            <Suspense fallback={<RouteLoading />}><PlaybooksTab /></Suspense>
+          )}
+          {activeTab === 'qualification' && (
+            <Suspense fallback={<RouteLoading />}><QualificationTab /></Suspense>
+          )}
+          {activeTab === 'queues' && (
+            <Suspense fallback={<RouteLoading />}><QueuesTab /></Suspense>
           )}
 
         </div>

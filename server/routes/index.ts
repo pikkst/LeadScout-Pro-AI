@@ -27,6 +27,11 @@ import { publicUnsubscribeRouter } from "./public-unsubscribe.routes";
 import { relationshipsRouter } from "./relationships.routes";
 import { googleRouter } from "./google.routes";
 import { conversationsRouter } from "./conversations.routes";
+import { playbooksRouter } from "./playbooks.routes";
+import { qualificationRouter } from "./qualification.routes";
+import { queuesRouter } from "./queues.routes";
+import { attributionRouter } from "./attribution.routes";
+import { outboundWebhooksRouter } from "./outbound-webhooks.routes";
 
 export const apiRouter = Router();
 
@@ -65,3 +70,8 @@ apiRouter.use("/monitoring", monitoringRouter);
 apiRouter.use("/optimization", optimizationRouter);
 apiRouter.use("/admin/users", usersRouter);
 apiRouter.use("/inbound", inboundRouter);
+apiRouter.use("/playbooks", playbooksRouter);
+apiRouter.use("/qualification", qualificationRouter);
+apiRouter.use("/queues", queuesRouter);
+apiRouter.use("/attribution", attributionRouter);
+apiRouter.use("/webhooks", outboundWebhooksRouter);

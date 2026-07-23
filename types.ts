@@ -292,3 +292,349 @@ export interface Conversation {
   messages: ConversationMessage[];
   connection?: ConnectionInfo;
 }
+
+export interface Playbook {
+  id: string;
+  name: string;
+  description: string;
+  type: 'OUTREACH' | 'QUALIFICATION' | 'NURTURING' | 'CUSTOM';
+  status: 'DRAFT' | 'TESTING' | 'PUBLISHED' | 'ARCHIVED';
+  isActive: boolean;
+  createdById: string;
+  createdByName?: string;
+  versions?: PlaybookVersion[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlaybookVersion {
+  id: string;
+  version: number;
+  changelog: string;
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PUBLISHED' | 'ROLLED_BACK';
+  isActive: boolean;
+  rolledBackFromVersionId?: string;
+  playbookId: string;
+  playbook?: Playbook;
+  steps?: PlaybookStep[];
+  conditions?: PlaybookCondition[];
+  actions?: PlaybookAction[];
+  branches?: PlaybookBranch[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlaybookStep {
+  id: string;
+  order: number;
+  name: string;
+  description: string;
+  isActive: boolean;
+  versionId: string;
+  analytics?: StepLevelAnalytics;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlaybookCondition {
+  id: string;
+  operator: string;
+  value: string;
+  field: string;
+  description: string;
+  versionId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlaybookAction {
+  id: string;
+  type: string;
+  config: Record<string, unknown>;
+  description: string;
+  retryPolicy: 'NONE' | 'LINEAR' | 'EXPONENTIAL';
+  maxAttempts: number;
+  versionId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlaybookBranch {
+  id: string;
+  name: string;
+  condition: string;
+  targetStepOrder: number;
+  versionId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlaybookTestRun {
+  id: string;
+  status: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  fakeLeadId?: string;
+  executionLog: unknown[];
+  startedAt?: string;
+  completedAt?: string;
+  createdById: string;
+  createdByName?: string;
+  versionId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlaybookApproval {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  comment: string;
+  reviewedAt?: string;
+  reviewedById?: string;
+  reviewedByName?: string;
+  versionId: string;
+  requestedById: string;
+  requestedByName?: string;
+  createdAt?: string;
+}
+
+export interface StepLevelAnalytics {
+  id: string;
+  stepId: string;
+  executions: number;
+  positiveReplies: number;
+  qualifiedMeetings: number;
+  stageChanges: number;
+  wins: number;
+  revenue: number;
+  dropoffRate: number;
+  replyRate: number;
+  conversionRate: number;
+  confidenceInterval: number;
+  sampleSizeWarning: boolean;
+  lastCalculatedAt: string;
+}
+
+export interface PlaybookAttribution {
+  id: string;
+  outcome: 'POSITIVE_REPLY' | 'QUALIFIED_MEETING' | 'STAGE_CHANGE' | 'WIN' | 'REVENUE';
+  outcomeValue?: number;
+  metadata: Record<string, unknown>;
+  accountId?: string;
+  contactId?: string;
+  opportunityId?: string;
+  leadId?: string;
+  pitchId?: string;
+  stepId?: string;
+  versionId: string;
+  attributedAt: string;
+}
+
+export interface SequenceVersion {
+  id: string;
+  sequenceId: string;
+  version: number;
+  changelog: string;
+  isActive: boolean;
+  rolledBackFromVersionId?: string;
+  stepsJson: string;
+  abTests?: SequenceABTest[];
+  executionLogs?: SequenceExecutionLog[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SequenceABTest {
+  id: string;
+  name: string;
+  status: string;
+  metric: string;
+  minSampleSize: number;
+  confidenceLevel: number;
+  versionId: string;
+  variants: ABTestVariant[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ABTestVariant {
+  id: string;
+  name: string;
+  config: Record<string, unknown>;
+  impressions: number;
+  conversions: number;
+  isControl: boolean;
+  abTestId: string;
+}
+
+export interface SequenceDeliveryWindow {
+  id: string;
+  sequenceId?: string;
+  playbookId?: string;
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  respectRecipientTimezone: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SequenceSenderRotation {
+  id: string;
+  sequenceId?: string;
+  playbookId?: string;
+  senderIds: string[];
+  rotationMode: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SequenceExecutionLog {
+  id: string;
+  executionId: string;
+  versionId: string;
+  status: string;
+  retryCount: number;
+  maxRetries: number;
+  retryPolicy: string;
+  error?: string;
+  executedAt?: string;
+  createdAt?: string;
+}
+
+export interface QualificationPlaybook {
+  id: string;
+  name: string;
+  description: string;
+  framework: 'BANT' | 'MEDDPICC' | 'SPICED' | 'CUSTOM';
+  isActive: boolean;
+  isCustom: boolean;
+  createdById: string;
+  createdByName?: string;
+  stages: QualificationStage[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface QualificationStage {
+  id: string;
+  name: string;
+  key: string;
+  description: string;
+  sortOrder: number;
+  isRequired: boolean;
+  playbookId: string;
+  playbook?: QualificationPlaybook;
+  criterions: QualificationCriterion[];
+  dealQualifications: DealQualification[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface QualificationCriterion {
+  id: string;
+  name: string;
+  description: string;
+  evidenceType: string;
+  options?: string;
+  isRequired: boolean;
+  stageId: string;
+  stage?: QualificationStage;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DealQualification {
+  id: string;
+  dealId: string;
+  stageId: string;
+  stage: QualificationStage;
+  evidence: string;
+  isMet: boolean;
+  checkedById?: string;
+  checkedByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DealQueue {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  isActive: boolean;
+  createdById: string;
+  createdByName?: string;
+  items: QueueItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface QueueItem {
+  id: string;
+  queueId: string;
+  queue?: DealQueue;
+  leadId?: string;
+  dealId?: string;
+  opportunityId?: string;
+  status: string;
+  priority: string;
+  notes: string;
+  assignedToId?: string;
+  assignedTo?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  slaDueAt?: string;
+  resolvedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkloadCap {
+  id: string;
+  userId: string;
+  maxActiveLeads: number;
+  maxActiveDeals: number;
+  maxQueueItems: number;
+  currentLoad: number;
+  alertThreshold: number;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface OutboundWebhook {
+  id: string;
+  name: string;
+  url: string;
+  secret?: string;
+  events: string[];
+  isActive: boolean;
+  retryCount: number;
+  timeoutMs: number;
+  lastError?: string;
+  lastSuccessAt?: string;
+  createdById: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface IntegrationMapping {
+  id: string;
+  provider: string;
+  mappingType: string;
+  mapping: Record<string, unknown>;
+  isActive: boolean;
+  createdById: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
