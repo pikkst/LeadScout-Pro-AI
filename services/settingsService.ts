@@ -102,4 +102,5 @@ export const GEMINI_MODELS = [
   { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash (most intelligent)' },
   { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite (fastest, cost-effective)' },
   { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite (frontier-class value)' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (legacy)' },
 ];
