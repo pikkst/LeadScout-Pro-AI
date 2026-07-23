@@ -62,7 +62,7 @@ export const config = {
 
   // AI
   geminiApiKey: process.env.GEMINI_API_KEY || "",
-  geminiModel: optional(process.env.GEMINI_MODEL, "gemini-2.5-flash"),
+  geminiModel: optional(process.env.GEMINI_MODEL, "gemini-3.5-flash"),
 
   // Whether new users may self-register. When false, only admins create accounts.
   allowPublicRegistration: optional(process.env.ALLOW_PUBLIC_REGISTRATION, "false") === "true",

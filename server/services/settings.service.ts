@@ -64,9 +64,9 @@ export const SETTING_DEFS: SettingDef[] = [
     label: "Gemini Model",
     group: "ai",
     type: "string",
-    envDefault: () => process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    placeholder: "gemini-2.5-flash",
-    help: "Model name, e.g. gemini-2.5-flash or gemini-2.5-pro.",
+    envDefault: () => process.env.GEMINI_MODEL || "gemini-3.5-flash",
+    placeholder: "gemini-3.5-flash",
+    help: "Model name, e.g. gemini-3.5-flash or gemini-3.5-flash-lite.",
   },
 
   // --- Email / SMTP ---
@@ -324,7 +324,7 @@ export async function getAiSettings() {
   const s = await loadAll();
   return {
     apiKey: s.GEMINI_API_KEY || "",
-    model: s.GEMINI_MODEL || "gemini-2.5-flash",
+    model: s.GEMINI_MODEL || "gemini-3.5-flash",
     configured: Boolean(s.GEMINI_API_KEY),
   };
 }
