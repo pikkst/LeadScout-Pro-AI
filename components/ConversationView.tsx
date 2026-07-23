@@ -111,6 +111,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ leadId }) =>
   }
 
   if (activeConversation) {
+    const showAIPanel = activeConversation.summary || activeConversation.sentiment || activeConversation.intent || activeConversation.suggestedReply;
     return (
       <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
@@ -124,6 +125,36 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ leadId }) =>
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {showAIPanel && (
+          <div className="bg-slate-900/50 border border-indigo-500/20 rounded-xl p-4 space-y-3 mb-4">
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-indigo-400">AI Insights</h4>
+            {activeConversation.summary && (
+              <div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Summary</span>
+                <p className="text-[10px] text-slate-300 mt-0.5 leading-relaxed">{activeConversation.summary}</p>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {activeConversation.sentiment && (
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  {activeConversation.sentiment}
+                </span>
+              )}
+              {activeConversation.intent && (
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  {activeConversation.intent}
+                </span>
+              )}
+            </div>
+            {activeConversation.suggestedReply && (
+              <div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Suggested Reply</span>
+                <p className="text-[10px] text-slate-300 mt-0.5 leading-relaxed">{activeConversation.suggestedReply}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
           {activeConversation.messages.map((msg) => {
