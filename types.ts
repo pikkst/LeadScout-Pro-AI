@@ -288,6 +288,7 @@ export interface Conversation {
   lastMessageAt: string;
   summary?: string;
   suggestedReply?: string;
+  legacyLeadId?: string;
   messages: ConversationMessage[];
   connection?: ConnectionInfo;
 }

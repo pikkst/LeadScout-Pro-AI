@@ -17,6 +17,7 @@ import { getOrCreateBookingLink } from "../services/calendar.service";
 import { getOrCreateUnsubscribeLink } from "../services/compliance.service";
 import { recordActivationEvent } from "../services/activation.service";
 import { config } from "../config";
+import { stopSequencesForLead } from "../services/sequenceStop.service";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -259,3 +260,10 @@ pitchesRouter.post(
     res.json(serializePitch(updated));
   }),
 );
+
+pitchesRouter.post("/stop-sequences", requireAuth, asyncHandler(async (req, res) => {
+  const schema = z.object({ leadId: z.string(), event: z.string() });
+  const { leadId, event } = schema.parse(req.body);
+  await stopSequencesForLead(leadId, event as any);
+  res.json({ ok: true });
+}));

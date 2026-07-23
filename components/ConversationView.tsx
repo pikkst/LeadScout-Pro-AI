@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Conversation, ConversationMessage } from '../types';
-import { listConversationsApi, getConversationApi, markConversationReadApi, syncConversationsApi, startGoogleOAuth, disconnectGoogleApi, sendGmailReplyApi } from '../services/crmService';
+import { listConversationsApi, getConversationApi, markConversationReadApi, syncConversationsApi, startGoogleOAuth, disconnectGoogleApi, sendGmailReplyApi, stopSequencesForLead } from '../services/crmService';
 import { api } from '../services/apiClient';
 import { Mail, RefreshCw, ExternalLink, Send, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 
@@ -179,6 +179,9 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ leadId }) =>
                       messages: [...activeConversation.messages, newMessage],
                       lastMessageAt: new Date().toISOString(),
                     });
+                    if (activeConversation.legacyLeadId) {
+                      void stopSequencesForLead(activeConversation.legacyLeadId, 'REPLY').catch((err) => console.error('[conversation] stopSequencesForLead failed', err));
+                    }
                     setComposing(false);
                     setComposeBody('');
                   } catch (err) {

@@ -578,3 +578,7 @@ export async function sendGmailReplyApi(payload: { to: string; subject: string; 
     body: JSON.stringify(payload),
   });
 }
+
+export async function stopSequencesForLead(leadId: string, event: string): Promise<void> {
+  await api(`/pitches/stop-sequences`, { method: "POST", body: JSON.stringify({ leadId, event }) });
+}
