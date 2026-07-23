@@ -163,6 +163,62 @@ Goal: make LeadScout proactive while keeping humans in control of consequential 
 
 Exit criteria: the system consistently surfaces and executes the right next action before the user manually searches for it.
 
+### Phase 4 — Defensible differentiation (6–12 months)
+
+Goal: build the durable moat around the closed-loop outcome dataset and operating model, not generic text generation.
+
+#### Vertical-specific playbooks
+
+- Curate and ship discovery and qualification playbooks for top verticals: SaaS, agency, recruiting, partnerships, channel sales, and private equity/m&A sourcing.
+- Capture vertical-specific ICP signals, disqualification rules, objection handling, pricing models, and compliance requirements per playbook.
+- Allow teams to fork published vertical packs into private playbooks and customize names, stages, questions, and thresholds without drifting from best practices.
+
+#### Evidence-linked AI recommendations
+
+- Tie every AI recommendation to a timestamped source, signal freshness, and confidence score.
+- Surface why an account is relevant now: hiring spike, funding round, leadership change, tech stack fit, intent search, product usage, or relationship recency.
+- Require evidence review before a recommendation can be approved into a sequence, pitch, or task.
+- Decay confidence when signals age or sources conflict, and surface degraded recommendations to owners before they act on stale data.
+
+#### Unified outcome graph
+
+- Connect accounts, people, messages, meetings, tasks, stages, opportunities, and revenue into one queryable graph.
+- Model buying committees, multiple contacts per account, relationship histories, and shared opportunity ownership.
+- Enable attribution from individual messages and sequence steps to downstream meetings, opportunities, won deals, and revenue—without batch reprocessing or synthetic hacks.
+- Expose the graph through scoped read APIs, dashboard widgets, and a query builder for power users and data teams.
+
+#### Revenue-based learning
+
+- Replace open-rate and reply-rate as primary optimization targets with qualified meetings held, opportunity velocity, stage progression probability, and closed-won revenue.
+- Train playbook ranking and step selection against outcomes weighted by value and probability, not raw engagement.
+- Show sample-size warnings, confidence intervals, and minimum detectable effect calculations before surfacing a step or playbook as statistically better.
+- Prevent data leakage between tenants by training at vertical-playbook level with differential privacy or aggregated embeddings where customer-specific patterns are required.
+
+#### Observability and governance-first automation
+
+- Make every automated action inspectable before it executes: full audit trail, budget/token usage, approval history, and error state in the UI.
+- Require permissions for sensitive actions: outbound sequences, CRM updates, contact exports, and agent runs.
+- Default to reversible actions where possible: pause, resume, rollback sequences, and retract unsent scheduled messages before delivery.
+- Reduce approval friction with inline review, bulk approve/deny, and one-click overrides with mandatory justification.
+
+#### Solo-to-team interface
+
+- Ship a guided solo workflow that hides team management, roles, and governance until the workspace grows beyond one user.
+- Automatically introduce shared ownership, queue governance, manager dashboards, and approval rules only when invited users, leads, or automation volume cross configurable thresholds.
+- Preserve the solo user’s mental model and keyboard preferences when the workspace transitions to team mode.
+
+Exit criteria: a solo user or small team can adopt a vertical playbook, act on evidence-linked AI recommendations, review the full outcome graph, and improve revenue outcomes week over week without switching products.
+
+## What not to build yet
+
+- A broad marketing suite, help desk, website builder, or generic ERP.
+- High-volume cold-email infrastructure before suppression, consent, domain health, and abuse controls are first-class.
+- Autonomous sending that hides evidence, cost, audience selection, or failure state from the user.
+- A native mobile application before the daily web workflow and responsive experience are excellent.
+- Dozens of shallow integrations before Gmail/Microsoft, calendar, outbound webhooks, and a stable API are dependable.
+- Generic AI chat or document generation detached from accounts, outcomes, and the revenue graph.
+- Separation into a suite of SaaS products that breaks the single graph and solo-to-team growth path.
+
 ## Defensible differentiation
 
 The durable moat is not generic text generation. It is the closed-loop outcome dataset and operating model:
