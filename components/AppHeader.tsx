@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users } from 'lucide-react';
+import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users, Building2 } from 'lucide-react';
 import type { AppTab } from '../services/activationService';
 
 interface Tab {
@@ -46,19 +46,21 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </span>
       ) : undefined,
     },
-    { id: 'crm', label: '3. CRM Client Database', icon: <Database className="w-4 h-4 text-sky-400" />,
+    { id: 'relationships', label: '3. Relationships', icon: <Building2 className="w-4 h-4 text-emerald-400" /> },
+    { id: 'crm', label: '4. CRM Client Database', icon: <Database className="w-4 h-4 text-sky-400" />,
       badge: overdueLeadsCount > 0 ? (
         <span className="bg-amber-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded-full absolute -top-1 -right-1 animate-pulse">
           {overdueLeadsCount} DUE
         </span>
       ) : undefined,
     },
-    { id: 'dashboard', label: '4. Executive Analytics', icon: <Layers className="w-4 h-4" /> },
+    { id: 'conversations', label: ' Conversations', icon: <Mail className="w-4 h-4 text-indigo-400" /> },
+    { id: 'dashboard', label: '5. Executive Analytics', icon: <Layers className="w-4 h-4" /> },
     { id: 'team', label: 'Team', icon: <Users className="w-4 h-4" /> },
-    { id: 'revenue', label: '5. Revenue', icon: <DollarSign className="w-4 h-4 text-emerald-400" /> },
-    { id: 'calendar', label: '6. Calendar', icon: <Calendar className="w-4 h-4 text-purple-400" /> },
-    { id: 'documents', label: '7. Documents', icon: <FileText className="w-4 h-4 text-amber-400" /> },
-    { id: 'analytics', label: '8. Analytics', icon: <Activity className="w-4 h-4 text-rose-400" /> },
+    { id: 'revenue', label: '6. Revenue', icon: <DollarSign className="w-4 h-4 text-emerald-400" /> },
+    { id: 'calendar', label: '7. Calendar', icon: <Calendar className="w-4 h-4 text-purple-400" /> },
+    { id: 'documents', label: '8. Documents', icon: <FileText className="w-4 h-4 text-amber-400" /> },
+    { id: 'analytics', label: '9. Analytics', icon: <Activity className="w-4 h-4 text-rose-400" /> },
   ];
 
   if (isAdmin) {

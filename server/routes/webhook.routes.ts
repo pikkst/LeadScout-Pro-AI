@@ -10,6 +10,8 @@ import { verifyResendWebhook, type RawBodyRequest } from "../utils/resendWebhook
 import { claimWebhookEvent } from "../services/webhookReceipt.service";
 import { suppressEmail } from "../services/compliance.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { stopSequencesForLead } from "../services/sequenceStop.service";
+import type { SequenceStopEvent } from "@prisma/client";
 
 export const webhookRouter = Router();
 
@@ -81,6 +83,11 @@ webhookRouter.post("/resend", async (req: RawBodyRequest, res) => {
           source: type === "email.complained" ? "COMPLAINT" : "BOUNCE",
           createdById: pitch.createdById ?? undefined,
         });
+        void stopSequencesForLead(pitch.leadId, "BOUNCE").catch((err) => console.error("[webhook] stopSequencesForLead failed", err));
+      }
+
+      if (eventType === "REPLIED") {
+        void stopSequencesForLead(pitch.leadId, "REPLY").catch((err) => console.error("[webhook] stopSequencesForLead failed", err));
       }
     } catch {
       /* pitch may have been deleted; ignore */

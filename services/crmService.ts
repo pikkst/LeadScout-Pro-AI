@@ -332,8 +332,253 @@ export interface DealStage {
   name: string;
   key: string;
   color: string;
-  sortOrder?: number;
+  sortOrder?: string;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// ---- Relationships ----
+export interface RelationshipAccount {
+  id: string;
+  name: string;
+  domain?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  description?: string;
+  ownerId?: string | null;
+  contacts?: RelationshipContact[];
+  opportunities?: RelationshipOpportunity[];
+  relationships?: RelationshipRecord[];
+  legacyLeads?: Array<{ id: string; stage: string; assignedAgentId: string | null }>;
+  conversations?: any[];
+  timelineEntries?: any[];
+}
+
+export interface RelationshipContact {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  title?: string | null;
+  consentStatus?: string;
+  consentSource?: string | null;
+}
+
+export interface RelationshipOpportunity {
+  id: string;
+  name: string;
+  stage: string;
+  status: string;
+  value: number;
+  currency: string;
+  probability: number;
+  expectedCloseAt?: string | null;
+}
+
+export interface RelationshipRecord {
+  id: string;
+  type: string;
+  status: string;
+  strength: number;
+  lastInteractionAt?: string | null;
+  nextActionAt?: string | null;
+  owner?: { id: string; name: string; email: string };
+}
+
+export interface RelationshipGraph {
+  lead: any;
+  account: RelationshipAccount;
+  contact: RelationshipContact;
+  opportunity: RelationshipOpportunity;
+  relationship: RelationshipRecord;
+  timeline: UnifiedTimelineItem[];
+}
+
+export interface UnifiedTimelineItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  occurredAt: string;
+  sourceType: string;
+  sourceId: string;
+  metadata?: unknown;
+}
+
+export async function listRelationshipRecordsApi(search?: string): Promise<RelationshipAccount[]> {
+  const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+  return api<RelationshipAccount[]>(`/relationships${qs}`);
+}
+
+export async function getRelationshipGraph(leadId: string): Promise<RelationshipGraph> {
+  return api<RelationshipGraph>(`/relationships/lead/${encodeURIComponent(leadId)}`);
+}
+
+export async function getRelationshipTimeline(leadId: string): Promise<UnifiedTimelineItem[]> {
+  return api<UnifiedTimelineItem[]>(`/relationships/lead/${encodeURIComponent(leadId)}/timeline`);
+}
+
+export async function addRelationshipNoteApi(leadId: string, body: string): Promise<any> {
+  return api(`/relationships/lead/${encodeURIComponent(leadId)}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function createRelationshipAccount(data: {
+  name: string;
+  domain?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  description?: string;
+}): Promise<RelationshipAccount> {
+  return api<RelationshipAccount>("/relationships/accounts", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function createRelationshipContact(accountId: string, data: {
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  title?: string | null;
+  consentStatus?: string;
+  consentSource?: string | null;
+}): Promise<RelationshipContact> {
+  return api<RelationshipContact>(`/relationships/accounts/${encodeURIComponent(accountId)}/contacts`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function createRelationshipOpportunity(accountId: string, data: {
+  name: string;
+  stage?: string;
+  status?: string;
+  value?: number;
+  currency?: string;
+  probability?: number;
+  primaryContactId?: string | null;
+  expectedCloseAt?: string | null;
+}): Promise<RelationshipOpportunity> {
+  return api<RelationshipOpportunity>(`/relationships/accounts/${encodeURIComponent(accountId)}/opportunities`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateRelationshipOpportunity(id: string, data: Partial<RelationshipOpportunity>): Promise<RelationshipOpportunity> {
+  return api<RelationshipOpportunity>(`/relationships/opportunities/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteRelationshipOpportunity(id: string): Promise<void> {
+  await api(`/relationships/opportunities/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function updateRelationshipAccount(id: string, data: Partial<RelationshipAccount>): Promise<RelationshipAccount> {
+  return api<RelationshipAccount>(`/relationships/accounts/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateRelationshipContact(id: string, data: Partial<RelationshipContact>): Promise<RelationshipContact> {
+  return api<RelationshipContact>(`/relationships/contacts/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteRelationshipContact(id: string): Promise<void> {
+  await api(`/relationships/contacts/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function createRelationship(accountId: string, data: {
+  type?: string;
+  status?: string;
+  strength?: number;
+  nextActionAt?: string | null;
+}): Promise<RelationshipRecord> {
+  return api<RelationshipRecord>(`/relationships/accounts/${encodeURIComponent(accountId)}/relationships`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateRelationship(id: string, data: Partial<RelationshipRecord>): Promise<RelationshipRecord> {
+  return api<RelationshipRecord>(`/relationships/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export interface ConversationMessage {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND";
+  senderEmail: string;
+  recipientEmails: string[];
+  subject: string;
+  textBody: string;
+  occurredAt: string;
+  isRead: boolean;
+  intent?: string;
+  sentiment?: string;
+}
+
+export interface ConnectionInfo {
+  provider: string;
+  accountEmail: string;
+}
+
+export interface Conversation {
+  id: string;
+  subject: string;
+  status: string;
+  unreadCount: number;
+  lastMessageAt: string;
+  summary?: string;
+  suggestedReply?: string;
+  messages: ConversationMessage[];
+  connection?: ConnectionInfo;
+}
+
+export async function listConversationsApi(leadId?: string): Promise<Conversation[]> {
+  const qs = leadId ? `?leadId=${encodeURIComponent(leadId)}` : "";
+  return api<Conversation[]>(`/conversations${qs}`);
+}
+
+export async function getConversationApi(id: string): Promise<Conversation> {
+  return api<Conversation>(`/conversations/${encodeURIComponent(id)}`);
+}
+
+export async function markConversationReadApi(id: string): Promise<void> {
+  await api(`/conversations/${encodeURIComponent(id)}/read`, { method: "POST" });
+}
+
+export async function syncConversationsApi(): Promise<{ synced: number }> {
+  return api<{ synced: number }>("/conversations/sync", { method: "POST" });
+}
+
+export async function startGoogleOAuth(): Promise<{ authorizeUrl: string }> {
+  return api<{ authorizeUrl: string }>("/google/oauth/start");
+}
+
+export async function disconnectGoogleApi(): Promise<void> {
+  await api("/google/disconnect", { method: "POST" });
+}
+
+export async function sendGmailReplyApi(payload: { to: string; subject: string; body: string; threadId?: string }): Promise<{ id: string; threadId?: string }> {
+  return api<{ id: string; threadId?: string }>("/google/send", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function stopSequencesForLead(leadId: string, event: string): Promise<void> {
+  await api(`/pitches/stop-sequences`, { method: "POST", body: JSON.stringify({ leadId, event }) });
 }

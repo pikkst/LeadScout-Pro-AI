@@ -24,6 +24,9 @@ import { integrationsRouter } from "./integrations.routes";
 import { activationRouter } from "./activation.routes";
 import { complianceRouter } from "./compliance.routes";
 import { publicUnsubscribeRouter } from "./public-unsubscribe.routes";
+import { relationshipsRouter } from "./relationships.routes";
+import { googleRouter } from "./google.routes";
+import { conversationsRouter } from "./conversations.routes";
 
 export const apiRouter = Router();
 
@@ -40,6 +43,9 @@ apiRouter.use("/public/unsubscribe", publicUnsubscribeRouter);
 apiRouter.use("/integrations", integrationsRouter);
 apiRouter.use("/activation", activationRouter);
 apiRouter.use("/compliance", complianceRouter);
+apiRouter.use("/relationships", relationshipsRouter);
+apiRouter.use("/google", googleRouter);
+apiRouter.use("/conversations", conversationsRouter);
 apiRouter.use("/leads", leadsRouter);
 apiRouter.use("/pitches", pitchesRouter);
 apiRouter.use("/templates", templatesRouter);

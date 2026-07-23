@@ -53,6 +53,8 @@ const RevenueTab = lazy(() => import('./components/RevenueTab'));
 const CalendarTab = lazy(() => import('./components/CalendarTab'));
 const DocumentsTab = lazy(() => import('./components/DocumentsTab'));
 const AnalyticsTab = lazy(() => import('./components/AnalyticsTab'));
+const ConversationView = lazy(() => import('./components/ConversationView').then((module) => ({ default: module.ConversationView })));
+const RelationshipsTab = lazy(() => import('./components/RelationshipsTab').then((module) => ({ default: module.RelationshipsTab })));
 const TeamManagement = lazy(() => import('./components/TeamManagement').then((module) => ({ default: module.TeamManagement })));
 const SettingsPage = lazy(() => import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 const ScoutTab = lazy(() => import('./components/ScoutTab').then((module) => ({ default: module.ScoutTab })));
@@ -195,13 +197,15 @@ const App: React.FC = () => {
     },
     'ctrl+1': () => setActiveTab('scout'),
     'ctrl+2': () => setActiveTab('outreach'),
-    'ctrl+3': () => setActiveTab('crm'),
-    'ctrl+4': () => setActiveTab('dashboard'),
-    'ctrl+5': () => setActiveTab('revenue'),
-    'ctrl+6': () => setActiveTab('calendar'),
-    'ctrl+7': () => setActiveTab('documents'),
-    'ctrl+8': () => setActiveTab('analytics'),
-    'ctrl+9': () => setActiveTab('team'),
+    'ctrl+3': () => setActiveTab('relationships'),
+    'ctrl+4': () => setActiveTab('crm'),
+    'ctrl+5': () => setActiveTab('conversations'),
+    'ctrl+6': () => setActiveTab('dashboard'),
+    'ctrl+7': () => setActiveTab('revenue'),
+    'ctrl+8': () => setActiveTab('calendar'),
+    'ctrl+9': () => setActiveTab('documents'),
+    'ctrl+0': () => setActiveTab('analytics'),
+    'ctrl+minus': () => setActiveTab('team'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1132,7 +1136,21 @@ Date().toISOString().split('T')[0]}.json`);
             </div>
           )}
 
-          {/* TAB 4: EXECUTIVE ANALYTICS & COMMUNICATIONS TELEMETRY */}
+          {/* TAB 3b: CONVERSATIONS & GMAIL */}
+          {activeTab === 'conversations' && (
+            <Suspense fallback={<RouteLoading />}>
+              <ConversationView />
+            </Suspense>
+          )}
+
+          {/* TAB 4: RELATIONSHIPS */}
+          {activeTab === 'relationships' && (
+            <Suspense fallback={<RouteLoading />}>
+              <RelationshipsTab />
+            </Suspense>
+          )}
+
+          {/* TAB 5: EXECUTIVE ANALYTICS & COMMUNICATIONS TELEMETRY */}
           {activeTab === 'dashboard' && (
             <div className="space-y-8">
               <CommandCenter onNavigate={setActiveTab} canManageCompliance={isAdmin} />

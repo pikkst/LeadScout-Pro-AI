@@ -16,6 +16,8 @@ import { getEmailSettings } from "../services/settings.service";
 import { getOrCreateBookingLink } from "../services/calendar.service";
 import { getOrCreateUnsubscribeLink } from "../services/compliance.service";
 import { recordActivationEvent } from "../services/activation.service";
+import { config } from "../config";
+import { stopSequencesForLead } from "../services/sequenceStop.service";
 
 export const pitchesRouter = Router();
 pitchesRouter.use(requireAuth);
@@ -153,7 +155,7 @@ pitchesRouter.post(
         subject: pitch.subject,
         html: pitch.htmlContent,
         text: pitch.textContent,
-        replyTo: senderEmail,
+        replyTo: config.inboundEmailAddress,
         pitchId: pitch.id,
         inReplyToMessageId: previous?.sentMessageId || undefined,
         references: previous?.sentMessageId ? [previous.sentMessageId] : undefined,
@@ -173,7 +175,7 @@ pitchesRouter.post(
           sentAt: new Date(),
           sentFromName: senderName,
           sentFromEmail: senderEmail,
-          replyToEmail: senderEmail,
+          replyToEmail: config.inboundEmailAddress,
           sentMessageId: sendResult.messageId,
         } as any,
       }),
@@ -258,3 +260,10 @@ pitchesRouter.post(
     res.json(serializePitch(updated));
   }),
 );
+
+pitchesRouter.post("/stop-sequences", requireAuth, asyncHandler(async (req, res) => {
+  const schema = z.object({ leadId: z.string(), event: z.string() });
+  const { leadId, event } = schema.parse(req.body);
+  await stopSequencesForLead(leadId, event as any);
+  res.json({ ok: true });
+}));
