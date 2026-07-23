@@ -7,7 +7,7 @@ import { getAiSettings, getCompanyProfile } from "./settings.service";
 let client: GoogleGenAI | null = null;
 let clientKey = "";
 
-async function getAI(): Promise<{ ai: GoogleGenAI; model: string }> {
+export async function getAI(): Promise<{ ai: GoogleGenAI; model: string }> {
   const { apiKey, model } = await getAiSettings();
   if (!apiKey) {
     throw new HttpError(
@@ -849,4 +849,83 @@ export async function generateAgentCoaching(agentId: string, agentName: string, 
     description: r.description || "Keep up the good work.",
     priority: ["LOW", "MEDIUM", "HIGH"].includes(r.priority || "") ? r.priority! : "MEDIUM",
   }));
+}
+
+export interface GeneratedPlay {
+  name: string;
+  description: string;
+  targetAudience: string;
+  steps: Array<{
+    order: number;
+    name: string;
+    type: "EMAIL" | "TASK" | "WEBHOOK" | "MEETING";
+    template: string;
+    successCriteria: string;
+  }>;
+  messages: Array<{
+    subject?: string;
+    body: string;
+    tone: string;
+  }>;
+  successCriteria: {
+    targetMetric: string;
+    targetValue: number;
+    timeframe: string;
+  };
+  vertical: string;
+}
+
+export async function generatePlayFromPrompt(prompt: string, vertical: string): Promise<GeneratedPlay> {
+  const { ai, model } = await getAI();
+  const promptText = `
+    You are a B2B sales playbook designer. The user described a play in plain language.
+
+    User request: ${prompt}
+    Industry vertical: ${vertical}
+
+    Generate a complete, reviewable play with:
+    1. play name and 1-sentence description
+    2. target audience summary
+    3. 4-6 ordered steps (EMAIL, TASK, WEBHOOK, or MEETING) with a short template for each
+    4. success criteria (metric, numeric target, timeframe)
+    5. 2-3 sample messages (subject + body) with tone labels
+
+    Return ONLY JSON:
+    {
+      "name": "string",
+      "description": "string",
+      "targetAudience": "string",
+      "steps": [
+        { "order": 1, "name": "string", "type": "EMAIL|TASK|WEBHOOK|MEETING", "template": "string", "successCriteria": "string" }
+      ],
+      "messages": [
+        { "subject": "string?", "body": "string", "tone": "string" }
+      ],
+      "successCriteria": { "targetMetric": "string", "targetValue": 0, "timeframe": "string" },
+      "vertical": "string"
+    }
+  `;
+  const response = await ai.models.generateContent({
+    model,
+    contents: promptText,
+    config: { responseMimeType: "application/json", temperature: 0.3 },
+  });
+  const result = extractJson<GeneratedPlay>(response.text || "{}", {
+    name: "Generated Play",
+    description: prompt,
+    targetAudience: "General B2B audience",
+    steps: [],
+    messages: [],
+    successCriteria: { targetMetric: "positive_reply_rate", targetValue: 20, timeframe: "30 days" },
+    vertical,
+  });
+  return {
+    name: result.name || "Generated Play",
+    description: result.description || prompt,
+    targetAudience: result.targetAudience || "General B2B audience",
+    steps: Array.isArray(result.steps) ? result.steps : [],
+    messages: Array.isArray(result.messages) ? result.messages : [],
+    successCriteria: result.successCriteria || { targetMetric: "positive_reply_rate", targetValue: 20, timeframe: "30 days" },
+    vertical: result.vertical || vertical,
+  };
 }

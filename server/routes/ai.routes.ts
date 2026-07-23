@@ -224,3 +224,16 @@ aiRouter.post(
     res.json(prep);
   }),
 );
+
+aiRouter.post(
+  "/generate-play",
+  validate({
+    body: z.object({ prompt: z.string().min(1).max(2000), vertical: z.string().min(1) }),
+  }),
+  asyncHandler(async (req, res) => {
+    const { prompt, vertical } = req.body;
+    const play = await ai.generatePlayFromPrompt(prompt, vertical);
+    await logActivity({ action: "AI_PLAY_GENERATED", detail: `Generated play: ${play.name}`, userId: req.user!.id });
+    res.status(201).json(play);
+  }),
+);

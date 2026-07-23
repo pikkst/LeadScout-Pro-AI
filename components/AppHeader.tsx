@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users, Building2, GitBranch, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Search, Sparkles, Database, Layers, Settings as SettingsIcon, LogOut, Globe, CheckSquare, Mail, TrendingUp, DollarSign, Calendar, FileText, Activity, Users, Building2, GitBranch, ShieldCheck, RefreshCw, Signal, Cpu, Package } from 'lucide-react';
 import type { AppTab } from '../services/activationService';
 
 interface Tab {
@@ -64,6 +64,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     { id: 'playbooks', label: 'Playbooks', icon: <GitBranch className="w-4 h-4 text-violet-400" /> },
     { id: 'qualification', label: 'Qualification', icon: <ShieldCheck className="w-4 h-4 text-emerald-400" /> },
     { id: 'queues', label: 'Queues', icon: <RefreshCw className="w-4 h-4 text-amber-400" /> },
+    { id: 'signals', label: 'Signals', icon: <Signal className="w-4 h-4 text-pink-400" /> },
+    { id: 'agents', label: 'Agents', icon: <Cpu className="w-4 h-4 text-orange-400" /> },
+    { id: 'marketplace', label: 'Marketplace', icon: <Package className="w-4 h-4 text-cyan-400" /> },
+    { id: 'rankings', label: 'Rankings', icon: <TrendingUp className="w-4 h-4 text-fuchsia-400" /> },
+    { id: 'play-generation', label: 'Play Generator', icon: <Sparkles className="w-4 h-4 text-violet-400" /> },
   ];
 
   if (isAdmin) {

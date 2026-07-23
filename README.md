@@ -162,6 +162,14 @@ See [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) for the product thesis, honest curr
 - Accessible public unsubscribe flow, skip navigation, route loading states, and render recovery
 - Route-level frontend code splitting for settings, calendar, revenue, documents, analytics, and team management
 
+### 14. Signal-Driven Revenue Agents (Phase 3)
+- **Signal ingestion**: ingest verified revenue signals — hiring, funding, leadership changes, technology, intent, product usage, renewal, and relationship activity
+- **Account ranking**: rank accounts by fit × timing × relationship × value with explainable evidence and freshness tracking
+- **Revenue agents**: configurable research, routing, briefing, follow-up, and CRM-hygiene agents with budgets, permissions, and approval thresholds
+- **Playbook marketplace**: private team templates and curated vertical packs for repeatable playbooks
+- **Workspace learning**: learn at workspace and vertical-playbook level without leaking customer data between tenants
+- **Audit trails**: agent runs, approvals, costs, and errors tracked for human oversight
+
 ---
 
 ## Tech Stack

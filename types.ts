@@ -638,3 +638,120 @@ export interface IntegrationMapping {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface Phase3Signal {
+  id: string;
+  type: string;
+  source: string;
+  evidence: string;
+  confidence: number;
+  isVerified: boolean;
+  ingestedAt: string;
+  verifiedAt?: string;
+  accountSignals?: Array<{ accountId: string; relevance: number; freshness: number; context?: string }>;
+}
+
+export interface Phase3AccountRank {
+  id: string;
+  accountId: string;
+  account?: {
+    id: string;
+    name: string;
+    domain?: string;
+    industry?: string;
+    contacts?: Array<{ id: string; fullName: string; email: string }>;
+  };
+  fitScore: number;
+  timingScore: number;
+  relationshipScore: number;
+  valueScore: number;
+  compositeScore: number;
+  explanation: string;
+  evidence: Array<{ type: string; confidence: number; relevance: number; context?: string; snippet?: string }>;
+  calculatedAt: string;
+}
+
+export interface Phase3AgentDefinition {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  config: Record<string, unknown>;
+  budget: number;
+  spentBudget: number;
+  permissions: Record<string, unknown>;
+  approvalThreshold: number;
+  isActive: boolean;
+  createdById: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: { runs: number };
+}
+
+export interface Phase3AgentRun {
+  id: string;
+  definitionId: string;
+  status: string;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  cost: number;
+  errors: string[];
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  approvals: Array<{ id: string; status: string }>;
+}
+
+export interface Phase3PackItem {
+  id: string;
+  packId: string;
+  playbookId: string;
+  sortOrder: number;
+  playbook?: { id: string; name: string; type: string; status: string };
+}
+
+export interface Phase3Pack {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  visibility: string;
+  vertical?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  items?: Phase3PackItem[];
+  createdBy?: { id: string; name: string; email: string };
+}
+
+export interface GeneratedPlayStep {
+  order: number;
+  name: string;
+  type: "EMAIL" | "TASK" | "WEBHOOK" | "MEETING";
+  template: string;
+  successCriteria: string;
+}
+
+export interface GeneratedPlayMessage {
+  subject?: string;
+  body: string;
+  tone: string;
+}
+
+export interface GeneratedPlaySuccessCriteria {
+  targetMetric: string;
+  targetValue: number;
+  timeframe: string;
+}
+
+export interface GeneratedPlay {
+  id?: string;
+  name: string;
+  description: string;
+  targetAudience: string;
+  steps: GeneratedPlayStep[];
+  messages: GeneratedPlayMessage[];
+  successCriteria: GeneratedPlaySuccessCriteria;
+  vertical: string;
+}
