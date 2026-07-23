@@ -358,7 +358,7 @@ export async function verifyAiConfig(cfg?: {
     let model: string;
     if (cfg?.apiKey) {
       ai = new GoogleGenAI({ apiKey: cfg.apiKey });
-      model = cfg.model || "gemini-2.5-flash";
+      model = cfg.model || "gemini-3.5-flash";
     } else {
       const resolved = await getAI();
       ai = resolved.ai;
