@@ -144,7 +144,7 @@ aiRouter.post(
     const updated = await prisma.lead.update({
       where: { id: leadId },
       data: {
-        enrichmentData: JSON.stringify(enrichment),
+        enrichmentData: enrichment as any,
       },
       include: leadInclude,
     });
@@ -196,14 +196,7 @@ aiRouter.post(
     });
     if (!meeting) return res.status(404).json({ error: "Meeting not found" });
 
-    let enrichmentData: any = undefined;
-    if (meeting.lead.enrichmentData) {
-      try {
-        enrichmentData = JSON.parse(meeting.lead.enrichmentData);
-      } catch {
-        enrichmentData = undefined;
-      }
-    }
+    const enrichmentData = meeting.lead.enrichmentData ?? undefined;
 
     const prep = await ai.generateMeetingPrep({
       title: meeting.title,

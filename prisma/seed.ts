@@ -44,13 +44,13 @@ async function main() {
         notes: "Sent pricing on July 19th. Awaiting SLA signoff.",
         source: "MANUAL",
         createdById: adminId,
-        enrichmentData: JSON.stringify({
+        enrichmentData: {
           companySize: "10,001+ employees",
           employeeCount: 210000,
           techStack: ["SIP", "SS7", "SBC"],
           recentNews: ["Expanded 5G network coverage", "New data center in Frankfurt"],
           decisionMakers: [{ name: "Thomas Müller", title: "VP Wholesale" }],
-        }),
+        },
       },
     });
 

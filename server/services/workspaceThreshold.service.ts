@@ -56,7 +56,7 @@ export async function updateWorkspaceThreshold(workspaceKey: string, data: {
 }
 
 export async function evaluatePromotion(workspaceKey: string) {
-  const threshold = await prisma.workspaceThreshold.findUnique({
+  let threshold = await prisma.workspaceThreshold.findUnique({
     where: { workspaceKey },
   });
   if (!threshold) return { shouldPromote: false, soloMode: true };
@@ -64,7 +64,7 @@ export async function evaluatePromotion(workspaceKey: string) {
   const shouldPromote = !shouldRemainSoloMode(threshold.currentUserCount, threshold.currentLeadCount, threshold.currentAutomationCount, threshold.autoPromoteUsers, threshold.autoPromoteLeads, threshold.autoPromoteAutomation);
 
   if (shouldPromote && threshold.soloMode) {
-    await prisma.workspaceThreshold.update({
+    threshold = await prisma.workspaceThreshold.update({
       where: { workspaceKey },
       data: { soloMode: false, promotedAt: new Date() },
     });

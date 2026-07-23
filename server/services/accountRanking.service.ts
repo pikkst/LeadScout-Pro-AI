@@ -85,7 +85,7 @@ export async function calculateAccountRank(accountId: string): Promise<RankPaylo
       valueScore,
       compositeScore,
       explanation,
-      evidence: JSON.stringify(evidence),
+      evidence,
       calculatedAt: new Date(),
     },
     create: {
@@ -96,7 +96,7 @@ export async function calculateAccountRank(accountId: string): Promise<RankPaylo
       valueScore,
       compositeScore,
       explanation,
-      evidence: JSON.stringify(evidence),
+      evidence,
     },
   });
 
@@ -109,7 +109,7 @@ export async function calculateAccountRank(accountId: string): Promise<RankPaylo
     valueScore: rank.valueScore,
     compositeScore: rank.isDecayed ? rank.decayedCompositeScore : rank.compositeScore,
     explanation: rank.explanation,
-    evidence: JSON.parse(rank.evidence || "[]"),
+    evidence: rank.evidence,
     calculatedAt: rank.calculatedAt.toISOString(),
     isDecayed: rank.isDecayed,
     decayedCompositeScore: rank.decayedCompositeScore,
@@ -149,7 +149,7 @@ export async function getRankings(filters?: { limit?: number; minScore?: number 
     valueScore: r.valueScore,
     compositeScore: r.isDecayed ? r.decayedCompositeScore : r.compositeScore,
     explanation: r.explanation,
-    evidence: JSON.parse(r.evidence || "[]"),
+    evidence: r.evidence,
     calculatedAt: r.calculatedAt.toISOString(),
     isDecayed: r.isDecayed,
     decayedCompositeScore: r.decayedCompositeScore,

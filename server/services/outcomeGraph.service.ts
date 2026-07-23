@@ -141,18 +141,27 @@ export async function upsertGraphNode(workspaceKey: string, nodeType: string, no
   if (existing) {
     return prisma.outcomeGraphNode.update({
       where: { id: existing.id },
-      data: { title, metadata: JSON.stringify(metadata) as any, updatedAt: new Date() },
+      data: { title, metadata: metadata as any, updatedAt: new Date() },
     });
   }
   return prisma.outcomeGraphNode.create({
-    data: { nodeType: nodeType as any, nodeId, workspaceKey, title, metadata: JSON.stringify(metadata) as any },
+    data: { nodeType: nodeType as any, nodeId, workspaceKey, title, metadata: metadata as any },
   });
 }
 
 export async function createGraphEdge(workspaceKey: string, sourceType: string, sourceId: string, targetType: string, targetId: string, edgeType: string, weight = 1, metadata: Record<string, unknown> = {}) {
   return prisma.outcomeGraphEdge.create({
-    data: { workspaceKey, sourceType: sourceType as any, sourceId, targetType: targetType as any, targetId, edgeType: edgeType as any, weight, metadata: JSON.stringify(metadata) as any },
+    data: { workspaceKey, sourceType: sourceType as any, sourceId, targetType: targetType as any, targetId, edgeType: edgeType as any, weight, metadata: metadata as any },
   });
+}
+
+function safeStringify(obj: unknown): string {
+  try {
+    return JSON.stringify(obj);
+  } catch (err) {
+    console.error("[safeStringify] Failed to stringify object:", err);
+    return "{}";
+  }
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

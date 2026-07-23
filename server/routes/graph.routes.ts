@@ -19,8 +19,8 @@ const graphQuerySchema = z.object({
 });
 
 graphRouter.get("/", validate({ query: graphQuerySchema }), asyncHandler(async (req, res) => {
-  const workspaceKey = (req as any).user.id;
-  const { centerNodeType, centerNodeId, depth } = (req as any).query as z.infer<typeof graphQuerySchema>;
+  const workspaceKey = req.user!.id;
+  const { centerNodeType, centerNodeId, depth } = req.query as z.infer<typeof graphQuerySchema>;
   const result = await getOutcomeGraph(workspaceKey, centerNodeType, centerNodeId, depth);
   res.json(result);
 }));
@@ -33,8 +33,8 @@ const upsertNodeSchema = z.object({
 });
 
 graphRouter.post("/nodes", validate({ body: upsertNodeSchema }), asyncHandler(async (req, res) => {
-  const workspaceKey = (req as any).user.id;
-  const { nodeType, nodeId, title, metadata } = (req as any).body as z.infer<typeof upsertNodeSchema>;
+  const workspaceKey = req.user!.id;
+  const { nodeType, nodeId, title, metadata } = req.body as z.infer<typeof upsertNodeSchema>;
   const node = await upsertGraphNode(workspaceKey, nodeType, nodeId, title, metadata ?? {});
   res.status(201).json(node);
 }));
@@ -50,15 +50,16 @@ const createEdgeSchema = z.object({
 });
 
 graphRouter.post("/edges", validate({ body: createEdgeSchema }), asyncHandler(async (req, res) => {
-  const workspaceKey = (req as any).user.id;
-  const { sourceType, sourceId, targetType, targetId, edgeType, weight, metadata } = (req as any).body as z.infer<typeof createEdgeSchema>;
+  const workspaceKey = req.user!.id;
+  const { sourceType, sourceId, targetType, targetId, edgeType, weight, metadata } = req.body as z.infer<typeof createEdgeSchema>;
   const edge = await createGraphEdge(workspaceKey, sourceType, sourceId, targetType, targetId, edgeType, weight ?? 1, metadata ?? {});
   res.status(201).json(edge);
 }));
 
 graphRouter.post("/sync/account/:accountId", asyncHandler(async (req, res) => {
   const accountId = param(req, "accountId");
-  const workspaceKey = (req as any).user.id;
+  const user = req.user!;
+  const workspaceKey = user.id;
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
@@ -66,24 +67,46 @@ graphRouter.post("/sync/account/:accountId", asyncHandler(async (req, res) => {
   });
   if (!account) return res.status(404).json({ error: "Account not found" });
 
+  const isAuthorized = user.role === "ADMIN" || user.role === "MANAGER" || account.ownerId === user.id;
+  if (!isAuthorized) {
+    return res.status(403).json({ error: "Unauthorized access to this account resource", code: "FORBIDDEN" });
+  }
+
   const accountNode = await upsertGraphNode(workspaceKey, "ACCOUNT", account.id, account.name, { domain: account.domain, industry: account.industry });
 
+  let successCount = 1;
+
   for (const contact of account.contacts) {
-    await upsertGraphNode(workspaceKey, "CONTACT", contact.id, contact.fullName, { email: contact.email, title: contact.title });
-    await createGraphEdge(workspaceKey, "ACCOUNT", account.id, "CONTACT", contact.id, "OWNS", 1, {});
+    try {
+      await upsertGraphNode(workspaceKey, "CONTACT", contact.id, contact.fullName, { email: contact.email, title: contact.title });
+      await createGraphEdge(workspaceKey, "ACCOUNT", account.id, "CONTACT", contact.id, "OWNS", 1, {});
+      successCount += 1;
+    } catch (err) {
+      console.error(`[GraphSync] Failed to sync contact ${contact.id}:`, err);
+    }
   }
 
   for (const opp of account.opportunities) {
-    await upsertGraphNode(workspaceKey, "OPPORTUNITY", opp.id, opp.name, { value: opp.value, stage: opp.stage, status: opp.status });
-    await createGraphEdge(workspaceKey, "ACCOUNT", account.id, "OPPORTUNITY", opp.id, "LEADS_TO", 1, {});
-    if (opp.primaryContactId) {
-      await createGraphEdge(workspaceKey, "CONTACT", opp.primaryContactId, "OPPORTUNITY", opp.id, "PART_OF", 1, {});
+    try {
+      await upsertGraphNode(workspaceKey, "OPPORTUNITY", opp.id, opp.name, { value: opp.value, stage: opp.stage, status: opp.status });
+      await createGraphEdge(workspaceKey, "ACCOUNT", account.id, "OPPORTUNITY", opp.id, "LEADS_TO", 1, {});
+      if (opp.primaryContactId) {
+        await createGraphEdge(workspaceKey, "CONTACT", opp.primaryContactId, "OPPORTUNITY", opp.id, "PART_OF", 1, {});
+      }
+      successCount += 1;
+    } catch (err) {
+      console.error(`[GraphSync] Failed to sync opportunity ${opp.id}:`, err);
     }
   }
 
   for (const rel of account.relationships) {
-    await upsertGraphNode(workspaceKey, "RELATIONSHIP", rel.id, `${rel.type} - ${rel.status}`, { strength: rel.strength });
-    await createGraphEdge(workspaceKey, "ACCOUNT", account.id, "RELATIONSHIP", rel.id, "PART_OF", 1, {});
+    try {
+      await upsertGraphNode(workspaceKey, "RELATIONSHIP", rel.id, `${rel.type} - ${rel.status}`, { strength: rel.strength });
+      await createGraphEdge(workspaceKey, "ACCOUNT", account.id, "RELATIONSHIP", rel.id, "PART_OF", 1, {});
+      successCount += 1;
+    } catch (err) {
+      console.error(`[GraphSync] Failed to sync relationship ${rel.id}:`, err);
+    }
   }
 
   await recordAutomationAudit({
@@ -91,9 +114,9 @@ graphRouter.post("/sync/account/:accountId", asyncHandler(async (req, res) => {
     entityType: "ACCOUNT",
     entityId: accountId,
     actorType: "USER",
-    actorId: (req as any).user.id,
-    newState: { graphSynced: true, nodeCount: 1 + account.contacts.length + account.opportunities.length + account.relationships.length },
+    actorId: user.id,
+    newState: { graphSynced: true, nodeCount: successCount },
   });
 
-  res.json({ synced: true, nodeCount: 1 + account.contacts.length + account.opportunities.length + account.relationships.length, root: accountNode });
+  res.json({ synced: true, nodeCount: successCount, root: accountNode });
 }));

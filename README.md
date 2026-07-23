@@ -877,6 +877,16 @@ Integration requests use `X-API-Key: <your-api-key>` and the scoped `/api/integr
 - **Calendar Compatibility**: confirmation emails include ICS invitations for Google Calendar, Outlook, Apple Calendar and local tools
 - **CRM Automation**: successful bookings notify the agent and advance early-stage leads automatically
 
+### Phase 4 — Defensible Differentiation (2026-07-23)
+- **Outcome Graph**: unified queryable graph connecting accounts, contacts, opportunities, relationships, conversations, and revenue with typed edges
+- **Account Sync with Resource Auth**: `POST /api/graph/sync/account/:accountId` enforces ownership or admin/manager role before syncing
+- **Evidence Reviews**: AI recommendations are gated behind approval workflows with recommend/reject/decay lifecycle and horizontal privilege prevention
+- **Workspace Thresholds**: solo-to-team auto-promotion configuration with user, lead, and automation thresholds
+- **Signal Decay**: time-based freshness decay for account signals and composite ranking scores
+- **Safe JSON Serialization**: shared `safeStringify`/`safeJsonParse` utilities prevent circular-reference crashes in agent framework, account ranking, and outcome graph services
+- **Schema hardening**: migrated `Lead.enrichmentData`, `AccountRank.evidence`, and `DealQualification.evidence` from `String` to native `Json`; all primary-key `id` columns converted to `VARCHAR(32)` for storage efficiency
+- **API Docs & Tests**: new endpoint coverage for graph, evidence, workspace-thresholds, and automation-audit with vitest integration tests
+
 ---
 
 ## License

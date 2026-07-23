@@ -608,12 +608,7 @@ export async function generateMeetingPrep(meeting: {
     description: string;
     stage: string;
     estimatedValue: number;
-    enrichmentData?: {
-      companySize?: string;
-      techStack?: string[];
-      recentNews?: string[];
-      decisionMakers?: Array<{ name: string; title: string }>;
-    };
+    enrichmentData?: unknown;
   };
 }): Promise<MeetingPrep> {
   const { ai, model } = await getAI();
@@ -632,10 +627,10 @@ export async function generateMeetingPrep(meeting: {
     - Description: "${meeting.lead.description}"
     - Pipeline stage: "${meeting.lead.stage}"
     - Estimated value: EUR ${meeting.lead.estimatedValue}
-    - Company size: ${meeting.lead.enrichmentData?.companySize || 'unknown'}
-    - Tech stack: ${meeting.lead.enrichmentData?.techStack?.join(', ') || 'unknown'}
-    - Recent news: ${meeting.lead.enrichmentData?.recentNews?.join('; ') || 'none'}
-    - Decision makers: ${meeting.lead.enrichmentData?.decisionMakers?.map(dm => `${dm.name} (${dm.title})`).join('; ') || 'unknown'}
+    - Company size: ${(meeting.lead.enrichmentData as any)?.companySize || 'unknown'}
+    - Tech stack: ${(meeting.lead.enrichmentData as any)?.techStack?.join(', ') || 'unknown'}
+    - Recent news: ${(meeting.lead.enrichmentData as any)?.recentNews?.join('; ') || 'none'}
+    - Decision makers: ${(meeting.lead.enrichmentData as any)?.decisionMakers?.map((dm: any) => `${dm.name} (${dm.title})`).join('; ') || 'unknown'}
 
     Return ONLY a JSON object:
     {
@@ -755,10 +750,7 @@ export async function generateCompetitorInsights(lead: {
   category: string;
   website: string;
   description: string;
-  enrichmentData?: {
-    techStack?: string[];
-    recentNews?: string[];
-  };
+  enrichmentData?: unknown;
 }): Promise<CompetitorInsight[]> {
   const { ai, model } = await getAI();
   const prompt = `
@@ -769,8 +761,8 @@ export async function generateCompetitorInsights(lead: {
     - Industry: "${lead.category}"
     - Website: "${lead.website}"
     - Description: "${lead.description}"
-    - Tech stack: ${lead.enrichmentData?.techStack?.join(", ") || "unknown"}
-    - Recent news: ${lead.enrichmentData?.recentNews?.join("; ") || "none"}
+    - Tech stack: ${(lead.enrichmentData as any)?.techStack?.join(", ") || "unknown"}
+    - Recent news: ${(lead.enrichmentData as any)?.recentNews?.join("; ") || "none"}
 
     Return ONLY a JSON array:
     [

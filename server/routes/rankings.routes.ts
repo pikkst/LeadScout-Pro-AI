@@ -60,7 +60,7 @@ rankingsRouter.get("/accounts/:accountId", asyncHandler(async (req, res) => {
     valueScore: rank.valueScore,
     compositeScore: rank.compositeScore,
     explanation: rank.explanation,
-    evidence: JSON.parse(rank.evidence || "[]"),
+    evidence: rank.evidence,
     calculatedAt: rank.calculatedAt.toISOString(),
   });
 }));
