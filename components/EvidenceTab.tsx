@@ -117,7 +117,7 @@ const EvidenceTab: React.FC = () => {
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${statusColor(review.status)}`}>{review.status}</span>
               </div>
               <div className="text-[10px] text-slate-500 mb-2">
-                {review.entityType} · {review.entityId.slice(0, 8)}... · confidence {review.confidence.toFixed(2)} · freshness {review.freshness}d
+                {review.entityType} · {review.entityId.slice(0, 8)}... · confidence {(review.confidence ?? 0).toFixed(2)} · freshness {review.freshness}d
               </div>
               <div className="text-[10px] text-slate-400 mb-2">
                 by {review.createdByName} on {new Date(review.createdAt).toLocaleString()}
