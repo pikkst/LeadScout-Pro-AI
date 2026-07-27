@@ -87,15 +87,15 @@ const WorkspaceThresholdsTab: React.FC = () => {
         <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Auto-Promote Users</label>
-            <input type="number" min="1" value={form.autoPromoteUsers} onChange={(e) => setForm({ ...form, autoPromoteUsers: parseInt(e.target.value, 10) })} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" />
+            <input type="number" min="1" value={form.autoPromoteUsers} onChange={(e) => setForm({ ...form, autoPromoteUsers: parseInt(e.target.value, 10) || 0 })} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" />
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Auto-Promote Leads</label>
-            <input type="number" min="1" value={form.autoPromoteLeads} onChange={(e) => setForm({ ...form, autoPromoteLeads: parseInt(e.target.value, 10) })} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" />
+            <input type="number" min="1" value={form.autoPromoteLeads} onChange={(e) => setForm({ ...form, autoPromoteLeads: parseInt(e.target.value, 10) || 0 })} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" />
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Auto-Promote Automation</label>
-            <input type="number" min="1" value={form.autoPromoteAutomation} onChange={(e) => setForm({ ...form, autoPromoteAutomation: parseInt(e.target.value, 10) })} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" />
+            <input type="number" min="1" value={form.autoPromoteAutomation} onChange={(e) => setForm({ ...form, autoPromoteAutomation: parseInt(e.target.value, 10) || 0 })} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" />
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Current Users</label>
