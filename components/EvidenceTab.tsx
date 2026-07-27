@@ -120,7 +120,7 @@ const EvidenceTab: React.FC = () => {
                 {review.entityType} · {review.entityId.slice(0, 8)}... · confidence {(review.confidence ?? 0).toFixed(2)} · freshness {review.freshness}d
               </div>
               <div className="text-[10px] text-slate-400 mb-2">
-                by {review.createdByName} on {new Date(review.createdAt).toLocaleString()}
+                by {review.createdByName} on {review.createdAt ? new Date(review.createdAt).toLocaleString() : "unknown"}
               </div>
               {review.reviewedByName && (
                 <div className="text-[10px] text-slate-400 mb-2">
