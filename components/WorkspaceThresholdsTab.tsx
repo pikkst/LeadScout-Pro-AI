@@ -43,7 +43,7 @@ const WorkspaceThresholdsTab: React.FC = () => {
     }
   };
 
-  const progressPercent = (current: number, threshold: number) => Math.min(100, Math.round((current / threshold) * 100));
+  const progressPercent = (current: number, threshold: number) => threshold === 0 ? 0 : Math.min(100, Math.round((current / threshold) * 100));
 
   return (
     <div className="space-y-6">
