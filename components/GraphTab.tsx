@@ -130,7 +130,7 @@ const GraphTab: React.FC = () => {
                 <span className={`w-2.5 h-2.5 rounded-full ${NODE_TYPE_COLORS[node.nodeType] || 'bg-slate-500'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold text-slate-200 truncate">{node.title}</div>
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">{node.nodeType} · {node.nodeId.slice(0, 8)}...</div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">{node.nodeType} · {(node.nodeId ?? "").slice(0, 8)}...</div>
                 </div>
                 <span className="text-[10px] text-slate-500">{edgeCountBySource[`${node.nodeType}:${node.nodeId}`] || 0} edges</span>
               </div>
