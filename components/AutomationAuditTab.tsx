@@ -74,7 +74,7 @@ const AutomationAuditTab: React.FC = () => {
                 <span className="text-[10px] text-slate-500">{log.entityType}:{log.entityId.slice(0, 8)}...</span>
               </div>
               <div className="text-[10px] text-slate-500">
-                actor {log.actorId.slice(0, 8)}... · budget {log.budgetUsed} · tokens {log.tokenUsed} · {new Date(log.createdAt).toLocaleString()}
+                actor {log.actorId.slice(0, 8)}... · budget {log.budgetUsed} · tokens {log.tokenUsed} · {log.createdAt ? new Date(log.createdAt).toLocaleString() : "unknown"}
               </div>
               {log.error && <div className="text-[10px] text-red-400 mt-1">Error: {log.error}</div>}
               {log.previousState && (
