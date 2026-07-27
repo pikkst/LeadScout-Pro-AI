@@ -11,7 +11,7 @@ export async function getOutcomeGraph(filters?: { centerNodeType?: string; cente
 }
 
 export async function syncAccountGraph(accountId: string) {
-  return api<{ synced: boolean; nodeCount: number; root: Phase4GraphNode }>(`/graph/sync/account/${accountId}`, { method: "POST" });
+  return api<{ synced: boolean; nodeCount: number; root: Phase4GraphNode }>(`/graph/sync/account/${encodeURIComponent(accountId)}`, { method: "POST" });
 }
 
 export async function createGraphNode(payload: { nodeType: string; nodeId: string; title: string; metadata?: Record<string, unknown> }) {
