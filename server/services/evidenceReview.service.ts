@@ -95,13 +95,18 @@ export async function decayStaleEvidenceReviews(maxAgeHours = 72) {
   const stale = await prisma.evidenceReview.findMany({
     where: { status: "PENDING", createdAt: { lt: cutoff } },
   });
-  for (const review of stale) {
-    await prisma.evidenceReview.update({
-      where: { id: review.id },
-      data: { status: "DECAYED", decayedAt: new Date() },
+  if (stale.length === 0) return 0;
+  const BATCH_SIZE = 50;
+  const now = new Date();
+  const total = stale.length;
+  for (let i = 0; i < stale.length; i += BATCH_SIZE) {
+    const batch = stale.slice(i, i + BATCH_SIZE);
+    await prisma.evidenceReview.updateMany({
+      where: { id: { in: batch.map((r) => r.id) } },
+      data: { status: "DECAYED", decayedAt: now },
     });
   }
-  return stale.length;
+  return total;
 }
 
 function serializeEvidenceReview(review: {
