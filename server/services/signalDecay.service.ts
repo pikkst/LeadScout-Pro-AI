@@ -1,6 +1,8 @@
 // Signal freshness decay service: decay signal confidence and relevance over time.
 import { prisma } from "../db";
 
+const BATCH_SIZE = 50;
+
 export async function decayAccountSignals() {
   const accountSignals = await prisma.accountSignal.findMany({
     where: { decayedAt: null },
@@ -32,12 +34,18 @@ export async function decayAccountSignals() {
           }),
         ]
       : []),
-    ...updates.map((u) =>
-      prisma.accountSignal.update({
-        where: { id: u.id },
-        data: { relevance: u.relevance },
-      })
-    ),
+    ...(updates.length > 0
+      ? [
+          prisma.$transaction(
+            updates.map((u) =>
+              prisma.accountSignal.update({
+                where: { id: u.id },
+                data: { relevance: u.relevance },
+              })
+            )
+          ),
+        ]
+      : []),
   ]);
 
   return zeroRelevanceIds.length;
@@ -66,18 +74,23 @@ export async function decayAccountRanks() {
   }
 
   if (updates.length > 0) {
-    await prisma.$transaction(
-      updates.map((u) =>
-        prisma.accountRank.update({
-          where: { id: u.id },
-          data: {
-            decayedCompositeScore: u.decayedScore,
-            isDecayed: u.isDecayed,
-            lastDecayedAt: now,
-          },
-        })
-      )
-    );
+    const batches: Array<Promise<unknown>> = [];
+    for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+      const batch = updates.slice(i, i + BATCH_SIZE);
+      batches.push(prisma.$transaction(
+        batch.map((u) =>
+          prisma.accountRank.update({
+            where: { id: u.id },
+            data: {
+              decayedCompositeScore: u.decayedScore,
+              isDecayed: u.isDecayed,
+              lastDecayedAt: now,
+            },
+          })
+        )
+      ));
+    }
+    await Promise.all(batches);
   }
 
   return updates.length;
