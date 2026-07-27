@@ -528,14 +528,16 @@ const runSequenceEngine = async () => {
     }
   };
 
+  let phase4Interval: NodeJS.Timeout | undefined;
   if (dbConnected) {
     runPhase4Maintenance();
-    setInterval(runPhase4Maintenance, 60 * 60 * 1000);
+    phase4Interval = setInterval(runPhase4Maintenance, 60 * 60 * 1000);
   }
 
   // --- Graceful shutdown ---
   const shutdown = async (signal: string) => {
     console.log(`\n[server] ${signal} received, shutting down...`);
+    if (phase4Interval !== undefined) clearInterval(phase4Interval);
     server.close();
     await prisma.$disconnect();
     process.exit(0);
