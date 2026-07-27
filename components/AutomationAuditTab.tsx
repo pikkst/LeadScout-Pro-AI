@@ -80,7 +80,7 @@ const AutomationAuditTab: React.FC = () => {
               {log.previousState && (
                 <details className="mt-1">
                   <summary className="text-[10px] text-slate-500 cursor-pointer">Previous State</summary>
-                  <pre className="text-[10px] text-slate-400 mt-1 bg-slate-950 p-2 rounded overflow-x-auto">{JSON.stringify(log.previousState, null, 2)}</pre>
+                  <pre className="text-[10px] text-slate-400 mt-1 bg-slate-950 p-2 rounded overflow-x-auto">{(() => { try { return JSON.stringify(log.previousState, null, 2) } catch { return "Unable to serialize state" } })()}</pre>
                 </details>
               )}
               {log.newState && (
