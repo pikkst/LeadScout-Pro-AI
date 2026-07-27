@@ -170,6 +170,15 @@ See [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) for the product thesis, honest curr
 - **Workspace learning**: learn at workspace and vertical-playbook level without leaking customer data between tenants
 - **Audit trails**: agent runs, approvals, costs, and errors tracked for human oversight
 
+### 15. Defensible Differentiation (Phase 4)
+- **Outcome graph**: unified queryable graph connecting accounts, people, messages, meetings, tasks, stages, and revenue
+- **Evidence review**: gate AI recommendations with timestamped sources, confidence scores, and freshness before approval into sequences or pitches
+- **Automation audit**: full inspectable audit trail for every automated action with actor type, budget/token usage, previous/new state, and errors
+- **Workspace thresholds**: solo-to-team auto-promotion based on configurable user, lead, and automation volume thresholds
+- **Signal decay**: automatic relevance decay for aging signals and account rankings to prevent stale recommendations
+- **Revenue-weighted learning**: step analytics now track minimum detectable effect and revenue-weighted scores for statistically sound optimization
+- **Vertical playbook extensions**: ICP signals, disqualification rules, objection handling, pricing models, and compliance requirements per pack
+
 ---
 
 ## Tech Stack
@@ -867,6 +876,16 @@ Integration requests use `X-API-Key: <your-api-key>` and the scoped `/api/integr
 - **Conflict-Safe Booking**: database transaction prevents two recipients from taking the same slot
 - **Calendar Compatibility**: confirmation emails include ICS invitations for Google Calendar, Outlook, Apple Calendar and local tools
 - **CRM Automation**: successful bookings notify the agent and advance early-stage leads automatically
+
+### Phase 4 — Defensible Differentiation (2026-07-23)
+- **Outcome Graph**: unified queryable graph connecting accounts, contacts, opportunities, relationships, conversations, and revenue with typed edges
+- **Account Sync with Resource Auth**: `POST /api/graph/sync/account/:accountId` enforces ownership or admin/manager role before syncing
+- **Evidence Reviews**: AI recommendations are gated behind approval workflows with recommend/reject/decay lifecycle and horizontal privilege prevention
+- **Workspace Thresholds**: solo-to-team auto-promotion configuration with user, lead, and automation thresholds
+- **Signal Decay**: time-based freshness decay for account signals and composite ranking scores
+- **Safe JSON Serialization**: shared `safeStringify`/`safeJsonParse` utilities prevent circular-reference crashes in agent framework, account ranking, and outcome graph services
+- **Schema hardening**: migrated `Lead.enrichmentData`, `AccountRank.evidence`, and `DealQualification.evidence` from `String` to native `Json`; all primary-key `id` columns converted to `VARCHAR(32)` for storage efficiency
+- **API Docs & Tests**: new endpoint coverage for graph, evidence, workspace-thresholds, and automation-audit with vitest integration tests
 
 ---
 

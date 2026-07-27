@@ -48,6 +48,15 @@ Build the most reliable AI-native B2B sales platform. Every feature must be test
 - Prisma optional ID fields that are not meant to form relations must not have reverse-relation arrays added on the pointing model; use plain string scalars instead
 - When extending a model with new many-to-one relations, add matching named relation arrays on the one side or the schema validator will fail
 - Every new Phase 2 tab should be declared in `AppTab`, added to `AppHeader`, and rendered with the same `Suspense` pattern as existing tabs
+- After every PR review (human or bot), update AGENTS.md `Lessons Learned` and review checklist with any new findings or anti-patterns surfaced, so future agents/tasks avoid the same mistakes
+- Prisma JSON fields should use native `Json` type instead of `String` to eliminate manual stringify/parse and reduce circular-reference crash risk
+- Use shared `safeStringify`/`safeJsonParse` utilities instead of bare `JSON.stringify`/`JSON.parse` to prevent serialization failures from circular references
+- `(req as any)` type assertions in route handlers should be replaced with `req.user!` or typed middleware outputs
+- Prisma enum changes require both schema edits and direct SQL `ALTER TYPE ... ADD VALUE` on existing databases; running only `migrate dev` does not update existing enum rows
+- All `String @id` fields should use `@db.VarChar(32)` to tighten storage for CUID-based primary keys
+- Primary key type changes must use `ALTER TABLE ... ALTER COLUMN ... TYPE ... USING` rather than DROP/CREATE pkey when foreign keys depend on the column
+- Authorization checks must validate the target resource owner, not only at router level — horizontal privilege escalation can happen through unfiltered query lookups
+- Graph sync endpoints should wrap per-item operations in try/catch to allow partial completion and track counts via accumulators rather than hard-coded constants
 
 ## Testing Rules
 - **Backend**: unit tests for services, integration tests for routes, DB seed scripts for reproducibility

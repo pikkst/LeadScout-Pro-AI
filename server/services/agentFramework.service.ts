@@ -2,6 +2,7 @@
 import { prisma } from "../db";
 import { HttpError } from "../utils/httpError";
 import * as aiService from "./ai.service";
+import { safeStringify } from "../utils/safeStringify";
 
 export interface RunAgentInput {
   definitionId: string;
@@ -38,7 +39,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     data: {
       definitionId: input.definitionId,
       status: "RUNNING",
-      input: JSON.stringify(input.input ?? {}),
+      input: safeStringify(input.input ?? {}),
       startedAt: new Date(),
     },
   });
@@ -60,7 +61,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
         where: { id: run.id },
         data: {
           status: "AWAITING_APPROVAL",
-          output: JSON.stringify(result),
+          output: safeStringify(result),
           cost,
           completedAt: new Date(),
         },
@@ -82,7 +83,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
       where: { id: run.id },
       data: {
         status: "COMPLETED",
-        output: JSON.stringify(result),
+        output: safeStringify(result),
         cost,
         completedAt: new Date(),
       },
@@ -109,7 +110,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
       where: { id: run.id },
       data: {
         status: "FAILED",
-        errors: JSON.stringify([message]),
+        errors: safeStringify([message]),
         completedAt: new Date(),
       },
     });
@@ -186,7 +187,7 @@ async function executeCrmHygieneAgent(input: Record<string, unknown>): Promise<R
 }
 
 function estimateCost(result: unknown): number {
-  const size = JSON.stringify(result).length;
+  const size = safeStringify(result).length;
   return Math.max(1, Math.floor(size / 500));
 }
 
@@ -237,7 +238,7 @@ export async function approveAgentRun(runId: string, approved: boolean, reviewed
   } else {
     await prisma.agentRun.update({
       where: { id: runId },
-      data: { status: "FAILED", errors: JSON.stringify(["Rejected by reviewer"]) },
+      data: { status: "FAILED", errors: safeStringify(["Rejected by reviewer"]) },
     });
   }
 

@@ -14,6 +14,8 @@ export interface RankPayload {
   explanation: string;
   evidence: unknown;
   calculatedAt: string;
+  isDecayed: boolean;
+  decayedCompositeScore: number;
 }
 
 export async function calculateAccountRank(accountId: string): Promise<RankPayload> {
@@ -83,7 +85,7 @@ export async function calculateAccountRank(accountId: string): Promise<RankPaylo
       valueScore,
       compositeScore,
       explanation,
-      evidence: JSON.stringify(evidence),
+      evidence,
       calculatedAt: new Date(),
     },
     create: {
@@ -94,7 +96,7 @@ export async function calculateAccountRank(accountId: string): Promise<RankPaylo
       valueScore,
       compositeScore,
       explanation,
-      evidence: JSON.stringify(evidence),
+      evidence,
     },
   });
 
@@ -105,10 +107,12 @@ export async function calculateAccountRank(accountId: string): Promise<RankPaylo
     timingScore: rank.timingScore,
     relationshipScore: rank.relationshipScore,
     valueScore: rank.valueScore,
-    compositeScore: rank.compositeScore,
+    compositeScore: rank.isDecayed ? rank.decayedCompositeScore : rank.compositeScore,
     explanation: rank.explanation,
-    evidence: JSON.parse(rank.evidence || "[]"),
+    evidence: rank.evidence,
     calculatedAt: rank.calculatedAt.toISOString(),
+    isDecayed: rank.isDecayed,
+    decayedCompositeScore: rank.decayedCompositeScore,
   };
 }
 
@@ -143,10 +147,12 @@ export async function getRankings(filters?: { limit?: number; minScore?: number 
     timingScore: r.timingScore,
     relationshipScore: r.relationshipScore,
     valueScore: r.valueScore,
-    compositeScore: r.compositeScore,
+    compositeScore: r.isDecayed ? r.decayedCompositeScore : r.compositeScore,
     explanation: r.explanation,
-    evidence: JSON.parse(r.evidence || "[]"),
+    evidence: r.evidence,
     calculatedAt: r.calculatedAt.toISOString(),
+    isDecayed: r.isDecayed,
+    decayedCompositeScore: r.decayedCompositeScore,
   }));
 }
 

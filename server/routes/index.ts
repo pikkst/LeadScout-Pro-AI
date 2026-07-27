@@ -36,6 +36,10 @@ import { signalsRouter } from "./signals.routes";
 import { agentsRouter } from "./agents.routes";
 import { marketplaceRouter } from "./marketplace.routes";
 import { rankingsRouter } from "./rankings.routes";
+import { graphRouter } from "./graph.routes";
+import { evidenceRouter } from "./evidence.routes";
+import { automationAuditRouter } from "./automation-audit.routes";
+import { workspaceThresholdsRouter } from "./workspace-thresholds.routes";
 
 export const apiRouter = Router();
 
@@ -83,3 +87,7 @@ apiRouter.use("/signals", signalsRouter);
 apiRouter.use("/agents", agentsRouter);
 apiRouter.use("/marketplace", marketplaceRouter);
 apiRouter.use("/rankings", rankingsRouter);
+apiRouter.use("/graph", graphRouter);
+apiRouter.use("/evidence", evidenceRouter);
+apiRouter.use("/automation-audit", automationAuditRouter);
+apiRouter.use("/workspace-thresholds", workspaceThresholdsRouter);

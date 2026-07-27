@@ -69,6 +69,10 @@ const AgentsTab = lazy(() => import('./components/AgentsTab').then((module) => (
 const MarketplaceTab = lazy(() => import('./components/MarketplaceTab').then((module) => ({ default: module.MarketplaceTab })));
 const RankingsTab = lazy(() => import('./components/RankingsTab').then((module) => ({ default: module.RankingsTab })));
 const PlayGenerationTab = lazy(() => import('./components/PlayGenerationTab').then((module) => ({ default: module.PlayGenerationTab })));
+const GraphTab = lazy(() => import('./components/GraphTab').then((module) => ({ default: module.default })));
+const EvidenceTab = lazy(() => import('./components/EvidenceTab').then((module) => ({ default: module.default })));
+const AutomationAuditTab = lazy(() => import('./components/AutomationAuditTab').then((module) => ({ default: module.default })));
+const WorkspaceThresholdsTab = lazy(() => import('./components/WorkspaceThresholdsTab').then((module) => ({ default: module.default })));
 
 const App: React.FC = () => {
   const { user, logout } = useAuth();
@@ -216,9 +220,12 @@ const App: React.FC = () => {
     'ctrl+minus': () => setActiveTab('team'),
     'ctrl+shift+s': () => setActiveTab('signals'),
     'ctrl+shift+a': () => setActiveTab('agents'),
+    'ctrl+shift+e': () => setActiveTab('evidence'),
     'ctrl+shift+m': () => setActiveTab('marketplace'),
     'ctrl+shift+r': () => setActiveTab('rankings'),
     'ctrl+shift+p': () => setActiveTab('play-generation'),
+    'ctrl+shift+g': () => setActiveTab('graph'),
+    'ctrl+shift+w': () => setActiveTab('workspace-thresholds'),
     'escape': () => {
       if (isCRMModalOpen) {
         setIsCRMModalOpen(false);
@@ -1381,6 +1388,18 @@ Date().toISOString().split('T')[0]}.json`);
           )}
           {activeTab === 'play-generation' && (
             <Suspense fallback={<RouteLoading />}><PlayGenerationTab /></Suspense>
+          )}
+          {activeTab === 'graph' && (
+            <Suspense fallback={<RouteLoading />}><GraphTab /></Suspense>
+          )}
+          {activeTab === 'evidence' && (
+            <Suspense fallback={<RouteLoading />}><EvidenceTab /></Suspense>
+          )}
+          {activeTab === 'automation-audit' && (
+            <Suspense fallback={<RouteLoading />}><AutomationAuditTab /></Suspense>
+          )}
+          {activeTab === 'workspace-thresholds' && (
+            <Suspense fallback={<RouteLoading />}><WorkspaceThresholdsTab /></Suspense>
           )}
 
         </div>

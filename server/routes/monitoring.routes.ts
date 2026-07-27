@@ -37,7 +37,7 @@ monitoringRouter.post("/lead/:leadId/check", canWrite, expensiveOperationLimiter
     category: lead.category,
     website: lead.website,
     description: lead.description,
-    enrichmentData: lead.enrichmentData ? JSON.parse(lead.enrichmentData) : undefined,
+    enrichmentData: lead.enrichmentData ?? undefined,
   });
 
   const alerts = [];

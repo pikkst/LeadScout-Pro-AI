@@ -19,6 +19,8 @@ import { logActivity } from "./server/utils/activity";
 import { getOrCreateBookingLink } from "./server/services/calendar.service";
 import { getOrCreateUnsubscribeLink } from "./server/services/compliance.service";
 import { recordActivationEvent } from "./server/services/activation.service";
+import { decayAccountSignals, decayAccountRanks } from "./server/services/signalDecay.service";
+import { decayStaleEvidenceReviews } from "./server/services/evidenceReview.service";
 
 async function startServer() {
   const app = express();
@@ -514,9 +516,28 @@ const runSequenceEngine = async () => {
     setInterval(runSequenceEngine, 5 * 60 * 1000);
   }
 
+  // --- Phase 4: Signal decay and evidence review maintenance ---
+  const runPhase4Maintenance = async () => {
+    if (!dbConnected) return;
+    try {
+      await decayAccountSignals();
+      await decayAccountRanks();
+      await decayStaleEvidenceReviews();
+    } catch (err) {
+      console.error("[Phase4Maintenance] Error:", err);
+    }
+  };
+
+  let phase4Interval: NodeJS.Timeout | undefined;
+  if (dbConnected) {
+    runPhase4Maintenance();
+    phase4Interval = setInterval(runPhase4Maintenance, 60 * 60 * 1000);
+  }
+
   // --- Graceful shutdown ---
   const shutdown = async (signal: string) => {
     console.log(`\n[server] ${signal} received, shutting down...`);
+    if (phase4Interval !== undefined) clearInterval(phase4Interval);
     server.close();
     await prisma.$disconnect();
     process.exit(0);

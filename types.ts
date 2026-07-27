@@ -755,3 +755,94 @@ export interface GeneratedPlay {
   successCriteria: GeneratedPlaySuccessCriteria;
   vertical: string;
 }
+
+export interface Phase4GraphNode {
+  id: string;
+  nodeType: string;
+  nodeId: string;
+  title: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Phase4GraphEdge {
+  id: string;
+  sourceType: string;
+  sourceId: string;
+  targetType: string;
+  targetId: string;
+  edgeType: string;
+  weight: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface Phase4EvidenceReview {
+  id: string;
+  entityType: string;
+  entityId: string;
+  recommendation: string;
+  sources: unknown[];
+  confidence: number;
+  freshness: number;
+  status: string;
+  reviewedById?: string;
+  reviewedByName?: string;
+  comment: string;
+  reviewedAt?: string;
+  createdById: string;
+  createdByName: string;
+  decayedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Phase4AutomationAuditLog {
+  id: string;
+  actionType: string;
+  entityType: string;
+  entityId: string;
+  actorType: string;
+  actorId: string;
+  previousState: Record<string, unknown> | null;
+  newState: Record<string, unknown> | null;
+  budgetUsed: number;
+  tokenUsed: number;
+  approvalId?: string;
+  error?: string;
+  executedAt?: string;
+  createdAt: string;
+}
+
+export interface Phase4WorkspaceThreshold {
+  id: string;
+  workspaceKey: string;
+  soloMode: boolean;
+  autoPromoteUsers: number;
+  autoPromoteLeads: number;
+  autoPromoteAutomation: number;
+  currentUserCount: number;
+  currentLeadCount: number;
+  currentAutomationCount: number;
+  promotedAt?: string;
+  shouldPromote: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Phase4AccountRank {
+  id: string;
+  accountId: string;
+  account?: { id: string; name: string; domain?: string; industry?: string; contacts: Array<{ id: string; fullName: string; email: string }> };
+  fitScore: number;
+  timingScore: number;
+  relationshipScore: number;
+  valueScore: number;
+  compositeScore: number;
+  explanation: string;
+  evidence: unknown[];
+  calculatedAt: string;
+  isDecayed: boolean;
+  decayedCompositeScore: number;
+}

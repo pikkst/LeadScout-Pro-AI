@@ -66,7 +66,7 @@ export function serializeLead(lead: any) {
     estimatedValue: lead.estimatedValue ?? 0,
     aiScore: lead.aiScore ?? undefined,
     aiScoreReason: lead.aiScoreReason ?? undefined,
-    enrichmentData: lead.enrichmentData ? JSON.parse(lead.enrichmentData) : undefined,
+    enrichmentData: lead.enrichmentData ?? undefined,
     assignedAgent: lead.assignedAgent?.name ?? undefined,
     assignedAgentId: lead.assignedAgentId ?? undefined,
     createdById: lead.createdBy?.id ?? undefined,
