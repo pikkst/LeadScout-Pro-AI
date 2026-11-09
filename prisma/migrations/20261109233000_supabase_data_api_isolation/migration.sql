@@ -3,6 +3,8 @@
 -- Apply this migration through prisma migrate deploy so _prisma_migrations
 -- remains the canonical migration ledger.
 
+-- The PUBLIC pseudo-role grants implicit privileges to anon/authenticated.
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
 REVOKE USAGE ON SCHEMA public FROM anon, authenticated;
 REVOKE CREATE ON SCHEMA public FROM anon, authenticated;
 
