@@ -29,9 +29,7 @@ migration-history service or substitute `prisma db push`.
 ## Security model
 
 The app's own JWT and Prisma authorization do **not** map to Supabase `auth.uid()`.
-The final Prisma migration revokes public-schema privileges from `anon` and
-`authenticated` for existing tables, sequences, and functions and removes
-default privileges for future objects created by the `postgres` role.
+The final Prisma migration revokes data privileges on named Prisma-managed\ntables and enables RLS without public policies. It also revokes privileges on\nsequences attached to those tables. It does not alter global schema rights,\nunrelated objects, or database default privileges. Future Prisma model tables\nmust be added to the isolation migration/checks by a new migration.
 
 The app must continue to enforce authorization at the Express route/service
 layer. DB grants protect against accidental Data API exposure, but they do not
@@ -49,7 +47,7 @@ join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind in ('r', 'p');
 ```
 
-Both counts must be zero. Also inspect the Supabase Security Advisor before exposing an endpoint.
+Both counts must be zero. Run `psql -v ON_ERROR_STOP=1 -f scripts/db/verify-leadscout-isolation.sql` to verify all mapped Prisma tables and RLS. The PostgreSQL 17 clean-start CI also checks that unrelated `public` objects are unchanged. Inspect the Supabase Security Advisor before exposing an endpoint.
 
 ## Rollout and recovery
 
