@@ -1,0 +1,90 @@
+name: Prisma PostgreSQL 17 clean-start
+
+on:
+  pull_request:
+    paths:
+      - 'prisma/**'
+      - 'scripts/db/**'
+      - '.github/workflows/prisma-clean-start.yml'
+      - '.github/workflows/supabase-prisma-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prisma-clean-start:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: leadscout_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d leadscout_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:test_password@localhost:5432/leadscout_test?schema=public
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: test_password
+      PGDATABASE: leadscout_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Apply pre-isolation migrations to clean PostgreSQL 17
+        shell: bash
+        run: |
+          # Preserve the original tracked migrations. The test-only copy omits
+          # the last isolation migration until the unrelated fixture exists.
+          cp -a prisma /tmp/leadscout-prisma-pre-isolation
+          rm -rf /tmp/leadscout-prisma-pre-isolation/migrations/20261109233000_supabase_data_api_isolation
+          npx prisma migrate deploy --schema /tmp/leadscout-prisma-pre-isolation/schema.prisma
+      - name: Install Supabase-like roles and unrelated public objects
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE TABLE public.unrelated_supabase_fixture (id integer primary key);
+          GRANT USAGE ON SCHEMA public TO anon, authenticated;
+          GRANT SELECT ON public.unrelated_supabase_fixture TO anon;
+          CREATE FUNCTION public.unrelated_fixture() RETURNS integer
+            LANGUAGE sql AS 'SELECT 42';
+          GRANT EXECUTE ON FUNCTION public.unrelated_fixture() TO PUBLIC;
+          SQL
+      - name: Apply final isolation migration without baselining
+        run: npx prisma migrate deploy
+      - name: Check migration state
+        run: npx prisma migrate status
+      - name: Verify scoped RLS and no Data API grants
+        run: psql -v ON_ERROR_STOP=1 -f scripts/db/verify-leadscout-isolation.sql
+      - name: Assert unrelated public objects were not modified
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT has_schema_privilege('anon', 'public', 'USAGE') THEN
+              RAISE EXCEPTION 'Unrelated public schema USAGE was changed';
+            END IF;
+            IF NOT has_table_privilege('anon', 'public.unrelated_supabase_fixture', 'SELECT') THEN
+              RAISE EXCEPTION 'Unrelated table grant was changed';
+            END IF;
+            IF NOT has_function_privilege('anon', 'public.unrelated_fixture()', 'EXECUTE') THEN
+              RAISE EXCEPTION 'Unrelated function grant was changed';
+            END IF;
+          END $$;
+          SQL
