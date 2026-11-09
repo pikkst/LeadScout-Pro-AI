@@ -1,4 +1,4 @@
-name: LeadScout Supabase Prisma bootstrap
+name: LeadScout Supabase Prisma bootstrap (retired)
 
 on:
   workflow_dispatch:
@@ -17,7 +17,9 @@ concurrency:
 
 jobs:
   migrate:
-    if: ${{ inputs.confirmation == 'DEPLOY' }}
+    # Supabase was replaced by Neon. Keep the old workflow as an audit trail,
+    # but prohibit new accidental writes to the former database.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: leadscout-database
