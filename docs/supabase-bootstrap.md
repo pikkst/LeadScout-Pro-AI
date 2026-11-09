@@ -11,7 +11,7 @@ Target: a **dedicated**, empty Supabase PostgreSQL project. Do not reuse the Kru
 
 ## Canonical migration procedure
 
-The repository contains 23 Prisma migrations predating the Supabase isolation migration.
+The repository contains 28 Prisma migrations predating the Supabase isolation migration.
 They contain enum changes and legacy-data backfills. Preserve the order and use
 `prisma migrate deploy`; do **not** apply them through Supabase's separate
 migration-history service or substitute `prisma db push`.
