@@ -1,0 +1,79 @@
+name: LeadScout Supabase Prisma bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type DEPLOY to run pending Prisma migrations against the configured database'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leadscout-supabase-prisma-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: ${{ inputs.confirmation == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: leadscout-database
+    env:
+      DATABASE_URL: ${{ secrets.LEADSCOUT_SUPABASE_DIRECT_URL }}
+    steps:
+      - name: Check out exact commit
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify migration secret exists
+        shell: bash
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::LEADSCOUT_SUPABASE_DIRECT_URL is not configured"
+            exit 1
+          fi
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Apply tracked Prisma migrations
+        run: npx prisma migrate deploy
+      - name: Verify Prisma migration state
+        run: npx prisma migrate status
+      - name: Verify direct Data API grants are absent
+        shell: bash
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE leaked_tables integer;
+          BEGIN
+            SELECT count(*) INTO leaked_tables
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+              AND (
+                has_table_privilege('anon', c.oid, 'SELECT')
+                OR has_table_privilege('anon', c.oid, 'INSERT')
+                OR has_table_privilege('anon', c.oid, 'UPDATE')
+                OR has_table_privilege('anon', c.oid, 'DELETE')
+                OR has_table_privilege('authenticated', c.oid, 'SELECT')
+                OR has_table_privilege('authenticated', c.oid, 'INSERT')
+                OR has_table_privilege('authenticated', c.oid, 'UPDATE')
+                OR has_table_privilege('authenticated', c.oid, 'DELETE')
+              );
+            IF leaked_tables > 0 THEN
+              RAISE EXCEPTION '% public objects grant data access to anon/authenticated', leaked_tables;
+            END IF;
+            IF has_schema_privilege('anon','public','USAGE')
+               OR has_schema_privilege('authenticated','public','USAGE') THEN
+              RAISE EXCEPTION 'Supabase Data API roles still have public schema USAGE';
+            END IF;
+          END $$;
+          SQL
