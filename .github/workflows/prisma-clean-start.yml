@@ -44,6 +44,16 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Apply pre-isolation migrations to clean PostgreSQL 17
+        shell: bash
+        run: |
+          # Preserve the original tracked migrations. The test-only copy omits
+          # the last isolation migration until the unrelated fixture exists.
+          cp -a prisma /tmp/leadscout-prisma-pre-isolation
+          rm -rf /tmp/leadscout-prisma-pre-isolation/migrations/20261109233000_supabase_data_api_isolation
+          npx prisma migrate deploy --schema /tmp/leadscout-prisma-pre-isolation/schema.prisma
       - name: Install Supabase-like roles and unrelated public objects
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
@@ -56,9 +66,7 @@ jobs:
             LANGUAGE sql AS 'SELECT 42';
           GRANT EXECUTE ON FUNCTION public.unrelated_fixture() TO PUBLIC;
           SQL
-      - name: Validate Prisma schema
-        run: npx prisma validate
-      - name: Apply existing migration history to a clean database
+      - name: Apply final isolation migration without baselining
         run: npx prisma migrate deploy
       - name: Check migration state
         run: npx prisma migrate status
