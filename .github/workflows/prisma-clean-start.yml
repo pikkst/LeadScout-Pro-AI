@@ -7,6 +7,7 @@ on:
       - 'scripts/db/**'
       - '.github/workflows/prisma-clean-start.yml'
       - '.github/workflows/supabase-prisma-bootstrap.yml'
+      - '.github/workflows/neon-prisma-bootstrap.yml'
   workflow_dispatch:
 
 permissions:
@@ -88,3 +89,45 @@ jobs:
             END IF;
           END $$;
           SQL
+
+  neon-clean-start:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: leadscout
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d leadscout"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:test_password@localhost:5432/leadscout?schema=public
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: test_password
+      PGDATABASE: leadscout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Migrate clean PostgreSQL without Supabase roles
+        run: npx prisma migrate deploy
+      - name: Verify migration history is complete
+        run: npx prisma migrate status
+      - name: Verify every LeadScout relation has RLS
+        run: psql -v ON_ERROR_STOP=1 -f scripts/db/verify-leadscout-isolation.sql
+      - name: Check repeat deployment is idempotent
+        run: npx prisma migrate deploy
