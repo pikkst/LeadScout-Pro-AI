@@ -1,4 +1,7 @@
 -- LeadScout authenticates via Express JWT + server-side Prisma.
+-- Provider-compatible: PostgreSQL 17, Neon, and Supabase.
+-- This migration was not deployed to the original Supabase project; changing
+-- its checksum is safe only for databases where it has never been applied.
 -- Restrict only Prisma-owned relations. Never modify privileges for the
 -- entire Supabase public schema: Supabase extensions/functions may use it.
 --
@@ -11,7 +14,14 @@ DECLARE
   relation_name text;
   relation_oid regclass;
   seq_name text;
+  data_api_roles text;
 BEGIN
+  -- Neon has no Supabase anon/authenticated roles. Revoke only the roles
+  -- present, without creating provider-specific roles in a generic database.
+  SELECT string_agg(quote_ident(rolname), ', ')
+    INTO data_api_roles
+  FROM pg_roles
+  WHERE rolname IN ('anon', 'authenticated');
   FOR relation_name IN
     SELECT name FROM (VALUES
     ('users'),
@@ -99,10 +109,12 @@ BEGIN
       RAISE EXCEPTION 'Expected LeadScout table public.% does not exist', relation_name;
     END IF;
 
-    -- The Data API roles must not obtain table access, even when Supabase
-    -- default grants change or a developer accidentally configures REST.
-    EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.%I FROM anon, authenticated', relation_name);
+    -- Enable RLS as defense-in-depth without changing ownership semantics.
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', relation_name);
+    -- On Supabase, explicitly revoke Data API grants; on Neon no such roles exist.
+    IF data_api_roles IS NOT NULL THEN
+      EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.%I FROM %s', relation_name, data_api_roles);
+    END IF;
 
     -- Restrict sequences OWNED BY LeadScout columns only.
     FOR seq_name IN
@@ -114,7 +126,9 @@ BEGIN
       JOIN pg_namespace ns ON ns.oid = seq.relnamespace
       WHERE tbl.oid = relation_oid
     LOOP
-      EXECUTE format('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM anon, authenticated', seq_name);
+      IF data_api_roles IS NOT NULL THEN
+        EXECUTE format('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM %s', seq_name, data_api_roles);
+      END IF;
     END LOOP;
   END LOOP;
 END
