@@ -1,0 +1,37 @@
+name: LeadScout API runtime checks
+
+on:
+  pull_request:
+    paths:
+      - 'server.ts'
+      - 'server/**'
+      - 'services/**'
+      - 'prisma/schema.prisma'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/api-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test:test@localhost:5432/leadscout
+      JWT_SECRET: ci-only-test-secret-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run typecheck
+      - run: npm test -- server/routes/readiness.test.ts
+      - run: npm run build
