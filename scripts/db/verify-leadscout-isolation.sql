@@ -99,16 +99,24 @@ BEGIN
       RAISE EXCEPTION 'RLS disabled: public.%', table_name;
     END IF;
 
-    IF has_table_privilege('anon', rel, 'SELECT')
-       OR has_table_privilege('anon', rel, 'INSERT')
-       OR has_table_privilege('anon', rel, 'UPDATE')
-       OR has_table_privilege('anon', rel, 'DELETE')
-       OR has_table_privilege('authenticated', rel, 'SELECT')
-       OR has_table_privilege('authenticated', rel, 'INSERT')
-       OR has_table_privilege('authenticated', rel, 'UPDATE')
-       OR has_table_privilege('authenticated', rel, 'DELETE')
-    THEN
-      RAISE EXCEPTION 'Data API grants found: public.%', table_name;
+    -- Supabase Data API roles are optional; Neon does not define them.
+    IF to_regrole('anon') IS NOT NULL THEN
+      IF has_table_privilege('anon', rel, 'SELECT')
+         OR has_table_privilege('anon', rel, 'INSERT')
+         OR has_table_privilege('anon', rel, 'UPDATE')
+         OR has_table_privilege('anon', rel, 'DELETE')
+      THEN
+        RAISE EXCEPTION 'anon grants found: public.%', table_name;
+      END IF;
+    END IF;
+    IF to_regrole('authenticated') IS NOT NULL THEN
+      IF has_table_privilege('authenticated', rel, 'SELECT')
+         OR has_table_privilege('authenticated', rel, 'INSERT')
+         OR has_table_privilege('authenticated', rel, 'UPDATE')
+         OR has_table_privilege('authenticated', rel, 'DELETE')
+      THEN
+        RAISE EXCEPTION 'authenticated grants found: public.%', table_name;
+      END IF;
     END IF;
   END LOOP;
 END

@@ -1,0 +1,68 @@
+name: LeadScout Neon Prisma bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type DEPLOY to apply Prisma migrations to Neon leadscout database'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leadscout-neon-prisma-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: ${{ inputs.confirmation == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: leadscout-neon-database
+    env:
+      DATABASE_URL: ${{ secrets.LEADSCOUT_NEON_DIRECT_URL }}
+    steps:
+      - name: Check out exact commit
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify connection target and secret
+        shell: bash
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::LEADSCOUT_NEON_DIRECT_URL is missing"
+            exit 1
+          fi
+          node - <<'NODE'
+          const url = new URL(process.env.DATABASE_URL);
+          if (!['postgresql:', 'postgres:'].includes(url.protocol) ||
+              !url.hostname.endsWith('.neon.tech') ||
+              url.hostname.includes('-pooler.') ||
+              url.pathname !== '/leadscout') {
+            console.error('Expected direct Neon PostgreSQL URL for database leadscout; check the configured environment secret');
+            process.exit(1);
+          }
+          NODE
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify authenticated Neon database before migration
+        shell: bash
+        run: |
+          database="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc 'SELECT current_database()')"
+          if [ "$database" != "leadscout" ]; then
+            echo "::error::Connected to unexpected database"
+            exit 1
+          fi
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Apply tracked Prisma migrations
+        run: npx prisma migrate deploy
+      - name: Verify Prisma migration state
+        run: npx prisma migrate status
+      - name: Verify LeadScout relation isolation
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/db/verify-leadscout-isolation.sql
