@@ -137,6 +137,23 @@ async function startServer() {
 
   if (servesStaticFrontend) mountStaticFrontend();
 
+  // In production, never accept HTTP traffic before confirming that the
+  // database is reachable. A missing Neon connection must fail deployment
+  // readiness instead of serving a healthy-looking but broken API.
+  let dbConnected = false;
+  try {
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
+    dbConnected = true;
+    console.log("[server] Database connected.");
+  } catch {
+    if (config.isProduction) {
+      await prisma.$disconnect();
+      throw new Error("[server] Database unavailable at startup.");
+    }
+    console.warn("[server] WARNING: could not connect to the database. Check DATABASE_URL. API routes will fail until the database is available.");
+  }
+
   const server = app.listen(config.port, "0.0.0.0", () => {
     console.log(
       `[server] Unitel Global CarrierScout AI running on http://localhost:${config.port} (${
@@ -177,16 +194,6 @@ async function startServer() {
 
   // Error handler must be last.
   app.use(errorHandler);
-
-  // --- DB connectivity check ---
-  let dbConnected = false;
-  try {
-    await prisma.$connect();
-    console.log("[server] Database connected.");
-    dbConnected = true;
-  } catch (err) {
-    console.warn("[server] WARNING: could not connect to the database. Check DATABASE_URL. API routes will fail until the database is available.", err);
-  }
 
   // --- Pitch scheduler (send scheduled pitches at their optimized time) ---
   const pitchSendLocks = new Set<string>();

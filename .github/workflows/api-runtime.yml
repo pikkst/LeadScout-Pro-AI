@@ -1,0 +1,63 @@
+name: LeadScout API runtime checks
+
+on:
+  pull_request:
+    paths:
+      - 'server.ts'
+      - 'server/**'
+      - 'services/**'
+      - 'prisma/schema.prisma'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/api-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test:test@localhost:5432/leadscout
+      JWT_SECRET: ci-only-test-secret-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run typecheck
+      - run: npm test -- server/routes/readiness.test.ts
+      - run: npm run build
+      - name: Production rejects unavailable database before listening
+        shell: bash
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://test:test@127.0.0.1:1/leadscout
+          JWT_SECRET: ci-only-test-secret-not-for-production
+          SETTINGS_ENCRYPTION_KEY: ci-only-encryption-key-not-for-production
+          BASE_URL: https://example.test
+          CORS_ORIGIN: https://example.test
+        run: |
+          set +e
+          timeout 20s node server-dist/server.cjs --serve-static > /tmp/leadscout-startup.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "::error::Expected startup to exit with status 1 when PostgreSQL is unavailable, got $status"
+            exit 1
+          fi
+          if ! grep -q 'Database unavailable at startup' /tmp/leadscout-startup.log; then
+            echo "::error::Expected a sanitized database startup failure"
+            exit 1
+          fi
+          if grep -q 'test:test@' /tmp/leadscout-startup.log; then
+            echo "::error::Database URL leaked into startup logs"
+            exit 1
+          fi

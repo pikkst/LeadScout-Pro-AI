@@ -1,5 +1,6 @@
 // Root API router: mounts all sub-routers and a health endpoint.
 import { Router } from "express";
+import { prisma } from "../db";
 import { authRouter } from "./auth.routes";
 import { leadsRouter } from "./leads.routes";
 import { pitchesRouter } from "./pitches.routes";
@@ -44,6 +45,17 @@ apiRouter.get("/health", (_req, res) => {
     status: "ok",
     time: new Date().toISOString(),
   });
+});
+
+// Readiness is distinct from liveness. Probe the live database on every call,
+// so loss of connectivity makes the instance unavailable for new traffic.
+apiRouter.get("/ready", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ready" });
+  } catch {
+    res.status(503).json({ status: "unavailable" });
+  }
 });
 
 apiRouter.use("/auth", authRouter);
