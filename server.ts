@@ -146,10 +146,10 @@ async function startServer() {
     await prisma.$queryRaw`SELECT 1`;
     dbConnected = true;
     console.log("[server] Database connected.");
-  } catch (err) {
+  } catch {
     if (config.isProduction) {
       await prisma.$disconnect();
-      throw new Error("[server] Database unavailable at startup.", { cause: err });
+      throw new Error("[server] Database unavailable at startup.");
     }
     console.warn("[server] WARNING: could not connect to the database. Check DATABASE_URL. API routes will fail until the database is available.");
   }
