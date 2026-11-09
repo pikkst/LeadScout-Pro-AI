@@ -46,34 +46,7 @@ jobs:
         run: npx prisma migrate deploy
       - name: Verify Prisma migration state
         run: npx prisma migrate status
-      - name: Verify direct Data API grants are absent
+      - name: Verify LeadScout Data API access is denied
         shell: bash
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          DO $$
-          DECLARE leaked_tables integer;
-          BEGIN
-            SELECT count(*) INTO leaked_tables
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE n.nspname = 'public'
-              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-              AND (
-                has_table_privilege('anon', c.oid, 'SELECT')
-                OR has_table_privilege('anon', c.oid, 'INSERT')
-                OR has_table_privilege('anon', c.oid, 'UPDATE')
-                OR has_table_privilege('anon', c.oid, 'DELETE')
-                OR has_table_privilege('authenticated', c.oid, 'SELECT')
-                OR has_table_privilege('authenticated', c.oid, 'INSERT')
-                OR has_table_privilege('authenticated', c.oid, 'UPDATE')
-                OR has_table_privilege('authenticated', c.oid, 'DELETE')
-              );
-            IF leaked_tables > 0 THEN
-              RAISE EXCEPTION '% public objects grant data access to anon/authenticated', leaked_tables;
-            END IF;
-            IF has_schema_privilege('anon','public','USAGE')
-               OR has_schema_privilege('authenticated','public','USAGE') THEN
-              RAISE EXCEPTION 'Supabase Data API roles still have public schema USAGE';
-            END IF;
-          END $$;
-          SQL
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/db/verify-leadscout-isolation.sql
